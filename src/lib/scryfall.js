@@ -73,26 +73,32 @@ export async function fetchSets() {
     .map(({ code, name }) => ({ code, name }));
 }
 
-export async function fetchSetCards(setCode) {
-  const cached = await loadCards(setCode);
-  if (cached) return cached;
-
+async function fetchCardsFromScryfall(setCode) {
   const cards = [];
   let nextUrl = buildSearchUrl(setCode);
 
   while (nextUrl) {
     const response = await fetch(nextUrl, { headers: { Accept: 'application/json' } });
-    if (!response.ok) {
-      throw new Error(`Scryfall request failed (HTTP ${response.status})`);
-    }
-
+    if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
     const page = await response.json();
     cards.push(...page.data.map(normalizeCard));
-
     nextUrl = page.has_more ? page.next_page : null;
     if (nextUrl) await delay(DELAY_BETWEEN_PAGES_MS);
   }
 
+  return cards;
+}
+
+export async function fetchSetCards(setCode) {
+  const cached = await loadCards(setCode);
+  if (cached) return cached;
+
+  const [mainCards, tokenCards] = await Promise.all([
+    fetchCardsFromScryfall(setCode),
+    fetchCardsFromScryfall(`t${setCode}`).catch(() => []),
+  ]);
+
+  const cards = [...mainCards, ...tokenCards];
   await saveCards(setCode, cards);
   return cards;
 }

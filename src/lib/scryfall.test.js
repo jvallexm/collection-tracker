@@ -100,15 +100,18 @@ describe('fetchSets', () => {
 });
 
 describe('fetchSetCards', () => {
+  const noTokens = { ok: false, status: 404 };
+
   test('returns normalized cards from a single page', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(jsonResponse({ data: [rawCard()], has_more: false }));
+    const fetchMock = vi.fn().mockImplementation((url) =>
+      url === buildSearchUrl('ktk')
+        ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+        : Promise.resolve(noTokens),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const cards = await fetchSetCards('ktk');
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(buildSearchUrl('ktk'), {
       headers: { Accept: 'application/json' },
     });
@@ -117,28 +120,23 @@ describe('fetchSetCards', () => {
 
   test('follows next_page links and combines every page', async () => {
     vi.useFakeTimers();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          data: [rawCard({ id: '1' })],
-          has_more: true,
-          next_page: 'https://next-page',
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
+    const fetchMock = vi.fn().mockImplementation((url) => {
+      if (url === buildSearchUrl('ktk'))
+        return Promise.resolve(jsonResponse({ data: [rawCard({ id: '1' })], has_more: true, next_page: 'https://next-page' }));
+      if (url === 'https://next-page')
+        return Promise.resolve(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
+      return Promise.resolve(noTokens);
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const pending = fetchSetCards('ktk');
     await vi.runAllTimersAsync();
     const cards = await pending;
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1][0]).toBe('https://next-page');
     expect(cards.map((card) => card.id)).toEqual(['1', '2']);
   });
 
-  test('throws a readable error when Scryfall responds with a failure', async () => {
+  test('throws a readable error when the main set fetch fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
 
     await expect(fetchSetCards('ktk')).rejects.toThrow('Scryfall request failed (HTTP 429)');
@@ -147,7 +145,11 @@ describe('fetchSetCards', () => {
   test('stores fetched cards in the database for future calls', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ data: [rawCard()], has_more: false })),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+          : Promise.resolve(noTokens),
+      ),
     );
 
     await fetchSetCards('ktk');
@@ -169,5 +171,58 @@ describe('fetchSetCards', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(cards).toEqual(cached);
+  });
+
+  test('merges token set cards when a token set exists', async () => {
+    const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        if (url === buildSearchUrl('ktk'))
+          return Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }));
+        if (url === buildSearchUrl('tktk'))
+          return Promise.resolve(jsonResponse({ data: [tokenCard], has_more: false }));
+        return Promise.reject(new Error('unexpected url'));
+      }),
+    );
+
+    const cards = await fetchSetCards('ktk');
+
+    expect(cards.map((c) => c.name)).toEqual(['Abzan Guide', 'Soldier Token']);
+  });
+
+  test('silently omits tokens when no token set exists', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+          : Promise.resolve(noTokens),
+      ),
+    );
+
+    const cards = await fetchSetCards('ktk');
+
+    expect(cards.map((c) => c.name)).toEqual(['Abzan Guide']);
+  });
+
+  test('caches main and token cards together under the set code', async () => {
+    const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        if (url === buildSearchUrl('ktk'))
+          return Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }));
+        if (url === buildSearchUrl('tktk'))
+          return Promise.resolve(jsonResponse({ data: [tokenCard], has_more: false }));
+        return Promise.reject(new Error('unexpected url'));
+      }),
+    );
+
+    await fetchSetCards('ktk');
+
+    const cached = await loadCards('ktk');
+    expect(cached).toHaveLength(2);
+    expect(cached.map((c) => c.name)).toEqual(['Abzan Guide', 'Soldier Token']);
   });
 });
