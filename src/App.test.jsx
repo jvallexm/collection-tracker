@@ -47,14 +47,14 @@ test('saves the theme to config when changed', async () => {
 describe('App recent sets', () => {
   test('shows KTK as a default recent set before config loads', async () => {
     await renderApp();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('My Collection'));
     expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
   });
 
   test('opening a set prepends it to recent and saves to config', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -67,7 +67,7 @@ describe('App recent sets', () => {
 
   test('opening a set already in recent deduplicates it', async () => {
     await renderApp();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('My Collection'));
     fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
 
     expect(saveConfig).toHaveBeenCalledWith('recentSets', [
@@ -87,7 +87,7 @@ describe('App recent sets', () => {
     });
     fetchSets.mockResolvedValue([{ code: 'd', name: 'Set D' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'Set D' } });
     fireEvent.click(screen.getByRole('button', { name: 'Set D' }));
@@ -97,5 +97,113 @@ describe('App recent sets', () => {
       { code: 'a', name: 'Set A' },
       { code: 'b', name: 'Set B' },
     ]);
+  });
+});
+
+describe('App multi-set windows', () => {
+  test('renders a window for each open set', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+
+    expect(screen.getByRole('button', { name: 'Minimize', hidden: true })).not.toBeNull();
+  });
+
+  test('opening a new set minimizes the current one', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+
+    expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull();
+  });
+
+  test('opening an already-open set restores it and minimizes the active one', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    // Open ELD — KTK minimizes
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Re-open KTK from My Collection — ELD should minimize, KTK should restore
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
+
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  });
+
+  test('clicking minimize on one window leaves other windows unchanged', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    // Open ELD — now KTK(minimized) + ELD(active)
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Minimize ELD — KTK should stay minimized (false branch in handleMinimize map)
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+
+    expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(2);
+  });
+
+  test('restoring a minimized window minimizes the active one', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    // Open ELD — KTK(minimized) + ELD(active)
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Restore KTK — ELD should minimize, KTK becomes active
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(1);
+  });
+
+  test('opening a third set leaves already-minimized windows minimized', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ]);
+    await renderApp();
+    // Open ELD — KTK minimizes
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Open ZNR — ELD minimizes, KTK stays minimized
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
+
+    expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(2);
+  });
+});
+
+describe('App close window', () => {
+  test('closing the active window removes it', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('button', { name: 'Minimize' })).toBeNull();
+  });
+
+  test('closing a minimized window removes it', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // KTK is now minimized; ELD is active. KTK renders first so its Close is index 0.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]);
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
   });
 });

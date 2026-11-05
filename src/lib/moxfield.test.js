@@ -9,8 +9,18 @@ const CARDS = [
 
 describe('buildMoxfieldList', () => {
   test('lists owned cards alphabetically in Moxfield format', () => {
-    const list = buildMoxfieldList(CARDS, { a: 1, b: 4 });
+    const list = buildMoxfieldList(CARDS, { a: { qty: 1 }, b: { qty: 4 } });
     expect(list).toBe('4 Arrow (KTK) 3\n1 Zurgo (KTK) 12');
+  });
+
+  test('emits a foil line suffixed with f for foil copies', () => {
+    const list = buildMoxfieldList(CARDS, { b: { foil: 2 } });
+    expect(list).toBe('2f Arrow (KTK) 3');
+  });
+
+  test('emits both regular and foil lines when a card has both', () => {
+    const list = buildMoxfieldList(CARDS, { b: { qty: 3, foil: 1 } });
+    expect(list).toBe('3 Arrow (KTK) 3\n1f Arrow (KTK) 3');
   });
 
   test('is empty when no cards are owned', () => {

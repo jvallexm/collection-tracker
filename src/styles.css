@@ -32,8 +32,21 @@ body {
   padding: 16px;
 }
 
-/* ── Synthwave dark theme ───────────────────────────── */
+/* ── Traditional dark theme ─────────────────────────── */
 .dark {
+  --face: #3c3c3c;
+  --light: #666666;
+  --shadow: #1a1a1a;
+  --title: #000080;
+  --bg: #1c1c1c;
+  --text: #d4d4d4;
+  --surface: #2b2b2b;
+  --border: #555555;
+  --divider: #404040;
+}
+
+/* ── Synthwave dark theme ───────────────────────────── */
+.synthwave {
   --face: #1a0533;
   --light: #c77dff;
   --shadow: #3d0066;
@@ -149,8 +162,13 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-.dark .titlebar {
+.synthwave .titlebar {
   background: linear-gradient(90deg, #ff2d78, #b967ff);
+}
+.titlebar-buttons {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
 }
 .titlebar-btn {
   color: var(--text);
@@ -182,7 +200,6 @@ body {
 
 .window-icon {
   position: fixed;
-  bottom: 8px;
   left: 16px;
   z-index: 200;
   min-width: 160px;
@@ -208,8 +225,42 @@ body {
 .window-icon-titlebar > span {
   pointer-events: none;
 }
-.dark .window-icon-titlebar {
+.synthwave .window-icon-titlebar {
   background: linear-gradient(90deg, #ff2d78, #b967ff);
+}
+.close-icon {
+  display: block;
+  width: 10px;
+  height: 10px;
+  position: relative;
+  pointer-events: none;
+}
+.close-icon::before,
+.close-icon::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  top: 50%;
+  left: 0;
+  margin-top: -1px;
+}
+.close-icon::before { transform: rotate(45deg); }
+.close-icon::after { transform: rotate(-45deg); }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.loading-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 4px;
+  flex-shrink: 0;
 }
 .restore-icon {
   display: block;
@@ -311,10 +362,18 @@ th {
     inset -1px -1px 0 var(--shadow);
 }
 .qty-heading {
+  width: 34px;
+  padding: 2px 3px;
+  font-size: 0.85em;
+}
+.number-cell {
+  width: 48px;
+}
+.cost-cell {
   width: 60px;
 }
 .export-btn {
-  width: 60px;
+  width: 70px;
   padding: 3px 2px;
 }
 .search-input {
@@ -330,19 +389,25 @@ th {
 .search-input:focus {
   outline: 1px dotted var(--border);
 }
-.name-cell {
-  width: 100%;
+.number-cell {
+  text-align: right;
 }
 
+.qty-cell {
+  padding: 0;
+  height: 1px;
+}
 .qty-input {
-  width: 44px;
+  display: block;
+  width: 100%;
+  height: 100%;
   padding: 1px 3px;
   font: inherit;
+  font-family: 'Arial Narrow', 'IBM Plex Sans Condensed', Arial, sans-serif;
   text-align: right;
   background: var(--surface);
   color: var(--text);
-  border: 2px solid;
-  border-color: var(--shadow) var(--light) var(--light) var(--shadow);
+  border: none;
 }
 .qty-input:focus {
   outline: 1px dotted var(--border);
@@ -350,12 +415,9 @@ th {
 .sort-indicator {
   color: #555;
   font-size: 0.7em;
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
 }
-.dark .sort-indicator {
+.dark .sort-indicator,
+.synthwave .sort-indicator {
   color: var(--light);
 }
 
@@ -427,15 +489,27 @@ th {
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='7,4 1,1 1,7' fill='%23000'/></svg>");
 }
 .dark ::-webkit-scrollbar-button:vertical:decrement {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,1 7,7 1,7' fill='%23f0e6ff'/></svg>");
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,1 7,7 1,7' fill='%23d4d4d4'/></svg>");
 }
 .dark ::-webkit-scrollbar-button:vertical:increment {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,7 1,1 7,1' fill='%23f0e6ff'/></svg>");
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,7 1,1 7,1' fill='%23d4d4d4'/></svg>");
 }
 .dark ::-webkit-scrollbar-button:horizontal:decrement {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='1,4 7,1 7,7' fill='%23f0e6ff'/></svg>");
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='1,4 7,1 7,7' fill='%23d4d4d4'/></svg>");
 }
 .dark ::-webkit-scrollbar-button:horizontal:increment {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='7,4 1,1 1,7' fill='%23d4d4d4'/></svg>");
+}
+.synthwave ::-webkit-scrollbar-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,1 7,7 1,7' fill='%23f0e6ff'/></svg>");
+}
+.synthwave ::-webkit-scrollbar-button:vertical:increment {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='4,7 1,1 7,1' fill='%23f0e6ff'/></svg>");
+}
+.synthwave ::-webkit-scrollbar-button:horizontal:decrement {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='1,4 7,1 7,7' fill='%23f0e6ff'/></svg>");
+}
+.synthwave ::-webkit-scrollbar-button:horizontal:increment {
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><polygon points='7,4 1,1 1,7' fill='%23f0e6ff'/></svg>");
 }
 ::-webkit-scrollbar-corner {

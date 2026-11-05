@@ -35,12 +35,13 @@ test('dropdown is closed by default', () => {
   expect(screen.queryByText('Dark Mode')).toBeNull();
 });
 
-test('clicking View opens the dropdown with a Mode subheading and both theme items', () => {
+test('clicking View opens the dropdown with all three theme items', () => {
   renderMenu();
   fireEvent.click(screen.getByText('View'));
   expect(screen.getByText('Mode')).not.toBeNull();
   expect(screen.getByText('Light Mode')).not.toBeNull();
   expect(screen.getByText('Dark Mode')).not.toBeNull();
+  expect(screen.getByText('Synthwave (experimental)')).not.toBeNull();
 });
 
 test('clicking View again closes the dropdown', () => {
@@ -66,7 +67,21 @@ test('clicking Light Mode calls onThemeChange with light and closes dropdown', (
   expect(screen.queryByText('Light Mode')).toBeNull();
 });
 
-describe('MenuBar Sets menu', () => {
+test('shows a checkmark next to Synthwave when it is the active theme', () => {
+  renderMenu('synthwave');
+  fireEvent.click(screen.getByText('View'));
+  expect(screen.getByText('Synthwave (experimental)').textContent).toMatch(/✓/);
+});
+
+test('clicking Synthwave calls onThemeChange with synthwave and closes dropdown', () => {
+  const { onThemeChange } = renderMenu('light');
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByText('Synthwave (experimental)'));
+  expect(onThemeChange).toHaveBeenCalledWith('synthwave');
+  expect(screen.queryByText('Synthwave (experimental)')).toBeNull();
+});
+
+describe('MenuBar Add set menu', () => {
   const SETS = [
     { code: 'ktk', name: 'Khans of Tarkir' },
     { code: 'eld', name: 'Throne of Eldraine' },
@@ -89,44 +104,37 @@ describe('MenuBar Sets menu', () => {
     return { onOpenSet };
   }
 
-  test('renders the Sets menu label', () => {
+  test('renders the Add set menu label', () => {
     renderWithSets();
-    expect(screen.getByText('Sets')).not.toBeNull();
+    expect(screen.getByText('Add set')).not.toBeNull();
   });
 
-  test('Sets dropdown is closed by default', () => {
+  test('Add set dropdown is closed by default', () => {
     renderWithSets();
     expect(screen.queryByPlaceholderText('Search sets…')).toBeNull();
   });
 
-  test('clicking Sets opens a dropdown with a search input', () => {
+  test('clicking Add set opens a dropdown with a search input', () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     expect(screen.getByPlaceholderText('Search sets…')).not.toBeNull();
   });
 
-  test('shows Recent subheading and items when recent sets are provided', () => {
+  test('does not show Recent subheading in Add set dropdown', () => {
     renderWithSets({ recentSets: [{ code: 'ktk', name: 'Khans of Tarkir' }] });
-    fireEvent.click(screen.getByText('Sets'));
-    expect(screen.getByText('Recent')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
-  });
-
-  test('does not show Recent subheading when there are no recent sets', () => {
-    renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     expect(screen.queryByText('Recent')).toBeNull();
   });
 
   test('shows a Search subheading above the search input', () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     expect(screen.getByText('Search')).not.toBeNull();
   });
 
   test('does not show a Results subheading', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     expect(screen.queryByText('Results')).toBeNull();
@@ -134,7 +142,7 @@ describe('MenuBar Sets menu', () => {
 
   test('searching by set code shows matching sets', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     expect(screen.getByRole('button', { name: 'Throne of Eldraine' })).not.toBeNull();
@@ -143,7 +151,7 @@ describe('MenuBar Sets menu', () => {
 
   test('typing filters sets by name', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
@@ -152,19 +160,9 @@ describe('MenuBar Sets menu', () => {
 
   test('clicking a search result calls onOpenSet with code and name and closes the dropdown', async () => {
     const { onOpenSet } = renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
-    expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
-    expect(screen.queryByPlaceholderText('Search sets…')).toBeNull();
-  });
-
-  test('clicking a recent set calls onOpenSet and closes the dropdown', () => {
-    const { onOpenSet } = renderWithSets({
-      recentSets: [{ code: 'ktk', name: 'Khans of Tarkir' }],
-    });
-    fireEvent.click(screen.getByText('Sets'));
     fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
     expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
     expect(screen.queryByPlaceholderText('Search sets…')).toBeNull();
@@ -173,7 +171,7 @@ describe('MenuBar Sets menu', () => {
   test('recovers gracefully when fetching sets fails', async () => {
     fetchSets.mockRejectedValue(new Error('network error'));
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     expect(screen.queryByText('Loading…')).toBeNull();
     expect(screen.getByPlaceholderText('Search sets…')).not.toBeNull();
@@ -181,13 +179,13 @@ describe('MenuBar Sets menu', () => {
 
   test('fetches sets from Scryfall when the Sets menu is first opened', () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     expect(fetchSets).toHaveBeenCalledTimes(1);
   });
 
   test('arrow down in search input highlights the first result', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     fireEvent.keyDown(screen.getByPlaceholderText('Search sets…'), { key: 'ArrowDown' });
@@ -198,7 +196,7 @@ describe('MenuBar Sets menu', () => {
 
   test('arrow down again moves highlight to the next result', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'a' } });
     const input = screen.getByPlaceholderText('Search sets…');
@@ -211,7 +209,7 @@ describe('MenuBar Sets menu', () => {
 
   test('arrow up from first result clears the highlight', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     const input = screen.getByPlaceholderText('Search sets…');
@@ -224,7 +222,7 @@ describe('MenuBar Sets menu', () => {
 
   test('space bar does nothing when no result is highlighted', async () => {
     const { onOpenSet } = renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     fireEvent.keyDown(screen.getByPlaceholderText('Search sets…'), { key: ' ' });
@@ -233,7 +231,7 @@ describe('MenuBar Sets menu', () => {
 
   test('space bar opens the highlighted result', async () => {
     const { onOpenSet } = renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
     const input = screen.getByPlaceholderText('Search sets…');
@@ -244,7 +242,7 @@ describe('MenuBar Sets menu', () => {
 
   test('highlight resets when search text changes', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
     const input = screen.getByPlaceholderText('Search sets…');
     fireEvent.change(input, { target: { value: 'khans' } });
@@ -257,10 +255,63 @@ describe('MenuBar Sets menu', () => {
 
   test('fetches sets only once even when the menu is closed and reopened', async () => {
     renderWithSets();
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
     await act(async () => {});
-    fireEvent.click(screen.getByText('Sets'));
-    fireEvent.click(screen.getByText('Sets'));
+    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add set'));
     expect(fetchSets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MenuBar My Collection menu', () => {
+  function renderWithRecent({ recentSets = [], onOpenSet = vi.fn() } = {}) {
+    render(
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        recentSets={recentSets}
+        onOpenSet={onOpenSet}
+      />,
+    );
+    return { onOpenSet };
+  }
+
+  test('renders the My Collection menu label', () => {
+    renderWithRecent();
+    expect(screen.getByText('My Collection')).not.toBeNull();
+  });
+
+  test('My Collection dropdown is closed by default', () => {
+    renderWithRecent();
+    expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  test('clicking My Collection opens the dropdown', () => {
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    expect(screen.getByRole('list')).not.toBeNull();
+  });
+
+  test('shows Recent subheading and sets when recent sets are provided', () => {
+    renderWithRecent({ recentSets: [{ code: 'ktk', name: 'Khans of Tarkir' }] });
+    fireEvent.click(screen.getByText('My Collection'));
+    expect(screen.getByText('Recent')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
+  });
+
+  test('shows No recent sets when there are no recent sets', () => {
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    expect(screen.getByText('No recent sets')).not.toBeNull();
+  });
+
+  test('clicking a recent set calls onOpenSet and closes the dropdown', () => {
+    const { onOpenSet } = renderWithRecent({
+      recentSets: [{ code: 'ktk', name: 'Khans of Tarkir' }],
+    });
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
+    expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
+    expect(screen.queryByText('Recent')).toBeNull();
   });
 });

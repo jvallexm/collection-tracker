@@ -4,7 +4,7 @@ import { fetchSets } from '../lib/scryfall.js';
 /**
  * Site-wide menu bar in a Windows 3.x style.
  * @param {Object} props
- * @param {'light'|'dark'} props.theme - Currently active theme.
+ * @param {'light'|'dark'|'synthwave'} props.theme - Currently active theme.
  * @param {function(string): void} props.onThemeChange - Called with the chosen theme name.
  * @param {{ code: string, name: string }[]} props.recentSets - Up to 3 recently opened sets.
  * @param {function(string, string): void} props.onOpenSet - Called with (code, name) when a set is chosen.
@@ -28,7 +28,7 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
   function toggle(name) {
     const isOpening = openMenu !== name;
     setOpenMenu(isOpening ? name : null);
-    if (name === 'sets' && isOpening && allSets === null && !setsLoading) {
+    if (name === 'addset' && isOpening && allSets === null && !setsLoading) {
       setSetsLoading(true);
       fetchSets()
         .then((sets) => {
@@ -83,14 +83,14 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
     <div className="menubar" ref={barRef}>
       <div className="menu">
         <button
-          className={`menu-label${openMenu === 'sets' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('sets')}
+          className={`menu-label${openMenu === 'collection' ? ' menu-label--open' : ''}`}
+          onClick={() => toggle('collection')}
         >
-          Sets
+          My Collection
         </button>
-        {openMenu === 'sets' && (
+        {openMenu === 'collection' && (
           <ul className="menu-dropdown">
-            {recentSets.length > 0 && (
+            {recentSets.length > 0 ? (
               <>
                 <li className="menu-subheading">Recent</li>
                 {recentSets.map((s) => (
@@ -101,7 +101,21 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
                   </li>
                 ))}
               </>
+            ) : (
+              <li className="menu-subheading">No recent sets</li>
             )}
+          </ul>
+        )}
+      </div>
+      <div className="menu">
+        <button
+          className={`menu-label${openMenu === 'addset' ? ' menu-label--open' : ''}`}
+          onClick={() => toggle('addset')}
+        >
+          Add set
+        </button>
+        {openMenu === 'addset' && (
+          <ul className="menu-dropdown">
             <li className="menu-subheading">Search</li>
             <li className="menu-sets-search">
               <input
@@ -147,6 +161,11 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
             <li>
               <button className="menu-dropdown-item" onClick={() => selectTheme('dark')}>
                 {theme === 'dark' && <span aria-hidden="true">✓ </span>}Dark Mode
+              </button>
+            </li>
+            <li>
+              <button className="menu-dropdown-item" onClick={() => selectTheme('synthwave')}>
+                {theme === 'synthwave' && <span aria-hidden="true">✓ </span>}Synthwave (experimental)
               </button>
             </li>
           </ul>

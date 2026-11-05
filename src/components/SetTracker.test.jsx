@@ -19,17 +19,29 @@ const CARDS = [
 const rowNames = () =>
   screen
     .getAllByRole('textbox')
+    .filter((input) => input.getAttribute('aria-label').startsWith('Copies of '))
     .map((input) => input.getAttribute('aria-label').replace('Copies of ', ''));
 
 beforeEach(() => {
   loadCollection.mockResolvedValue({});
 });
 
-async function renderLoadedTracker() {
+async function renderLoadedTracker({ minimized = false, onMinimize = vi.fn(), onRestore = vi.fn(), onClose = vi.fn() } = {}) {
   fetchSetCards.mockResolvedValue(CARDS);
-  render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
-  await screen.findByLabelText('Copies of Arrow');
-  await act(async () => {}); // flush async collection load
+  render(
+    <SetTracker
+      setCode="ktk"
+      setName="Khans of Tarkir"
+      minimized={minimized}
+      onMinimize={onMinimize}
+      onRestore={onRestore}
+      onClose={onClose}
+    />,
+  );
+  if (!minimized) {
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {}); // flush async collection load
+  }
 }
 
 describe('SetTracker loading', () => {
@@ -38,6 +50,7 @@ describe('SetTracker loading', () => {
     render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
     expect(screen.getByText('Loading...')).not.toBeNull();
     expect(screen.getByText('Export…').disabled).toBe(true);
+    expect(screen.getByLabelText('Loading')).not.toBeNull();
     await act(async () => {});
   });
 
@@ -63,7 +76,17 @@ describe('SetTracker collection tracking', () => {
 
     expect(screen.getByText('3 cards | 2 in Collection')).not.toBeNull();
     await waitFor(() => {
-      expect(saveCollection).toHaveBeenCalledWith('ktk', { a: 2 });
+      expect(saveCollection).toHaveBeenCalledWith('ktk', { a: { qty: 2 } });
+    });
+  });
+
+  test('tracks foil copies separately and includes them in the summary', async () => {
+    await renderLoadedTracker();
+    fireEvent.change(screen.getByLabelText('Foil copies of Arrow'), { target: { value: '1' } });
+
+    expect(screen.getByText('3 cards | 1 in Collection')).not.toBeNull();
+    await waitFor(() => {
+      expect(saveCollection).toHaveBeenCalledWith('ktk', { a: { foil: 1 } });
     });
   });
 
@@ -77,7 +100,7 @@ describe('SetTracker collection tracking', () => {
   });
 
   test('restores a previously saved collection', async () => {
-    loadCollection.mockResolvedValue({ a: 4 });
+    loadCollection.mockResolvedValue({ a: { qty: 4 } });
     await renderLoadedTracker();
     expect(screen.getByLabelText('Copies of Arrow').value).toBe('4');
   });
@@ -94,10 +117,28 @@ describe('SetTracker collection tracking', () => {
     await screen.findByLabelText('Copies of Arrow');
 
     fireEvent.change(screen.getByLabelText('Copies of Arrow'), { target: { value: '3' } });
-    resolveLoad({ a: 99 });
+    resolveLoad({ a: { qty: 99 } });
     await act(async () => {});
 
     expect(screen.getByLabelText('Copies of Arrow').value).toBe('3');
+  });
+
+  test('preserves a foil quantity change made before the collection finishes loading', async () => {
+    let resolveLoad;
+    loadCollection.mockReturnValue(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Foil copies of Arrow');
+
+    fireEvent.change(screen.getByLabelText('Foil copies of Arrow'), { target: { value: '2' } });
+    resolveLoad({ a: { foil: 99 } });
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Foil copies of Arrow').value).toBe('2');
   });
 });
 
@@ -108,7 +149,7 @@ describe('SetTracker sorting', () => {
     fireEvent.click(screen.getByRole('columnheader', { name: 'Name' }));
     expect(rowNames()).toEqual(['Charm', 'Bolt', 'Arrow']);
 
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Rarity' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
     expect(rowNames()).toEqual(['Bolt', 'Charm', 'Arrow']);
   });
 });
@@ -116,10 +157,10 @@ describe('SetTracker sorting', () => {
 describe('SetTracker have sorting', () => {
   test('clicking Have puts owned cards first regardless of quantity', async () => {
     // Bolt:2, Charm:1 are owned; Arrow:0 is not
-    loadCollection.mockResolvedValue({ b: 2, c: 1 });
+    loadCollection.mockResolvedValue({ b: { qty: 2 }, c: { qty: 1 } });
     await renderLoadedTracker();
 
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Have' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Qty' }));
     // owned group (Bolt, Charm by name), then unowned (Arrow)
     expect(rowNames()).toEqual(['Bolt', 'Charm', 'Arrow']);
   });
@@ -127,30 +168,30 @@ describe('SetTracker have sorting', () => {
   test('within each group the previous sort order is preserved', async () => {
     // Sort by rarity first: Bolt(C), Charm(C), Arrow(R)
     // Then Have with Arrow+Bolt owned — within owned group rarity order applies
-    loadCollection.mockResolvedValue({ a: 1, b: 1 });
+    loadCollection.mockResolvedValue({ a: { qty: 1 }, b: { qty: 1 } });
     await renderLoadedTracker();
 
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Rarity' }));
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Have' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Qty' }));
     // owned: Bolt(C) before Arrow(R); unowned: Charm
     expect(rowNames()).toEqual(['Bolt', 'Arrow', 'Charm']);
   });
 
   test('clicking Have again puts unowned cards first', async () => {
-    loadCollection.mockResolvedValue({ b: 2, c: 1 });
+    loadCollection.mockResolvedValue({ b: { qty: 2 }, c: { qty: 1 } });
     await renderLoadedTracker();
 
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Have' }));
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Have' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Qty' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Qty' }));
     // unowned: Arrow; owned: Bolt, Charm
     expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
   });
 
   test('clicking another column after Have removes have sort', async () => {
-    loadCollection.mockResolvedValue({ b: 2, c: 1 });
+    loadCollection.mockResolvedValue({ b: { qty: 2 }, c: { qty: 1 } });
     await renderLoadedTracker();
 
-    fireEvent.click(screen.getByRole('columnheader', { name: 'Have' }));
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Qty' }));
     fireEvent.click(screen.getByRole('columnheader', { name: 'Name' }));
     expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
   });
@@ -226,24 +267,70 @@ describe('SetTracker minimize', () => {
     expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
   });
 
-  test('clicking minimize hides the card table', async () => {
+  test('title bar has a close button', async () => {
     await renderLoadedTracker();
+    expect(screen.getByRole('button', { name: 'Close' })).not.toBeNull();
+  });
+
+  test('clicking minimize calls onMinimize', async () => {
+    const onMinimize = vi.fn();
+    await renderLoadedTracker({ onMinimize });
     fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    expect(onMinimize).toHaveBeenCalled();
+  });
+
+  test('clicking close calls onClose', async () => {
+    const onClose = vi.fn();
+    await renderLoadedTracker({ onClose });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('when minimized prop is true, hides the card table', async () => {
+    await renderLoadedTracker({ minimized: true });
     expect(screen.queryByRole('table')).toBeNull();
   });
 
-  test('minimized icon shows the set name and a restore button', async () => {
-    await renderLoadedTracker();
-    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
-    expect(screen.getByText('Khans of Tarkir')).not.toBeNull();
+  test('minimized icon shows the set code and a restore button', async () => {
+    await renderLoadedTracker({ minimized: true });
+    expect(screen.getByText('KTK')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull();
   });
 
-  test('clicking restore brings back the card table', async () => {
-    await renderLoadedTracker();
-    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+  test('minimized icon has a close button', async () => {
+    await renderLoadedTracker({ minimized: true });
+    expect(screen.getByRole('button', { name: 'Close' })).not.toBeNull();
+  });
+
+  test('clicking restore calls onRestore', async () => {
+    const onRestore = vi.fn();
+    await renderLoadedTracker({ minimized: true, onRestore });
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
-    expect(screen.getByRole('table')).not.toBeNull();
+    expect(onRestore).toHaveBeenCalled();
+  });
+
+  test('clicking close on minimized icon calls onClose', async () => {
+    const onClose = vi.fn();
+    await renderLoadedTracker({ minimized: true, onClose });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('stacks at the correct vertical position based on minimizedIndex', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        minimized={true}
+        minimizedIndex={2}
+        onMinimize={vi.fn()}
+        onRestore={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const icon = document.querySelector('.window-icon');
+    expect(icon.style.bottom).toBe('88px');
   });
 });
 

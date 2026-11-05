@@ -9,7 +9,7 @@ const CARDS = [
 ];
 
 function renderTable(collection = {}, sort = { key: 'name', direction: 1 }) {
-  const handlers = { onQuantityChange: vi.fn(), onSort: vi.fn() };
+  const handlers = { onQuantityChange: vi.fn(), onFoilQuantityChange: vi.fn(), onSort: vi.fn() };
   render(<CardTable cards={CARDS} collection={collection} sort={sort} {...handlers} />);
   return handlers;
 }
@@ -18,8 +18,8 @@ describe('CardTable rows', () => {
   test('shows name, single-letter rarity, cost and collector number', () => {
     renderTable();
     expect(screen.getByText('Arrow')).not.toBeNull();
-    expect(screen.getByText('R')).not.toBeNull(); // rarity: rare → R
-    expect(screen.getByText('W')).not.toBeNull(); // cost: {W} → W
+    expect(screen.getByRole('cell', { name: 'R' })).not.toBeNull();
+    expect(screen.getByText('W')).not.toBeNull();
     expect(screen.queryByText('Rare')).toBeNull();
     expect(screen.getByText('11')).not.toBeNull();
   });
@@ -36,36 +36,61 @@ describe('CardTable rows', () => {
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
       />,
     );
-    expect(screen.getByText(letter)).not.toBeNull();
+    expect(screen.getByRole('cell', { name: letter })).not.toBeNull();
   });
 
-  test('shows owned quantities and leaves other boxes blank', () => {
-    renderTable({ a: 3 });
+  test('shows owned regular quantities and leaves blanks for unowned cards', () => {
+    renderTable({ a: { qty: 3 } });
     expect(screen.getByLabelText('Copies of Arrow').value).toBe('3');
     expect(screen.getByLabelText('Copies of Bolt').value).toBe('');
   });
 
-  test('reports typed quantities with the card id', () => {
+  test('shows owned foil quantities and leaves blanks for unowned cards', () => {
+    renderTable({ a: { foil: 2 } });
+    expect(screen.getByLabelText('Foil copies of Arrow').value).toBe('2');
+    expect(screen.getByLabelText('Foil copies of Bolt').value).toBe('');
+  });
+
+  test('shows both qty and foil when a card has both', () => {
+    renderTable({ a: { qty: 3, foil: 1 } });
+    expect(screen.getByLabelText('Copies of Arrow').value).toBe('3');
+    expect(screen.getByLabelText('Foil copies of Arrow').value).toBe('1');
+  });
+
+  test('reports typed regular quantities with the card id', () => {
     const { onQuantityChange } = renderTable();
     fireEvent.change(screen.getByLabelText('Copies of Bolt'), { target: { value: '2' } });
     expect(onQuantityChange).toHaveBeenCalledWith('b', '2');
+  });
+
+  test('reports typed foil quantities with the card id', () => {
+    const { onFoilQuantityChange } = renderTable();
+    fireEvent.change(screen.getByLabelText('Foil copies of Bolt'), { target: { value: '1' } });
+    expect(onFoilQuantityChange).toHaveBeenCalledWith('b', '1');
   });
 });
 
 describe('CardTable headings', () => {
   test.each([
-    ['Have', 'have'],
+    ['Qty', 'have'],
     ['Name', 'name'],
-    ['Rarity', 'rarity'],
+    ['R', 'rarity'],
     ['Cost', 'cost'],
     ['#', 'number'],
   ])('clicking "%s" asks to sort by %s', (label, key) => {
     const { onSort } = renderTable();
     fireEvent.click(screen.getByRole('columnheader', { name: label }));
     expect(onSort).toHaveBeenCalledWith(key);
+  });
+
+  test('Foil column header does not trigger a sort', () => {
+    const { onSort } = renderTable();
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Foil' }));
+    expect(onSort).not.toHaveBeenCalled();
   });
 });
 
@@ -77,78 +102,128 @@ describe('CardTable sort indicators', () => {
 
   test('shows ▼ on the active column when descending', () => {
     renderTable({}, { key: 'rarity', direction: -1 });
-    expect(screen.getByRole('columnheader', { name: 'Rarity' }).textContent).toBe('Rarity ▼');
+    expect(screen.getByRole('columnheader', { name: 'R' }).textContent).toBe('R ▼');
   });
 
   test('shows no indicator on inactive columns', () => {
     renderTable({}, { key: 'name', direction: 1 });
-    expect(screen.getByRole('columnheader', { name: 'Rarity' }).textContent).toBe('Rarity');
+    expect(screen.getByRole('columnheader', { name: 'R' }).textContent).toBe('R');
     expect(screen.getByRole('columnheader', { name: 'Cost' }).textContent).toBe('Cost');
   });
 
   test('shows ▲ on Have when sort key is have ascending', () => {
     renderTable({}, { key: 'have', direction: 1 });
-    expect(screen.getByRole('columnheader', { name: 'Have' }).textContent).toBe('Have ▲');
+    expect(screen.getByRole('columnheader', { name: 'Qty' }).textContent).toBe('Qty ▲');
   });
 
   test('shows ▼ on Have when sort key is have descending', () => {
     renderTable({}, { key: 'have', direction: -1 });
-    expect(screen.getByRole('columnheader', { name: 'Have' }).textContent).toBe('Have ▼');
+    expect(screen.getByRole('columnheader', { name: 'Qty' }).textContent).toBe('Qty ▼');
   });
 
   test('shows no indicator on Have when another column is active', () => {
     renderTable({}, { key: 'name', direction: 1 });
-    expect(screen.getByRole('columnheader', { name: 'Have' }).textContent).toBe('Have');
+    expect(screen.getByRole('columnheader', { name: 'Qty' }).textContent).toBe('Qty');
   });
 });
 
 describe('CardTable keyboard navigation', () => {
-  const getInputs = () => screen.getAllByRole('textbox');
+  const have = (name) => screen.getByLabelText(`Copies of ${name}`);
+  const foil = (name) => screen.getByLabelText(`Foil copies of ${name}`);
 
-  test.each(['s', 'S', 'ArrowDown', 'Enter'])('"%s" moves to the next box', (key) => {
+  test.each(['s', 'S', 'ArrowDown', 'Enter'])('"%s" moves down within the Have column', (key) => {
     renderTable();
-    const inputs = getInputs();
-    inputs[0].focus();
-    fireEvent.keyDown(inputs[0], { key });
-    expect(document.activeElement).toBe(inputs[1]);
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key });
+    expect(document.activeElement).toBe(have('Bolt'));
   });
 
-  test.each(['w', 'W', 'ArrowUp'])('"%s" moves to the previous box', (key) => {
+  test.each(['w', 'W', 'ArrowUp'])('"%s" moves up within the Have column', (key) => {
     renderTable();
-    const inputs = getInputs();
-    inputs[2].focus();
-    fireEvent.keyDown(inputs[2], { key });
-    expect(document.activeElement).toBe(inputs[1]);
+    have('Charm').focus();
+    fireEvent.keyDown(have('Charm'), { key });
+    expect(document.activeElement).toBe(have('Bolt'));
   });
 
-  test('stays put at the first and last boxes', () => {
+  test.each(['s', 'S', 'ArrowDown', 'Enter'])('"%s" moves down within the Foil column', (key) => {
     renderTable();
-    const inputs = getInputs();
+    foil('Arrow').focus();
+    fireEvent.keyDown(foil('Arrow'), { key });
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
 
-    inputs[0].focus();
-    fireEvent.keyDown(inputs[0], { key: 'w' });
-    expect(document.activeElement).toBe(inputs[0]);
+  test.each(['w', 'W', 'ArrowUp'])('"%s" moves up within the Foil column', (key) => {
+    renderTable();
+    foil('Charm').focus();
+    fireEvent.keyDown(foil('Charm'), { key });
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
 
-    inputs[2].focus();
-    fireEvent.keyDown(inputs[2], { key: 's' });
-    expect(document.activeElement).toBe(inputs[2]);
+  test.each(['d', 'D', 'ArrowRight'])('"%s" moves from Have to Foil in the same row', (key) => {
+    renderTable();
+    have('Bolt').focus();
+    fireEvent.keyDown(have('Bolt'), { key });
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
+
+  test.each(['a', 'A', 'ArrowLeft'])('"%s" moves from Foil to Have in the same row', (key) => {
+    renderTable();
+    foil('Bolt').focus();
+    fireEvent.keyDown(foil('Bolt'), { key });
+    expect(document.activeElement).toBe(have('Bolt'));
+  });
+
+  test('stays put at the top of each column', () => {
+    renderTable();
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key: 'w' });
+    expect(document.activeElement).toBe(have('Arrow'));
+
+    foil('Arrow').focus();
+    fireEvent.keyDown(foil('Arrow'), { key: 'w' });
+    expect(document.activeElement).toBe(foil('Arrow'));
+  });
+
+  test('stays put at the bottom of each column', () => {
+    renderTable();
+    have('Charm').focus();
+    fireEvent.keyDown(have('Charm'), { key: 's' });
+    expect(document.activeElement).toBe(have('Charm'));
+
+    foil('Charm').focus();
+    fireEvent.keyDown(foil('Charm'), { key: 's' });
+    expect(document.activeElement).toBe(foil('Charm'));
+  });
+
+  test('stays put at the left edge (Have column)', () => {
+    renderTable();
+    have('Bolt').focus();
+    fireEvent.keyDown(have('Bolt'), { key: 'a' });
+    expect(document.activeElement).toBe(have('Bolt'));
+  });
+
+  test('stays put at the right edge (Foil column)', () => {
+    renderTable();
+    foil('Bolt').focus();
+    fireEvent.keyDown(foil('Bolt'), { key: 'd' });
+    expect(document.activeElement).toBe(foil('Bolt'));
   });
 
   test('ignores other keys so digits can still be typed', () => {
     renderTable();
-    const wasNotPrevented = fireEvent.keyDown(getInputs()[0], { key: '5' });
+    const wasNotPrevented = fireEvent.keyDown(have('Arrow'), { key: '5' });
     expect(wasNotPrevented).toBe(true);
   });
 
   test('prevents the default action for navigation keys', () => {
     renderTable();
-    const wasNotPrevented = fireEvent.keyDown(getInputs()[0], { key: 's' });
+    const wasNotPrevented = fireEvent.keyDown(have('Arrow'), { key: 's' });
     expect(wasNotPrevented).toBe(false);
   });
 
   test('selects the box contents when it receives focus', () => {
-    renderTable({ a: 12 });
-    const input = getInputs()[0];
+    renderTable({ a: { qty: 12 } });
+    const input = have('Arrow');
     input.select = vi.fn();
     fireEvent.focus(input);
     expect(input.select).toHaveBeenCalled();
@@ -162,6 +237,7 @@ describe('CardTable keyboard navigation', () => {
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
         onInputFocus={onInputFocus}
       />,
@@ -178,6 +254,7 @@ describe('CardTable keyboard navigation', () => {
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
         onTableBlur={onTableBlur}
       />,
@@ -188,12 +265,13 @@ describe('CardTable keyboard navigation', () => {
 
   test('does not call onTableBlur when focus moves to another input in the table', () => {
     const onTableBlur = vi.fn();
-    const { container } = render(
+    render(
       <CardTable
         cards={CARDS}
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
         onTableBlur={onTableBlur}
       />,
@@ -212,6 +290,7 @@ describe('CardTable scroll on sort', () => {
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
       />,
     );
@@ -226,6 +305,7 @@ describe('CardTable scroll on sort', () => {
           collection={{}}
           sort={{ key: 'name', direction: -1 }}
           onQuantityChange={vi.fn()}
+          onFoilQuantityChange={vi.fn()}
           onSort={vi.fn()}
         />,
       );
@@ -241,6 +321,7 @@ describe('CardTable scroll on sort', () => {
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
         onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
         onSort={vi.fn()}
       />,
     );
@@ -254,6 +335,7 @@ describe('CardTable scroll on sort', () => {
             collection={{}}
             sort={{ key: 'name', direction: -1 }}
             onQuantityChange={vi.fn()}
+            onFoilQuantityChange={vi.fn()}
             onSort={vi.fn()}
           />,
         );

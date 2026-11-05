@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import CardPreview from './CardPreview.jsx';
 import CardTable from './CardTable.jsx';
 import ExportModal from './ExportModal.jsx';
-import { sanitizeQuantityText, summarize, withQuantity } from '../lib/collection.js';
+import { sanitizeQuantityText, summarize, withFoilQuantity, withQuantity } from '../lib/collection.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
@@ -37,14 +37,17 @@ function matchesSearch(card, query) {
  * @param {Object} props
  * @param {string} props.setCode - Three-letter Scryfall set code, e.g. "ktk".
  * @param {string} props.setName - Human-readable set name shown in the title bar.
+ * @param {boolean} props.minimized - Whether this window is currently minimized.
+ * @param {number} props.minimizedIndex - Position among minimized windows (for stacking).
+ * @param {function(): void} props.onMinimize - Called when the user clicks Minimize.
+ * @param {function(): void} props.onRestore - Called when the user clicks Restore.
  */
-export default function SetTracker({ setCode, setName }) {
+export default function SetTracker({ setCode, setName, minimized = false, minimizedIndex = 0, onMinimize, onRestore, onClose }) {
   const [cards, setCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
   const [sort, setSort] = useState({ key: 'name', direction: 1, secondary: null });
   const [exportOpen, setExportOpen] = useState(false);
-  const [minimized, setMinimized] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
   const [search, setSearch] = useState('');
 
@@ -76,8 +79,8 @@ export default function SetTracker({ setCode, setName }) {
     if (sort.key === 'have') {
       const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
       return [...bySecondary].sort((a, b) => {
-        const hasA = (safeCollection[a.id] || 0) > 0 ? 1 : 0;
-        const hasB = (safeCollection[b.id] || 0) > 0 ? 1 : 0;
+        const hasA = safeCollection[a.id] ? 1 : 0;
+        const hasB = safeCollection[b.id] ? 1 : 0;
         return (hasB - hasA) * sort.direction;
       });
     }
@@ -117,14 +120,24 @@ export default function SetTracker({ setCode, setName }) {
     setCollection((current) => withQuantity(current ?? {}, cardId, quantity));
   }
 
+  function handleFoilQuantityChange(cardId, typedText) {
+    const quantity = parseInt(sanitizeQuantityText(typedText), 10);
+    setCollection((current) => withFoilQuantity(current ?? {}, cardId, quantity));
+  }
+
   if (minimized) {
     return (
-      <div className="window-icon">
+      <div className="window-icon" style={{ bottom: `${8 + minimizedIndex * 40}px` }}>
         <div className="window-icon-titlebar">
-          <span>{setName}</span>
-          <button className="titlebar-btn" aria-label="Restore" onClick={() => setMinimized(false)}>
-            <span className="restore-icon" />
-          </button>
+          <span>{setCode.toUpperCase()}</span>
+          <div className="titlebar-buttons">
+            <button className="titlebar-btn" aria-label="Restore" onClick={onRestore}>
+              <span className="restore-icon" />
+            </button>
+            <button className="titlebar-btn" aria-label="Close" onClick={onClose}>
+              <span className="close-icon" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -134,9 +147,15 @@ export default function SetTracker({ setCode, setName }) {
     <div className="window">
       <div className="titlebar">
         <span>{setName}</span>
-        <button className="titlebar-btn" aria-label="Minimize" onClick={() => setMinimized(true)}>
-          <span className="minimize-bar" />
-        </button>
+        {cards.length === 0 && !loadError && <span className="loading-spinner" aria-label="Loading" />}
+        <div className="titlebar-buttons">
+          <button className="titlebar-btn" aria-label="Minimize" onClick={onMinimize}>
+            <span className="minimize-bar" />
+          </button>
+          <button className="titlebar-btn" aria-label="Close" onClick={onClose}>
+            <span className="close-icon" />
+          </button>
+        </div>
       </div>
       <div className="toolbar">
         <button
@@ -162,12 +181,13 @@ export default function SetTracker({ setCode, setName }) {
         collection={safeCollection}
         sort={sort}
         onQuantityChange={handleQuantityChange}
+        onFoilQuantityChange={handleFoilQuantityChange}
         onSort={handleSort}
         onInputFocus={setFocusedCard}
         onTableBlur={() => setFocusedCard(null)}
       />
       <CardPreview key={focusedCard?.id} card={focusedCard} />
-      <p className="help">W / S or Up / Down moves between boxes. Click a heading to sort.</p>
+      {/*<p className="help">W / S or Up / Down moves between rows. A / D or Left / Right switches columns. Click a heading to sort.</p>*/}
       {exportOpen && (
         <ExportModal
           text={buildMoxfieldList(cards, safeCollection)}
