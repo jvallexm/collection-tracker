@@ -186,6 +186,29 @@ describe('App multi-set windows', () => {
 
     expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(2);
   });
+
+  test('restoring with two already-minimized windows leaves the other minimized', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ]);
+    await renderApp();
+    // Open ELD — KTK minimizes
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Open ZNR — ELD minimizes, KTK stays minimized: [KTK(min), ELD(min), ZNR(active)]
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
+    // Restore ELD — ZNR minimizes, KTK stays minimized (hits line 52)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Restore' })[1]);
+
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(2);
+  });
 });
 
 describe('App close window', () => {
