@@ -112,7 +112,7 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
           className={`menu-label${openMenu === 'addset' ? ' menu-label--open' : ''}`}
           onClick={() => toggle('addset')}
         >
-          Add set
+          Add Set
         </button>
         {openMenu === 'addset' && (
           <ul className="menu-dropdown">
