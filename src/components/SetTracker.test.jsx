@@ -21,6 +21,7 @@ async function renderLoadedTracker() {
   fetchSetCards.mockResolvedValue(CARDS);
   render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
   await screen.findByLabelText('Copies of Arrow');
+  await act(async () => {}); // ensure IDB collection load has settled before test body runs
 }
 
 describe('SetTracker loading', () => {
