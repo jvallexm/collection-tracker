@@ -3,3 +3,4 @@ dist
 coverage
 github-setup.md
 .DS_Store
+test-components/

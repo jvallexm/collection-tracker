@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import ManaCost from './ManaCost.jsx';
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -124,7 +125,7 @@ export default function CardTable({
                 </td>
                 <td>{card.name}</td>
                 <td>{RARITY_LETTER[card.rarity]}</td>
-                <td className="cost-cell">{card.cost.replace(/[{}]/g, '')}</td>
+                <td className="cost-cell"><ManaCost cost={card.cost} /></td>
                 <td className="number-cell">{card.number}</td>
               </tr>
             );

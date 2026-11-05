@@ -16,7 +16,7 @@ const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body 
 describe('buildSearchUrl', () => {
   test('searches one set, unique cards, ordered by name', () => {
     expect(buildSearchUrl('ktk')).toBe(
-      'https://api.scryfall.com/cards/search?q=set%3Aktk&unique=cards&order=name',
+      'https://api.scryfall.com/cards/search?q=set%3Aktk&unique=prints&order=name',
     );
   });
 });

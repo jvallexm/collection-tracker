@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
 import SetTracker from './components/SetTracker.jsx';
-import { loadConfig, saveConfig } from './lib/storage.js';
+import { deleteCards, loadConfig, saveConfig } from './lib/storage.js';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
@@ -66,7 +66,16 @@ export default function App() {
     setOpenSets((current) => current.filter((s) => s.code !== code));
   }
 
+  async function handleRefreshSet() {
+    const active = openSets.find((s) => !s.minimized);
+    await deleteCards(active.code);
+    setOpenSets((current) =>
+      current.map((s) => s.code === active.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s),
+    );
+  }
+
   const minimizedSets = (openSets ?? []).filter((s) => s.minimized);
+  const activeSet = (openSets ?? []).find((s) => !s.minimized) ?? null;
 
   return (
     <div className={`app-root ${theme}`}>
@@ -75,11 +84,13 @@ export default function App() {
         onThemeChange={handleThemeChange}
         recentSets={recentSets}
         onOpenSet={handleOpenSet}
+        activeSet={activeSet}
+        onRefreshSet={handleRefreshSet}
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => (
           <SetTracker
-            key={set.code}
+            key={`${set.code}-${set.refreshKey ?? 0}`}
             setCode={set.code}
             setName={set.name}
             minimized={set.minimized}

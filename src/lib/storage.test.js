@@ -1,4 +1,5 @@
 import {
+  deleteCards,
   loadCards,
   loadCollection,
   loadConfig,
@@ -76,6 +77,20 @@ describe('saveCards', () => {
   test('does not throw when the database errors', async () => {
     openDatabase.mockRejectedValue(new Error('db error'));
     await expect(saveCards('ktk', [])).resolves.toBeUndefined();
+  });
+});
+
+describe('deleteCards', () => {
+  test('deletes the card cache entry for the set', async () => {
+    const db = { ...makeDb(), delete: vi.fn(() => Promise.resolve()) };
+    openDatabase.mockResolvedValue(db);
+    await deleteCards('ktk');
+    expect(db.delete).toHaveBeenCalledWith('cards', 'ktk');
+  });
+
+  test('does not throw when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    await expect(deleteCards('ktk')).resolves.toBeUndefined();
   });
 });
 

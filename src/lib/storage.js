@@ -47,6 +47,21 @@ export async function loadCards(setCode) {
 }
 
 /**
+ * Removes the cached card list for a set from IndexedDB so the next fetch hits the network.
+ * Silently does nothing if the database errors.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @returns {Promise<void>}
+ */
+export async function deleteCards(setCode) {
+  try {
+    const db = await openDatabase();
+    await db.delete('cards', setCode);
+  } catch {
+    // Database unavailable; cache entry may persist but will be overwritten on next save.
+  }
+}
+
+/**
  * Writes the card list for a set to IndexedDB so future loads skip the network.
  * Silently does nothing if the database errors.
  * @param {string} setCode - Three-letter set code, e.g. "ktk".

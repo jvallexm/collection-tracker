@@ -335,3 +335,50 @@ describe('MenuBar My Collection menu', () => {
     expect(screen.queryByText('Recent')).toBeNull();
   });
 });
+
+describe('MenuBar Debug menu', () => {
+  function renderDebug({ activeSet = null, onRefreshSet = vi.fn() } = {}) {
+    render(
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        activeSet={activeSet}
+        onRefreshSet={onRefreshSet}
+      />,
+    );
+    return { onRefreshSet };
+  }
+
+  test('renders the Debug menu label', () => {
+    renderDebug();
+    expect(screen.getByText('Debug')).not.toBeNull();
+  });
+
+  test('Debug dropdown is closed by default', () => {
+    renderDebug();
+    expect(screen.queryByText('Refresh current set')).toBeNull();
+  });
+
+  test('shows No active set when no set is active', () => {
+    renderDebug({ activeSet: null });
+    fireEvent.click(screen.getByText('Debug'));
+    expect(screen.getByText('No active set')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Refresh current set' })).toBeNull();
+  });
+
+  test('shows Refresh current set when a set is active', () => {
+    renderDebug({ activeSet: { code: 'ktk', name: 'Khans of Tarkir', minimized: false } });
+    fireEvent.click(screen.getByText('Debug'));
+    expect(screen.getByRole('button', { name: 'Refresh current set' })).not.toBeNull();
+  });
+
+  test('clicking Refresh current set calls onRefreshSet and closes the dropdown', () => {
+    const { onRefreshSet } = renderDebug({
+      activeSet: { code: 'ktk', name: 'Khans of Tarkir', minimized: false },
+    });
+    fireEvent.click(screen.getByText('Debug'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh current set' }));
+    expect(onRefreshSet).toHaveBeenCalled();
+    expect(screen.queryByText('Refresh current set')).toBeNull();
+  });
+});

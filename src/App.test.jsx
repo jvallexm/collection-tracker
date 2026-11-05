@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
-import { loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
+import { deleteCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
 import App from './App.jsx';
 
 vi.mock('./lib/scryfall.js', () => ({
@@ -12,6 +12,7 @@ vi.mock('./lib/storage.js', () => ({
   saveCollection: vi.fn().mockResolvedValue(undefined),
   loadCards: vi.fn().mockResolvedValue(null),
   saveCards: vi.fn().mockResolvedValue(undefined),
+  deleteCards: vi.fn().mockResolvedValue(undefined),
   loadConfig: vi.fn().mockResolvedValue(null),
   saveConfig: vi.fn().mockResolvedValue(undefined),
 }));
@@ -259,5 +260,37 @@ describe('App close window', () => {
     // KTK is now minimized; ELD is active. KTK renders first so its Close is index 0.
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]);
     expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+  });
+});
+
+describe('App Debug menu', () => {
+  test('refresh deletes the card cache and remounts the active set', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Debug'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh current set' }));
+    await act(async () => {});
+    expect(deleteCards).toHaveBeenCalledWith('ktk');
+    expect(fetchSetCards).toHaveBeenCalled();
+  });
+
+  test('refresh only updates the active set when multiple sets are open', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    fireEvent.click(screen.getByText('Debug'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh current set' }));
+    await act(async () => {});
+    expect(deleteCards).toHaveBeenCalledWith('eld');
+    expect(fetchSetCards).toHaveBeenCalled();
+  });
+
+  test('refresh is not available when no set is active', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    fireEvent.click(screen.getByText('Debug'));
+    expect(screen.queryByRole('button', { name: 'Refresh current set' })).toBeNull();
   });
 });

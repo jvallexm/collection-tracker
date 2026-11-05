@@ -372,6 +372,38 @@ th {
 .cost-cell {
   width: 60px;
 }
+.mana-cost {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.mana-cost-face {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.mana-hybrid {
+  display: inline-flex;
+  align-items: center;
+}
+.mana-hybrid-slash {
+  font-size: 1em;
+  line-height: 1;
+  transform: scaleX(0.5);
+  display: inline-block;
+}
+.mana-hybrid-letter {
+  font-size: 0.6em;
+  line-height: 1;
+}
+.mana-hybrid-letter:first-child {
+  position: relative;
+  top: -0.35em;
+}
+.mana-hybrid-letter:last-child {
+  position: relative;
+  top: 0.35em;
+}
 .export-btn {
   width: 70px;
   padding: 3px 2px;

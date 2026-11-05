@@ -8,13 +8,13 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Builds the Scryfall search URL for all cards in a given set.
- * Results are deduplicated (unique=cards) and ordered by name.
+ * Results include all prints (unique=prints) so alternate art treatments are included.
  * @param {string} setCode - Three-letter set code, e.g. "ktk".
  * @returns {string} Full URL ready to fetch from the Scryfall API.
  */
 export function buildSearchUrl(setCode) {
   const query = encodeURIComponent(`set:${setCode}`);
-  return `${SEARCH_ENDPOINT}?q=${query}&unique=cards&order=name`;
+  return `${SEARCH_ENDPOINT}?q=${query}&unique=prints&order=name`;
 }
 
 /**
