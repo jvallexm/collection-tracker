@@ -240,6 +240,26 @@ describe('MenuBar Add Set menu', () => {
     expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
   });
 
+  test('enter key opens the highlighted result', async () => {
+    const { onOpenSet } = renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
+    const input = screen.getByPlaceholderText('Search sets…');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
+  });
+
+  test('enter key does nothing when no result is highlighted', async () => {
+    const { onOpenSet } = renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'khans' } });
+    fireEvent.keyDown(screen.getByPlaceholderText('Search sets…'), { key: 'Enter' });
+    expect(onOpenSet).not.toHaveBeenCalled();
+  });
+
   test('highlight resets when search text changes', async () => {
     renderWithSets();
     fireEvent.click(screen.getByText('Add Set'));

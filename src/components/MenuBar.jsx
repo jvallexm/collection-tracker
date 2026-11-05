@@ -58,7 +58,7 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlightedIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === ' ' && highlightedIndex >= 0) {
+    } else if ((e.key === ' ' || e.key === 'Enter') && highlightedIndex >= 0) {
       e.preventDefault();
       openSet(filteredSets[highlightedIndex].code, filteredSets[highlightedIndex].name);
     }

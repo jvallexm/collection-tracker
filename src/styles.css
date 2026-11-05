@@ -395,19 +395,18 @@ th {
 
 .qty-cell {
   padding: 0;
-  height: 1px;
 }
 .qty-input {
   display: block;
   width: 100%;
-  height: 100%;
-  padding: 1px 3px;
+  padding: 2px 3px;
   font: inherit;
   font-family: 'Arial Narrow', 'IBM Plex Sans Condensed', Arial, sans-serif;
   text-align: right;
   background: var(--surface);
   color: var(--text);
   border: none;
+  box-shadow: inset 1px 1px 0 var(--shadow), inset -1px -1px 0 var(--light);
 }
 .qty-input:focus {
   outline: 1px dotted var(--border);
