@@ -8,8 +8,7 @@ const CARDS = [
   makeCard({ id: 'd', name: 'Dragon', rarity: 'common', cost: '{4}{R}{R}', number: '7' }),
 ];
 
-const idsAfterSorting = (key, direction) =>
-  sortCards(CARDS, key, direction).map((card) => card.id);
+const idsAfterSorting = (key, direction) => sortCards(CARDS, key, direction).map((card) => card.id);
 
 describe('sortCards', () => {
   test('sorts by name in both directions', () => {
@@ -23,7 +22,10 @@ describe('sortCards', () => {
   });
 
   test('places unknown rarities before common', () => {
-    const cards = [makeCard({ id: 'x', rarity: 'common' }), makeCard({ id: 'y', rarity: 'special' })];
+    const cards = [
+      makeCard({ id: 'x', rarity: 'common' }),
+      makeCard({ id: 'y', rarity: 'special' }),
+    ];
     expect(sortCards(cards, 'rarity', 1).map((card) => card.id)).toEqual(['y', 'x']);
   });
 

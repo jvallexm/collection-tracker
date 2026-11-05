@@ -1,4 +1,11 @@
-import { loadCards, loadCollection, saveCards, saveCollection } from './storage.js';
+import {
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveCards,
+  saveCollection,
+  saveConfig,
+} from './storage.js';
 
 vi.mock('./db.js', () => ({ openDatabase: vi.fn() }));
 import { openDatabase } from './db.js';
@@ -69,5 +76,36 @@ describe('saveCards', () => {
   test('does not throw when the database errors', async () => {
     openDatabase.mockRejectedValue(new Error('db error'));
     await expect(saveCards('ktk', [])).resolves.toBeUndefined();
+  });
+});
+
+describe('loadConfig', () => {
+  test('returns null when no config value is saved', async () => {
+    openDatabase.mockResolvedValue(makeDb());
+    expect(await loadConfig('theme')).toBeNull();
+  });
+
+  test('returns the saved config value', async () => {
+    openDatabase.mockResolvedValue(makeDb({ theme: 'dark' }));
+    expect(await loadConfig('theme')).toBe('dark');
+  });
+
+  test('returns null when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    expect(await loadConfig('theme')).toBeNull();
+  });
+});
+
+describe('saveConfig', () => {
+  test('writes the value to the config store', async () => {
+    const db = makeDb();
+    openDatabase.mockResolvedValue(db);
+    await saveConfig('theme', 'dark');
+    expect(db.put).toHaveBeenCalledWith('config', 'dark', 'theme');
+  });
+
+  test('does not throw when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    await expect(saveConfig('theme', 'dark')).resolves.toBeUndefined();
   });
 });

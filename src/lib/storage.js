@@ -61,3 +61,34 @@ export async function saveCards(setCode, cards) {
     // Database unavailable; app still works with in-memory data.
   }
 }
+
+/**
+ * Reads a user config value from IndexedDB.
+ * Returns null if the key has no saved value or if the database errors.
+ * @param {string} key - Config key, e.g. "theme".
+ * @returns {Promise<*>} The saved value, or null on a miss.
+ */
+export async function loadConfig(key) {
+  try {
+    const db = await openDatabase();
+    return (await db.get('config', key)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes a user config value to IndexedDB so it persists across sessions.
+ * Silently does nothing if the database errors.
+ * @param {string} key - Config key, e.g. "theme".
+ * @param {*} value - Value to persist.
+ * @returns {Promise<void>}
+ */
+export async function saveConfig(key, value) {
+  try {
+    const db = await openDatabase();
+    await db.put('config', value, key);
+  } catch {
+    // Database unavailable; preference is not persisted.
+  }
+}

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 const COLUMNS = [
   { key: 'name', label: 'Name' },
   { key: 'rarity', label: 'Rarity' },
@@ -8,12 +10,7 @@ const COLUMNS = [
 // How far each navigation key moves between quantity boxes.
 const FOCUS_STEP_BY_KEY = { w: -1, arrowup: -1, s: 1, arrowdown: 1, enter: 1 };
 
-/**
- * Capitalizes the first letter of a word and leaves the rest unchanged.
- * @param {string} word - Word to capitalize.
- * @returns {string} Word with its first character uppercased.
- */
-const capitalize = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 
 /**
  * Keyboard handler attached to the table body that moves focus between quantity inputs.
@@ -45,22 +42,59 @@ function selectInputText(event) {
  * @param {Object} props
  * @param {Object[]} props.cards - Sorted list of card objects to display.
  * @param {Object} props.collection - Collection map of cardId → quantity for showing current counts.
+ * @param {{ key: string, direction: 1|-1 }} props.sort - Active sort column and direction.
  * @param {function(string, string): void} props.onQuantityChange - Called with (cardId, typedText) when a quantity changes.
  * @param {function(string): void} props.onSort - Called with the column key when a header is clicked.
  */
-export default function CardTable({ cards, collection, onQuantityChange, onSort }) {
+export default function CardTable({
+  cards,
+  collection,
+  sort = { key: 'name', direction: 1 },
+  onQuantityChange,
+  onSort,
+  onInputFocus,
+  onTableBlur,
+}) {
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (focused?.classList.contains('qty-input')) {
+      focused.scrollIntoView({ block: 'nearest' });
+    }
+  }, [cards]);
+
   return (
     <div className="table-scroll">
       <table>
         <thead>
           <tr>
-            <th className="qty-heading">Have</th>
+            <th className="qty-heading" onClick={() => onSort('have')}>
+              Have
+              {sort.key === 'have' && (
+                <span aria-hidden="true" className="sort-indicator">
+                  {' '}
+                  {sort.direction === 1 ? '▲' : '▼'}
+                </span>
+              )}
+            </th>
             {COLUMNS.map(({ key, label }) => (
-              <th key={key} onClick={() => onSort(key)}>{label}</th>
+              <th key={key} onClick={() => onSort(key)}>
+                {label}
+                {sort.key === key && (
+                  <span aria-hidden="true" className="sort-indicator">
+                    {' '}
+                    {sort.direction === 1 ? '▲' : '▼'}
+                  </span>
+                )}
+              </th>
             ))}
           </tr>
         </thead>
-        <tbody onKeyDown={moveFocusBetweenInputs} onFocus={selectInputText}>
+        <tbody
+          onKeyDown={moveFocusBetweenInputs}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) onTableBlur?.();
+          }}
+        >
           {cards.map((card) => (
             <tr key={card.id}>
               <td>
@@ -71,12 +105,16 @@ export default function CardTable({ cards, collection, onQuantityChange, onSort 
                   autoComplete="off"
                   aria-label={`Copies of ${card.name}`}
                   value={collection[card.id] || ''}
+                  onFocus={(e) => {
+                    selectInputText(e);
+                    onInputFocus?.(card);
+                  }}
                   onChange={(event) => onQuantityChange(card.id, event.target.value)}
                 />
               </td>
               <td className="name-cell">{card.name}</td>
-              <td>{capitalize(card.rarity)}</td>
-              <td>{card.cost}</td>
+              <td>{RARITY_LETTER[card.rarity]}</td>
+              <td>{card.cost.replace(/[{}]/g, '')}</td>
               <td>{card.number}</td>
             </tr>
           ))}

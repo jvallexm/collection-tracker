@@ -1,5 +1,5 @@
 import { loadCards, saveCards } from './storage.js';
-import { buildSearchUrl, fetchSetCards, normalizeCard } from './scryfall.js';
+import { buildSearchUrl, fetchSetCards, fetchSets, normalizeCard } from './scryfall.js';
 
 const rawCard = (overrides) => ({
   id: 'abc',
@@ -55,11 +55,55 @@ describe('normalizeCard', () => {
   });
 });
 
+describe('fetchSets', () => {
+  test('returns normalized sets from the Scryfall sets endpoint', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            { code: 'ktk', name: 'Khans of Tarkir' },
+            { code: 'eld', name: 'Throne of Eldraine' },
+          ],
+        }),
+      }),
+    );
+    const sets = await fetchSets();
+    expect(sets).toEqual([
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+    ]);
+  });
+
+  test('excludes Alchemy sets from results', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            { code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' },
+            { code: 'yna', name: 'Alchemy: Innistrad', set_type: 'alchemy' },
+          ],
+        }),
+      }),
+    );
+    const sets = await fetchSets();
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+  });
+
+  test('throws a readable error when Scryfall responds with a failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    await expect(fetchSets()).rejects.toThrow('Scryfall request failed (HTTP 503)');
+  });
+});
+
 describe('fetchSetCards', () => {
   test('returns normalized cards from a single page', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ data: [rawCard()], has_more: false }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ data: [rawCard()], has_more: false }));
     vi.stubGlobal('fetch', fetchMock);
 
     const cards = await fetchSetCards('ktk');
@@ -76,7 +120,11 @@ describe('fetchSetCards', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        jsonResponse({ data: [rawCard({ id: '1' })], has_more: true, next_page: 'https://next-page' }),
+        jsonResponse({
+          data: [rawCard({ id: '1' })],
+          has_more: true,
+          next_page: 'https://next-page',
+        }),
       )
       .mockResolvedValueOnce(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
     vi.stubGlobal('fetch', fetchMock);
@@ -97,9 +145,10 @@ describe('fetchSetCards', () => {
   });
 
   test('stores fetched cards in the database for future calls', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      jsonResponse({ data: [rawCard()], has_more: false }),
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ data: [rawCard()], has_more: false })),
+    );
 
     await fetchSetCards('ktk');
 
@@ -109,7 +158,9 @@ describe('fetchSetCards', () => {
   });
 
   test('returns cached cards without hitting the network', async () => {
-    const cached = [{ id: '1', name: 'Cached Card', rarity: 'rare', cost: '{W}', number: '1', set: 'KTK' }];
+    const cached = [
+      { id: '1', name: 'Cached Card', rarity: 'rare', cost: '{W}', number: '1', set: 'KTK' },
+    ];
     await saveCards('ktk', cached);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

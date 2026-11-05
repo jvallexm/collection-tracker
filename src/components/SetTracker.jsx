@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import CardPreview from './CardPreview.jsx';
 import CardTable from './CardTable.jsx';
 import ExportModal from './ExportModal.jsx';
 import { sanitizeQuantityText, summarize, withQuantity } from '../lib/collection.js';
@@ -17,8 +18,16 @@ function describeStatus({ loadError, cards, collection }) {
   if (loadError) return `Could not load cards: ${loadError}`;
   if (cards.length === 0) return 'Loading...';
 
-  const { unique, copies } = summarize(collection);
-  return `${cards.length} cards | ${unique} unique owned | ${copies} total copies`;
+  const { copies } = summarize(collection);
+  return `${cards.length} cards | ${copies} in Collection`;
+}
+
+function normalizeSearchText(s) {
+  return s.replace(/,/g, '').toLowerCase();
+}
+
+function matchesSearch(card, query) {
+  return normalizeSearchText(card.name).includes(normalizeSearchText(query));
 }
 
 /**
@@ -32,10 +41,12 @@ function describeStatus({ loadError, cards, collection }) {
 export default function SetTracker({ setCode, setName }) {
   const [cards, setCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
-  const [collection, setCollection] = useState({});
-  const [collectionReady, setCollectionReady] = useState(false);
-  const [sort, setSort] = useState({ key: 'name', direction: 1 });
+  const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
+  const [sort, setSort] = useState({ key: 'name', direction: 1, secondary: null });
   const [exportOpen, setExportOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [focusedCard, setFocusedCard] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchSetCards(setCode)
@@ -43,23 +54,35 @@ export default function SetTracker({ setCode, setName }) {
       .catch((error) => setLoadError(error.message));
   }, [setCode]);
 
+  // Load saved quantities from IDB. Uses a functional update so any quantity the user
+  // types before the load completes is not overwritten by the arriving saved data.
   useEffect(() => {
-    setCollectionReady(false);
+    setCollection(null);
     loadCollection(setCode).then((saved) => {
-      setCollection(saved);
-      setCollectionReady(true);
+      setCollection((current) => current ?? saved);
     });
   }, [setCode]);
 
+  // Persist every change to IDB, but skip the initial render before the load completes.
   useEffect(() => {
-    if (!collectionReady) return;
+    if (collection === null) return;
     saveCollection(setCode, collection);
-  }, [collection, collectionReady, setCode]);
+  }, [collection, setCode]);
 
-  const visibleCards = useMemo(
-    () => sortCards(cards, sort.key, sort.direction),
-    [cards, sort],
-  );
+  const safeCollection = collection ?? {};
+
+  const visibleCards = useMemo(() => {
+    const filtered = search.trim() ? cards.filter((card) => matchesSearch(card, search)) : cards;
+    if (sort.key === 'have') {
+      const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
+      return [...bySecondary].sort((a, b) => {
+        const hasA = (safeCollection[a.id] || 0) > 0 ? 1 : 0;
+        const hasB = (safeCollection[b.id] || 0) > 0 ? 1 : 0;
+        return (hasB - hasA) * sort.direction;
+      });
+    }
+    return sortCards(filtered, sort.key, sort.direction);
+  }, [cards, sort, safeCollection, search]);
 
   /**
    * Updates the active sort column and direction.
@@ -68,11 +91,19 @@ export default function SetTracker({ setCode, setName }) {
    * @param {string} key - Column key to sort by.
    */
   function handleSort(key) {
-    setSort((current) =>
-      current.key === key
-        ? { key, direction: -current.direction }
-        : { key, direction: 1 },
-    );
+    setSort((current) => {
+      if (key === 'have') {
+        const secondary =
+          current.key === 'have'
+            ? current.secondary
+            : { key: current.key, direction: current.direction };
+        const direction = current.key === 'have' ? -current.direction : 1;
+        return { key: 'have', direction, secondary };
+      }
+      return current.key === key
+        ? { key, direction: -current.direction, secondary: null }
+        : { key, direction: 1, secondary: null };
+    });
   }
 
   /**
@@ -83,28 +114,63 @@ export default function SetTracker({ setCode, setName }) {
    */
   function handleQuantityChange(cardId, typedText) {
     const quantity = parseInt(sanitizeQuantityText(typedText), 10);
-    setCollection((current) => withQuantity(current, cardId, quantity));
+    setCollection((current) => withQuantity(current ?? {}, cardId, quantity));
+  }
+
+  if (minimized) {
+    return (
+      <div className="window-icon">
+        <div className="window-icon-titlebar">
+          <span>{setName}</span>
+          <button className="titlebar-btn" aria-label="Restore" onClick={() => setMinimized(false)}>
+            <span className="restore-icon" />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="window">
-      <div className="titlebar">{`${setName} - Collection`}</div>
-      <div className="toolbar">
-        <button onClick={() => setExportOpen(true)} disabled={cards.length === 0}>
-          Export...
+      <div className="titlebar">
+        <span>{setName}</span>
+        <button className="titlebar-btn" aria-label="Minimize" onClick={() => setMinimized(true)}>
+          <span className="minimize-bar" />
         </button>
-        <span className="status">{describeStatus({ loadError, cards, collection })}</span>
+      </div>
+      <div className="toolbar">
+        <button
+          className="export-btn"
+          onClick={() => setExportOpen(true)}
+          disabled={cards.length === 0}
+        >
+          Export…
+        </button>
+        <input
+          className="search-input"
+          type="search"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <span className="status">
+          {describeStatus({ loadError, cards, collection: safeCollection })}
+        </span>
       </div>
       <CardTable
         cards={visibleCards}
-        collection={collection}
+        collection={safeCollection}
+        sort={sort}
         onQuantityChange={handleQuantityChange}
         onSort={handleSort}
+        onInputFocus={setFocusedCard}
+        onTableBlur={() => setFocusedCard(null)}
       />
+      <CardPreview key={focusedCard?.id} card={focusedCard} />
       <p className="help">W / S or Up / Down moves between boxes. Click a heading to sort.</p>
       {exportOpen && (
         <ExportModal
-          text={buildMoxfieldList(cards, collection)}
+          text={buildMoxfieldList(cards, safeCollection)}
           onClose={() => setExportOpen(false)}
         />
       )}

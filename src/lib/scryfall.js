@@ -1,6 +1,7 @@
 import { loadCards, saveCards } from './storage.js';
 
 const SEARCH_ENDPOINT = 'https://api.scryfall.com/cards/search';
+const SETS_ENDPOINT = 'https://api.scryfall.com/sets';
 const DELAY_BETWEEN_PAGES_MS = 100; // Scryfall asks clients to pause between requests.
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,7 +26,10 @@ export function buildSearchUrl(setCode) {
 function getManaCost(rawCard) {
   if (rawCard.mana_cost !== undefined) return rawCard.mana_cost;
   if (rawCard.card_faces) {
-    return rawCard.card_faces.map((face) => face.mana_cost).filter(Boolean).join(' // ');
+    return rawCard.card_faces
+      .map((face) => face.mana_cost)
+      .filter(Boolean)
+      .join(' // ');
   }
   return '';
 }
@@ -55,6 +59,20 @@ export function normalizeCard(rawCard) {
  * @returns {Promise<Object[]>} Resolves to a flat array of normalized card objects.
  * @throws {Error} If any Scryfall request returns a non-OK HTTP status.
  */
+/**
+ * Returns every Magic set known to Scryfall as a lightweight { code, name } pair.
+ * @returns {Promise<{ code: string, name: string }[]>}
+ * @throws {Error} If the Scryfall request fails.
+ */
+export async function fetchSets() {
+  const response = await fetch(SETS_ENDPOINT, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
+  const json = await response.json();
+  return json.data
+    .filter(({ set_type }) => set_type !== 'alchemy')
+    .map(({ code, name }) => ({ code, name }));
+}
+
 export async function fetchSetCards(setCode) {
   const cached = await loadCards(setCode);
   if (cached) return cached;
