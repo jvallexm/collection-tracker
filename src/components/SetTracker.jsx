@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import Titlebar from './reuse/Titlebar.jsx';
+import TitlebarButton from './reuse/TitlebarButton.jsx';
 import CardPreview from './CardPreview.jsx';
 import CardTable from './CardTable.jsx';
 import ExportModal from './ExportModal.jsx';
-import { sanitizeQuantityText, summarize, withFoilQuantity, withQuantity } from '../lib/collection.js';
+import {
+  sanitizeQuantityText,
+  summarize,
+  withFoilQuantity,
+  withQuantity,
+} from '../lib/collection.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
@@ -42,7 +49,15 @@ function matchesSearch(card, query) {
  * @param {function(): void} props.onMinimize - Called when the user clicks Minimize.
  * @param {function(): void} props.onRestore - Called when the user clicks Restore.
  */
-export default function SetTracker({ setCode, setName, minimized = false, minimizedIndex = 0, onMinimize, onRestore, onClose }) {
+export default function SetTracker({
+  setCode,
+  setName,
+  minimized = false,
+  minimizedIndex = 0,
+  onMinimize,
+  onRestore,
+  onClose,
+}) {
   const [cards, setCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
@@ -145,12 +160,8 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
         <div className="window-icon-titlebar">
           <span>{setCode.toUpperCase()}</span>
           <div className="titlebar-buttons">
-            <button className="titlebar-btn" aria-label="Restore" onClick={onRestore}>
-              <span className="restore-icon" />
-            </button>
-            <button className="titlebar-btn" aria-label="Close" onClick={onClose}>
-              <span className="close-icon" />
-            </button>
+            <TitlebarButton label="Restore" iconClass="restore-icon" onClick={onRestore} />
+            <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />
           </div>
         </div>
       </div>
@@ -159,17 +170,13 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
 
   return (
     <div className="window">
-      <div className="titlebar">
+      <Titlebar>
         <span>{setName}</span>
         <div className="titlebar-buttons">
-          <button className="titlebar-btn" aria-label="Minimize" onClick={onMinimize}>
-            <span className="minimize-bar" />
-          </button>
-          <button className="titlebar-btn" aria-label="Close" onClick={onClose}>
-            <span className="close-icon" />
-          </button>
+          <TitlebarButton label="Minimize" iconClass="minimize-bar" onClick={onMinimize} />
+          <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />
         </div>
-      </div>
+      </Titlebar>
       <div className="toolbar">
         <button
           className="export-btn"
@@ -189,19 +196,22 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
           {describeStatus({ loadError, cards, collection: safeCollection })}
         </span>
       </div>
-      {cards.length === 0 && !loadError
-        ? <div className="table-scroll table-loading"><span className="loading-spinner" aria-label="Loading" /></div>
-        : <CardTable
-            cards={visibleCards}
-            collection={safeCollection}
-            sort={sort}
-            onQuantityChange={handleQuantityChange}
-            onFoilQuantityChange={handleFoilQuantityChange}
-            onSort={handleSort}
-            onInputFocus={setFocusedCard}
-            onTableBlur={() => setFocusedCard(null)}
-          />
-      }
+      {cards.length === 0 && !loadError ? (
+        <div className="table-scroll table-loading">
+          <span className="loading-spinner" aria-label="Loading" />
+        </div>
+      ) : (
+        <CardTable
+          cards={visibleCards}
+          collection={safeCollection}
+          sort={sort}
+          onQuantityChange={handleQuantityChange}
+          onFoilQuantityChange={handleFoilQuantityChange}
+          onSort={handleSort}
+          onInputFocus={setFocusedCard}
+          onTableBlur={() => setFocusedCard(null)}
+        />
+      )}
       <CardPreview key={focusedCard?.id} card={focusedCard} />
       {/*<p className="help">W / S or Up / Down moves between rows. A / D or Left / Right switches columns. Click a heading to sort.</p>*/}
       {exportOpen && (

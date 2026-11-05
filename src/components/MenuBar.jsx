@@ -9,7 +9,14 @@ import { fetchSets } from '../lib/scryfall.js';
  * @param {{ code: string, name: string }[]} props.recentSets - Up to 3 recently opened sets.
  * @param {function(string, string): void} props.onOpenSet - Called with (code, name) when a set is chosen.
  */
-export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenSet, activeSet = null, onRefreshSet }) {
+export default function MenuBar({
+  theme,
+  onThemeChange,
+  recentSets = [],
+  onOpenSet,
+  activeSet = null,
+  onRefreshSet,
+}) {
   const [openMenu, setOpenMenu] = useState(null);
   const barRef = useRef(null);
 
@@ -165,7 +172,8 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
             </li>
             <li>
               <button className="menu-dropdown-item" onClick={() => selectTheme('synthwave')}>
-                {theme === 'synthwave' && <span aria-hidden="true">✓ </span>}Synthwave (experimental)
+                {theme === 'synthwave' && <span aria-hidden="true">✓ </span>}Synthwave
+                (experimental)
               </button>
             </li>
           </ul>
@@ -184,15 +192,16 @@ export default function MenuBar({ theme, onThemeChange, recentSets = [], onOpenS
               <li>
                 <button
                   className="menu-dropdown-item"
-                  onClick={() => { onRefreshSet?.(); setOpenMenu(null); }}
+                  onClick={() => {
+                    onRefreshSet?.();
+                    setOpenMenu(null);
+                  }}
                 >
                   Refresh current set
                 </button>
               </li>
             )}
-            {!activeSet && (
-              <li className="menu-subheading">No active set</li>
-            )}
+            {!activeSet && <li className="menu-subheading">No active set</li>}
           </ul>
         )}
       </div>

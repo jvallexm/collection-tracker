@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Titlebar from './reuse/Titlebar.jsx';
 
 /**
  * Floating card image preview shown when a quantity input is focused.
@@ -12,7 +13,7 @@ export default function CardPreview({ card }) {
 
   return (
     <div className="card-preview window">
-      <div className="titlebar">{card.name}</div>
+      <Titlebar>{card.name}</Titlebar>
       <div className="card-preview-body">
         {loading && (
           <div role="status" className="card-preview-loading">

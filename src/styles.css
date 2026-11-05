@@ -246,10 +246,16 @@ body {
   left: 0;
   margin-top: -1px;
 }
-.close-icon::before { transform: rotate(45deg); }
-.close-icon::after { transform: rotate(-45deg); }
+.close-icon::before {
+  transform: rotate(45deg);
+}
+.close-icon::after {
+  transform: rotate(-45deg);
+}
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .table-loading {
   display: flex;
@@ -442,7 +448,9 @@ th {
   background: var(--surface);
   color: var(--text);
   border: none;
-  box-shadow: inset 1px 1px 0 var(--shadow), inset -1px -1px 0 var(--light);
+  box-shadow:
+    inset 1px 1px 0 var(--shadow),
+    inset -1px -1px 0 var(--light);
 }
 .qty-input:focus {
   outline: 1px dotted var(--border);

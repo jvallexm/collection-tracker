@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
-import { deleteCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
+import {
+  deleteCards,
+  loadCollection,
+  loadConfig,
+  saveCollection,
+  saveConfig,
+} from './lib/storage.js';
 import App from './App.jsx';
 
 vi.mock('./lib/scryfall.js', () => ({
@@ -71,9 +77,10 @@ test('saves open sets to config when a set is opened', async () => {
   await act(async () => {});
   fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
   fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
-  expect(saveConfig).toHaveBeenCalledWith('openSets', expect.arrayContaining([
-    expect.objectContaining({ code: 'eld', minimized: false }),
-  ]));
+  expect(saveConfig).toHaveBeenCalledWith(
+    'openSets',
+    expect.arrayContaining([expect.objectContaining({ code: 'eld', minimized: false })]),
+  );
 });
 
 describe('App recent sets', () => {

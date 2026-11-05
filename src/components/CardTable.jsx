@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import ManaCost from './ManaCost.jsx';
+import QuantityCell from './reuse/QuantityCell.jsx';
+import SortIndicator from './reuse/SortIndicator.jsx';
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -60,23 +62,13 @@ export default function CardTable({
           <tr>
             <th className="qty-heading" onClick={() => onSort('have')}>
               Qty
-              {sort.key === 'have' && (
-                <span aria-hidden="true" className="sort-indicator">
-                  {' '}
-                  {sort.direction === 1 ? '▲' : '▼'}
-                </span>
-              )}
+              <SortIndicator active={sort.key === 'have'} direction={sort.direction} />
             </th>
             <th className="qty-heading">Foil</th>
             {COLUMNS.map(({ key, label, className }) => (
               <th key={key} className={className} onClick={() => onSort(key)}>
                 {label}
-                {sort.key === key && (
-                  <span aria-hidden="true" className="sort-indicator">
-                    {' '}
-                    {sort.direction === 1 ? '▲' : '▼'}
-                  </span>
-                )}
+                <SortIndicator active={sort.key === key} direction={sort.direction} />
               </th>
             ))}
           </tr>
@@ -91,41 +83,31 @@ export default function CardTable({
             const entry = collection[card.id];
             return (
               <tr key={card.id}>
-                <td className="qty-cell">
-                  <input
-                    className="qty-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    data-col="have"
-                    aria-label={`Copies of ${card.name}`}
-                    value={entry?.qty || ''}
-                    onFocus={(e) => {
-                      selectInputText(e);
-                      onInputFocus?.(card);
-                    }}
-                    onChange={(event) => onQuantityChange(card.id, event.target.value)}
-                  />
-                </td>
-                <td className="qty-cell">
-                  <input
-                    className="qty-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    data-col="foil"
-                    aria-label={`Foil copies of ${card.name}`}
-                    value={entry?.foil || ''}
-                    onFocus={(e) => {
-                      selectInputText(e);
-                      onInputFocus?.(card);
-                    }}
-                    onChange={(event) => onFoilQuantityChange(card.id, event.target.value)}
-                  />
-                </td>
+                <QuantityCell
+                  col="have"
+                  label={`Copies of ${card.name}`}
+                  value={entry?.qty || ''}
+                  onFocus={(e) => {
+                    selectInputText(e);
+                    onInputFocus?.(card);
+                  }}
+                  onChange={(e) => onQuantityChange(card.id, e.target.value)}
+                />
+                <QuantityCell
+                  col="foil"
+                  label={`Foil copies of ${card.name}`}
+                  value={entry?.foil || ''}
+                  onFocus={(e) => {
+                    selectInputText(e);
+                    onInputFocus?.(card);
+                  }}
+                  onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
+                />
                 <td>{card.name}</td>
                 <td>{RARITY_LETTER[card.rarity]}</td>
-                <td className="cost-cell"><ManaCost cost={card.cost} /></td>
+                <td className="cost-cell">
+                  <ManaCost cost={card.cost} />
+                </td>
                 <td className="number-cell">{card.number}</td>
               </tr>
             );

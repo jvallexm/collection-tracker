@@ -29,7 +29,12 @@ beforeEach(() => {
   loadConfig.mockResolvedValue(null);
 });
 
-async function renderLoadedTracker({ minimized = false, onMinimize = vi.fn(), onRestore = vi.fn(), onClose = vi.fn() } = {}) {
+async function renderLoadedTracker({
+  minimized = false,
+  onMinimize = vi.fn(),
+  onRestore = vi.fn(),
+  onClose = vi.fn(),
+} = {}) {
   fetchSetCards.mockResolvedValue(CARDS);
   render(
     <SetTracker
@@ -158,7 +163,8 @@ describe('SetTracker sorting', () => {
 
   test('restores a previously saved sort from config', async () => {
     loadConfig.mockImplementation((key) => {
-      if (key === 'sort:ktk') return Promise.resolve({ key: 'rarity', direction: 1, secondary: null });
+      if (key === 'sort:ktk')
+        return Promise.resolve({ key: 'rarity', direction: 1, secondary: null });
       return Promise.resolve(null);
     });
     await renderLoadedTracker();
@@ -168,7 +174,11 @@ describe('SetTracker sorting', () => {
   test('saves sort to config when changed', async () => {
     await renderLoadedTracker();
     fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
-    expect(saveConfig).toHaveBeenCalledWith('sort:ktk', { key: 'rarity', direction: 1, secondary: null });
+    expect(saveConfig).toHaveBeenCalledWith('sort:ktk', {
+      key: 'rarity',
+      direction: 1,
+      secondary: null,
+    });
   });
 });
 

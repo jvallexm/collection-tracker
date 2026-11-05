@@ -16,7 +16,9 @@ export default function App() {
       if (saved) setRecentSets(saved);
     });
     loadConfig('openSets').then((saved) => {
-      setOpenSets(Array.isArray(saved) ? saved : [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }]);
+      setOpenSets(
+        Array.isArray(saved) ? saved : [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }],
+      );
     });
   }, []);
 
@@ -70,7 +72,9 @@ export default function App() {
     const active = openSets.find((s) => !s.minimized);
     await deleteCards(active.code);
     setOpenSets((current) =>
-      current.map((s) => s.code === active.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s),
+      current.map((s) =>
+        s.code === active.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s,
+      ),
     );
   }
 

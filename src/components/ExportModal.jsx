@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Titlebar from './reuse/Titlebar.jsx';
 
 /**
  * Modal dialog that displays the Moxfield export list and lets the user copy it.
@@ -53,7 +54,7 @@ export default function ExportModal({ text, onClose }) {
   return (
     <div className="modal-overlay" onClick={closeWhenBackdropClicked}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Export to Moxfield">
-        <div className="titlebar">Export to Moxfield</div>
+        <Titlebar>Export to Moxfield</Titlebar>
         <div className="dialog-body">
           <textarea
             ref={textareaRef}

@@ -124,4 +124,3 @@ describe('saveConfig', () => {
     await expect(saveConfig('theme', 'dark')).resolves.toBeUndefined();
   });
 });
-
