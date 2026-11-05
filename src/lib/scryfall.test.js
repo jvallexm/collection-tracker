@@ -1,0 +1,122 @@
+import { loadCards, saveCards } from './storage.js';
+import { buildSearchUrl, fetchSetCards, normalizeCard } from './scryfall.js';
+
+const rawCard = (overrides) => ({
+  id: 'abc',
+  name: 'Abzan Guide',
+  rarity: 'rare',
+  mana_cost: '{2}{W}{B}{G}',
+  collector_number: '169',
+  set: 'ktk',
+  ...overrides,
+});
+
+const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body });
+
+describe('buildSearchUrl', () => {
+  test('searches one set, unique cards, ordered by name', () => {
+    expect(buildSearchUrl('ktk')).toBe(
+      'https://api.scryfall.com/cards/search?q=set%3Aktk&unique=cards&order=name',
+    );
+  });
+});
+
+describe('normalizeCard', () => {
+  test('keeps only the fields the app uses and uppercases the set', () => {
+    expect(normalizeCard(rawCard())).toEqual({
+      id: 'abc',
+      name: 'Abzan Guide',
+      rarity: 'rare',
+      cost: '{2}{W}{B}{G}',
+      number: '169',
+      set: 'KTK',
+    });
+  });
+
+  test('keeps an empty mana cost (lands)', () => {
+    expect(normalizeCard(rawCard({ mana_cost: '' })).cost).toBe('');
+  });
+
+  test('joins the costs of double-faced cards, skipping empty faces', () => {
+    const twoCosts = rawCard({
+      mana_cost: undefined,
+      card_faces: [{ mana_cost: '{1}{U}' }, { mana_cost: '{2}{R}' }],
+    });
+    const oneCost = rawCard({
+      mana_cost: undefined,
+      card_faces: [{ mana_cost: '{1}{U}' }, { mana_cost: '' }],
+    });
+    expect(normalizeCard(twoCosts).cost).toBe('{1}{U} // {2}{R}');
+    expect(normalizeCard(oneCost).cost).toBe('{1}{U}');
+  });
+
+  test('falls back to an empty cost when there is no cost information', () => {
+    expect(normalizeCard(rawCard({ mana_cost: undefined })).cost).toBe('');
+  });
+});
+
+describe('fetchSetCards', () => {
+  test('returns normalized cards from a single page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ data: [rawCard()], has_more: false }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const cards = await fetchSetCards('ktk');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(buildSearchUrl('ktk'), {
+      headers: { Accept: 'application/json' },
+    });
+    expect(cards.map((card) => card.name)).toEqual(['Abzan Guide']);
+  });
+
+  test('follows next_page links and combines every page', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ data: [rawCard({ id: '1' })], has_more: true, next_page: 'https://next-page' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = fetchSetCards('ktk');
+    await vi.runAllTimersAsync();
+    const cards = await pending;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe('https://next-page');
+    expect(cards.map((card) => card.id)).toEqual(['1', '2']);
+  });
+
+  test('throws a readable error when Scryfall responds with a failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+
+    await expect(fetchSetCards('ktk')).rejects.toThrow('Scryfall request failed (HTTP 429)');
+  });
+
+  test('stores fetched cards in the database for future calls', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse({ data: [rawCard()], has_more: false }),
+    ));
+
+    await fetchSetCards('ktk');
+
+    const cached = await loadCards('ktk');
+    expect(cached).toHaveLength(1);
+    expect(cached[0].name).toBe('Abzan Guide');
+  });
+
+  test('returns cached cards without hitting the network', async () => {
+    const cached = [{ id: '1', name: 'Cached Card', rarity: 'rare', cost: '{W}', number: '1', set: 'KTK' }];
+    await saveCards('ktk', cached);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const cards = await fetchSetCards('ktk');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(cards).toEqual(cached);
+  });
+});
