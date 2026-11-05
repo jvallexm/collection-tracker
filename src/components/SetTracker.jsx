@@ -161,7 +161,6 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
     <div className="window">
       <div className="titlebar">
         <span>{setName}</span>
-        {cards.length === 0 && !loadError && <span className="loading-spinner" aria-label="Loading" />}
         <div className="titlebar-buttons">
           <button className="titlebar-btn" aria-label="Minimize" onClick={onMinimize}>
             <span className="minimize-bar" />
@@ -190,16 +189,19 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
           {describeStatus({ loadError, cards, collection: safeCollection })}
         </span>
       </div>
-      <CardTable
-        cards={visibleCards}
-        collection={safeCollection}
-        sort={sort}
-        onQuantityChange={handleQuantityChange}
-        onFoilQuantityChange={handleFoilQuantityChange}
-        onSort={handleSort}
-        onInputFocus={setFocusedCard}
-        onTableBlur={() => setFocusedCard(null)}
-      />
+      {cards.length === 0 && !loadError
+        ? <div className="table-scroll table-loading"><span className="loading-spinner" aria-label="Loading" /></div>
+        : <CardTable
+            cards={visibleCards}
+            collection={safeCollection}
+            sort={sort}
+            onQuantityChange={handleQuantityChange}
+            onFoilQuantityChange={handleFoilQuantityChange}
+            onSort={handleSort}
+            onInputFocus={setFocusedCard}
+            onTableBlur={() => setFocusedCard(null)}
+          />
+      }
       <CardPreview key={focusedCard?.id} card={focusedCard} />
       {/*<p className="help">W / S or Up / Down moves between rows. A / D or Left / Right switches columns. Click a heading to sort.</p>*/}
       {exportOpen && (
