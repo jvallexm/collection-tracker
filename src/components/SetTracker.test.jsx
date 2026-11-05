@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchSetCards } from '../lib/scryfall.js';
-import { loadCollection, saveCollection } from '../lib/storage.js';
+import { loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
 import { makeCard } from '../test/fixtures.js';
 import SetTracker from './SetTracker.jsx';
 
@@ -8,6 +8,8 @@ vi.mock('../lib/scryfall.js', () => ({ fetchSetCards: vi.fn() }));
 vi.mock('../lib/storage.js', () => ({
   loadCollection: vi.fn().mockResolvedValue({}),
   saveCollection: vi.fn().mockResolvedValue(undefined),
+  loadConfig: vi.fn().mockResolvedValue(null),
+  saveConfig: vi.fn().mockResolvedValue(undefined),
 }));
 
 const CARDS = [
@@ -24,6 +26,7 @@ const rowNames = () =>
 
 beforeEach(() => {
   loadCollection.mockResolvedValue({});
+  loadConfig.mockResolvedValue(null);
 });
 
 async function renderLoadedTracker({ minimized = false, onMinimize = vi.fn(), onRestore = vi.fn(), onClose = vi.fn() } = {}) {
@@ -151,6 +154,21 @@ describe('SetTracker sorting', () => {
 
     fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
     expect(rowNames()).toEqual(['Bolt', 'Charm', 'Arrow']);
+  });
+
+  test('restores a previously saved sort from config', async () => {
+    loadConfig.mockImplementation((key) => {
+      if (key === 'sort:ktk') return Promise.resolve({ key: 'rarity', direction: 1, secondary: null });
+      return Promise.resolve(null);
+    });
+    await renderLoadedTracker();
+    expect(rowNames()).toEqual(['Bolt', 'Charm', 'Arrow']);
+  });
+
+  test('saves sort to config when changed', async () => {
+    await renderLoadedTracker();
+    fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
+    expect(saveConfig).toHaveBeenCalledWith('sort:ktk', { key: 'rarity', direction: 1, secondary: null });
   });
 });
 

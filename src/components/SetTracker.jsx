@@ -6,7 +6,7 @@ import { sanitizeQuantityText, summarize, withFoilQuantity, withQuantity } from 
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
-import { loadCollection, saveCollection } from '../lib/storage.js';
+import { loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
 
 /**
  * Builds the status bar text shown below the toolbar.
@@ -47,6 +47,7 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
   const [sort, setSort] = useState({ key: 'name', direction: 1, secondary: null });
+  const [sortLoaded, setSortLoaded] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
   const [search, setSearch] = useState('');
@@ -71,6 +72,19 @@ export default function SetTracker({ setCode, setName, minimized = false, minimi
     if (collection === null) return;
     saveCollection(setCode, collection);
   }, [collection, setCode]);
+
+  useEffect(() => {
+    setSortLoaded(false);
+    loadConfig(`sort:${setCode}`).then((saved) => {
+      if (saved) setSort(saved);
+      setSortLoaded(true);
+    });
+  }, [setCode]);
+
+  useEffect(() => {
+    if (!sortLoaded) return;
+    saveConfig(`sort:${setCode}`, sort);
+  }, [sort, setCode, sortLoaded]);
 
   const safeCollection = collection ?? {};
 

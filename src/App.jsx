@@ -5,7 +5,7 @@ import { loadConfig, saveConfig } from './lib/storage.js';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
-  const [openSets, setOpenSets] = useState([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }]);
+  const [openSets, setOpenSets] = useState(null);
   const [recentSets, setRecentSets] = useState([{ code: 'ktk', name: 'Khans of Tarkir' }]);
 
   useEffect(() => {
@@ -15,7 +15,15 @@ export default function App() {
     loadConfig('recentSets').then((saved) => {
       if (saved) setRecentSets(saved);
     });
+    loadConfig('openSets').then((saved) => {
+      setOpenSets(Array.isArray(saved) ? saved : [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }]);
+    });
   }, []);
+
+  useEffect(() => {
+    if (openSets === null) return;
+    saveConfig('openSets', openSets);
+  }, [openSets]);
 
   function handleThemeChange(newTheme) {
     setTheme(newTheme);
@@ -58,7 +66,7 @@ export default function App() {
     setOpenSets((current) => current.filter((s) => s.code !== code));
   }
 
-  const minimizedSets = openSets.filter((s) => s.minimized);
+  const minimizedSets = (openSets ?? []).filter((s) => s.minimized);
 
   return (
     <div className={`app-root ${theme}`}>
@@ -69,7 +77,7 @@ export default function App() {
         onOpenSet={handleOpenSet}
       />
       <div className="page-content">
-        {openSets.map((set) => (
+        {(openSets ?? []).map((set) => (
           <SetTracker
             key={set.code}
             setCode={set.code}

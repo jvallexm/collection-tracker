@@ -44,6 +44,37 @@ test('saves the theme to config when changed', async () => {
   expect(saveConfig).toHaveBeenCalledWith('theme', 'dark');
 });
 
+test('defaults to KTK when no open sets are saved', async () => {
+  await renderApp();
+  expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+});
+
+test('restores open sets from config on load', async () => {
+  loadConfig.mockImplementation((key) => {
+    if (key === 'openSets')
+      return Promise.resolve([
+        { code: 'eld', name: 'Throne of Eldraine', minimized: false },
+        { code: 'ktk', name: 'Khans of Tarkir', minimized: true },
+      ]);
+    return Promise.resolve(null);
+  });
+  await renderApp();
+  expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull();
+});
+
+test('saves open sets to config when a set is opened', async () => {
+  fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+  await renderApp();
+  fireEvent.click(screen.getByText('Add Set'));
+  await act(async () => {});
+  fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+  expect(saveConfig).toHaveBeenCalledWith('openSets', expect.arrayContaining([
+    expect.objectContaining({ code: 'eld', minimized: false }),
+  ]));
+});
+
 describe('App recent sets', () => {
   test('shows KTK as a default recent set before config loads', async () => {
     await renderApp();
