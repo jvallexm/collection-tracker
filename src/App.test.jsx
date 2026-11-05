@@ -54,7 +54,7 @@ describe('App recent sets', () => {
   test('opening a set prepends it to recent and saves to config', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -87,7 +87,7 @@ describe('App recent sets', () => {
     });
     fetchSets.mockResolvedValue([{ code: 'd', name: 'Set D' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'Set D' } });
     fireEvent.click(screen.getByRole('button', { name: 'Set D' }));
@@ -104,7 +104,7 @@ describe('App multi-set windows', () => {
   test('renders a window for each open set', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -115,7 +115,7 @@ describe('App multi-set windows', () => {
   test('opening a new set minimizes the current one', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -127,7 +127,7 @@ describe('App multi-set windows', () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
     // Open ELD — KTK minimizes
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -142,7 +142,7 @@ describe('App multi-set windows', () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
     // Open ELD — now KTK(minimized) + ELD(active)
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -156,7 +156,7 @@ describe('App multi-set windows', () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
     // Open ELD — KTK(minimized) + ELD(active)
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
@@ -174,12 +174,12 @@ describe('App multi-set windows', () => {
     ]);
     await renderApp();
     // Open ELD — KTK minimizes
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
     // Open ZNR — ELD minimizes, KTK stays minimized
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
@@ -198,7 +198,7 @@ describe('App close window', () => {
   test('closing a minimized window removes it', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
-    fireEvent.click(screen.getByText('Add set'));
+    fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
