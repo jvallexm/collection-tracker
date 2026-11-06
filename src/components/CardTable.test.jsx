@@ -343,3 +343,67 @@ describe('CardTable scroll on sort', () => {
     ).not.toThrow();
   });
 });
+
+describe('CardTable token section', () => {
+  const TOKEN = makeCard({ id: 'tok1', name: 'Soldier Token', rarity: 'common', number: 'T1' });
+
+  test('renders no token section when tokenCards is empty', () => {
+    renderTable();
+    expect(screen.queryByText('Tokens')).toBeNull();
+  });
+
+  test('renders a Tokens heading when tokenCards are provided', () => {
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Tokens')).not.toBeNull();
+  });
+
+  test('renders token card rows after the Tokens heading', () => {
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Soldier Token')).not.toBeNull();
+  });
+
+  test('calls onQuantityChange and onFoilQuantityChange for token card inputs', () => {
+    const onQuantityChange = vi.fn();
+    const onFoilQuantityChange = vi.fn();
+    const onInputFocus = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={onQuantityChange}
+        onFoilQuantityChange={onFoilQuantityChange}
+        onInputFocus={onInputFocus}
+        onSort={vi.fn()}
+      />,
+    );
+    fireEvent.focus(screen.getByLabelText('Copies of Soldier Token'));
+    expect(onInputFocus).toHaveBeenCalledWith(TOKEN);
+    fireEvent.change(screen.getByLabelText('Copies of Soldier Token'), { target: { value: '2' } });
+    expect(onQuantityChange).toHaveBeenCalledWith('tok1', '2');
+    fireEvent.focus(screen.getByLabelText('Foil copies of Soldier Token'));
+    fireEvent.change(screen.getByLabelText('Foil copies of Soldier Token'), { target: { value: '1' } });
+    expect(onFoilQuantityChange).toHaveBeenCalledWith('tok1', '1');
+  });
+});

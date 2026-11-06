@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import CardPreview from './CardPreview.jsx';
@@ -13,7 +13,7 @@ import {
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
-import { loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
+import { loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
 
 /**
  * Builds the status bar text shown below the toolbar.
@@ -57,8 +57,12 @@ export default function SetTracker({
   onMinimize,
   onRestore,
   onClose,
+  collectionVersion = 0,
+  cardFocus = null,
 }) {
+  const windowRef = useRef(null);
   const [cards, setCards] = useState([]);
+  const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
   const [sort, setSort] = useState({ key: 'name', direction: 1, secondary: null });
@@ -69,7 +73,11 @@ export default function SetTracker({
 
   useEffect(() => {
     fetchSetCards(setCode)
-      .then(setCards)
+      .then((main) => {
+        setCards(main);
+        return loadCards(`t${setCode}`);
+      })
+      .then((tokens) => setTokenCards(tokens ?? []))
       .catch((error) => setLoadError(error.message));
   }, [setCode]);
 
@@ -87,6 +95,23 @@ export default function SetTracker({
     if (collection === null) return;
     saveCollection(setCode, collection);
   }, [collection, setCode]);
+
+  // Reload when an external change (e.g. global card search add) bumps the version.
+  useEffect(() => {
+    if (collectionVersion === 0) return;
+    loadCollection(setCode).then((saved) => {
+      setCollection(saved ?? {});
+    });
+  }, [collectionVersion, setCode]);
+
+  // Focus the qty input for a card added via global search.
+  useEffect(() => {
+    if (!cardFocus || !windowRef.current) return;
+    const row = windowRef.current.querySelector(`[data-card-id="${cardFocus.cardId}"]`);
+    if (!row) return;
+    const input = row.querySelector('input');
+    if (input) input.focus();
+  }, [cardFocus]);
 
   useEffect(() => {
     setSortLoaded(false);
@@ -115,6 +140,19 @@ export default function SetTracker({
     }
     return sortCards(filtered, sort.key, sort.direction);
   }, [cards, sort, safeCollection, search]);
+
+  const visibleTokenCards = useMemo(() => {
+    const filtered = search.trim() ? tokenCards.filter((card) => matchesSearch(card, search)) : tokenCards;
+    if (sort.key === 'have') {
+      const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
+      return [...bySecondary].sort((a, b) => {
+        const hasA = safeCollection[a.id] ? 1 : 0;
+        const hasB = safeCollection[b.id] ? 1 : 0;
+        return (hasB - hasA) * sort.direction;
+      });
+    }
+    return sortCards(filtered, sort.key, sort.direction);
+  }, [tokenCards, sort, safeCollection, search]);
 
   /**
    * Updates the active sort column and direction.
@@ -169,7 +207,7 @@ export default function SetTracker({
   }
 
   return (
-    <div className="window">
+    <div className="window" ref={windowRef}>
       <Titlebar>
         <span>{setName}</span>
         <div className="titlebar-buttons">
@@ -192,9 +230,6 @@ export default function SetTracker({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span className="status">
-          {describeStatus({ loadError, cards, collection: safeCollection })}
-        </span>
       </div>
       {cards.length === 0 && !loadError ? (
         <div className="table-scroll table-loading">
@@ -203,6 +238,7 @@ export default function SetTracker({
       ) : (
         <CardTable
           cards={visibleCards}
+          tokenCards={visibleTokenCards}
           collection={safeCollection}
           sort={sort}
           onQuantityChange={handleQuantityChange}
@@ -213,7 +249,9 @@ export default function SetTracker({
         />
       )}
       <CardPreview key={focusedCard?.id} card={focusedCard} />
-      {/*<p className="help">W / S or Up / Down moves between rows. A / D or Left / Right switches columns. Click a heading to sort.</p>*/}
+      <div className="statusbar">
+        {describeStatus({ loadError, cards, collection: safeCollection })}
+      </div>
       {exportOpen && (
         <ExportModal
           text={buildMoxfieldList(cards, safeCollection)}

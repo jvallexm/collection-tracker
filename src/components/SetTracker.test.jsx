@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchSetCards } from '../lib/scryfall.js';
-import { loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
+import { loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
 import { makeCard } from '../test/fixtures.js';
 import SetTracker from './SetTracker.jsx';
 
 vi.mock('../lib/scryfall.js', () => ({ fetchSetCards: vi.fn() }));
 vi.mock('../lib/storage.js', () => ({
+  loadCards: vi.fn().mockResolvedValue(null),
   loadCollection: vi.fn().mockResolvedValue({}),
   saveCollection: vi.fn().mockResolvedValue(undefined),
   loadConfig: vi.fn().mockResolvedValue(null),
@@ -25,6 +26,7 @@ const rowNames = () =>
     .map((input) => input.getAttribute('aria-label').replace('Copies of ', ''));
 
 beforeEach(() => {
+  loadCards.mockResolvedValue(null);
   loadCollection.mockResolvedValue({});
   loadConfig.mockResolvedValue(null);
 });
@@ -373,5 +375,152 @@ describe('SetTracker export', () => {
 
     fireEvent.click(screen.getByText('Close'));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('SetTracker token section', () => {
+  const TOKEN = makeCard({ id: 'tok1', name: 'Soldier Token', rarity: 'common', number: 'T1' });
+
+  test('shows no Tokens heading when there are no token cards', async () => {
+    await renderLoadedTracker();
+    expect(screen.queryByText('Tokens')).toBeNull();
+  });
+
+  test('filters token cards by search text', async () => {
+    const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
+    loadCards.mockResolvedValue([TOKEN, TOKEN2]);
+    await renderLoadedTracker();
+    fireEvent.change(screen.getByPlaceholderText('Search…'), { target: { value: 'Sol' } });
+    expect(screen.getByText('Soldier Token')).not.toBeNull();
+    expect(screen.queryByText('Goblin Token')).toBeNull();
+  });
+
+  test('shows a Tokens heading when token cards are available', async () => {
+    loadCards.mockResolvedValue([TOKEN]);
+    await renderLoadedTracker();
+    expect(screen.getByText('Tokens')).not.toBeNull();
+  });
+
+  test('renders token card names under the Tokens heading', async () => {
+    loadCards.mockResolvedValue([TOKEN]);
+    await renderLoadedTracker();
+    expect(screen.getByText('Soldier Token')).not.toBeNull();
+  });
+
+  test('sorts token cards by have when sorting by have column', async () => {
+    const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
+    const TOKEN3 = makeCard({ id: 'tok3', name: 'Zombie Token', rarity: 'common', number: 'T3' });
+    const TOKEN4 = makeCard({ id: 'tok4', name: 'Angel Token', rarity: 'common', number: 'T4' });
+    loadCards.mockResolvedValue([TOKEN, TOKEN2, TOKEN3, TOKEN4]);
+    loadCollection.mockResolvedValue({ tok1: { qty: 2 }, tok4: { qty: 1 } });
+    await renderLoadedTracker();
+    fireEvent.click(screen.getAllByText('Qty')[0]);
+    expect(screen.getByText('Soldier Token')).not.toBeNull();
+    expect(screen.getByText('Goblin Token')).not.toBeNull();
+  });
+});
+
+describe('SetTracker collectionVersion', () => {
+  test('reloads collection when collectionVersion prop changes', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCollection.mockResolvedValue({ b: { qty: 1 } });
+    const { rerender } = render(
+      <SetTracker setCode="ktk" setName="Khans of Tarkir" collectionVersion={0} />,
+    );
+    await act(async () => {});
+    const callsBefore = loadCollection.mock.calls.length;
+
+    loadCollection.mockResolvedValue({ b: { qty: 2 } });
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" collectionVersion={1} />);
+    await act(async () => {});
+
+    expect(loadCollection.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  test('skips reload when collectionVersion is 0', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" collectionVersion={0} />);
+    await act(async () => {});
+    // Only the initial load effect fires, not the version effect
+    expect(loadCollection).toHaveBeenCalledTimes(1);
+  });
+
+  test('handles null saved collection on version bump', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCollection.mockResolvedValueOnce({}).mockResolvedValueOnce(null);
+    const { rerender } = render(
+      <SetTracker setCode="ktk" setName="Khans of Tarkir" collectionVersion={0} />,
+    );
+    await act(async () => {});
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" collectionVersion={1} />);
+    await act(async () => {});
+    // Should not crash — collection falls back to {}
+    expect(screen.getByText('Khans of Tarkir')).not.toBeNull();
+  });
+});
+
+describe('SetTracker cardFocus', () => {
+  async function renderAndLoad(props = {}) {
+    fetchSetCards.mockResolvedValue(CARDS);
+    const result = render(<SetTracker setCode="ktk" setName="Khans of Tarkir" {...props} />);
+    await act(async () => {});
+    return result;
+  }
+
+  test('focuses the qty input for the given card', async () => {
+    const { rerender } = await renderAndLoad();
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Copies of Bolt' }));
+  });
+
+  test('does nothing when cardFocus is null', async () => {
+    await renderAndLoad({ cardFocus: null });
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  test('does nothing when card id is not found in the table', async () => {
+    const { rerender } = await renderAndLoad();
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'unknown-id' }} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  test('does nothing when window is minimized', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        minimized
+        cardFocus={{ setCode: 'ktk', cardId: 'b' }}
+        onRestore={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await act(async () => {});
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  test('does nothing when the matched element has no input inside', async () => {
+    const { rerender } = await renderAndLoad();
+    // Append a bare element with data-card-id but no input inside
+    const windowEl = document.querySelector('.window');
+    const fakeEl = document.createElement('div');
+    fakeEl.setAttribute('data-card-id', 'no-input-card');
+    windowEl.appendChild(fakeEl);
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'no-input-card' }} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  test('refocuses when cardFocus changes to a new object for the same card', async () => {
+    const { rerender } = await renderAndLoad();
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    await act(async () => {});
+    screen.getByRole('textbox', { name: 'Copies of Arrow' }).focus();
+    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Copies of Bolt' }));
   });
 });

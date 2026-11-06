@@ -1,8 +1,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSets } from '../lib/scryfall.js';
+import { loadCards, loadCollection } from '../lib/storage.js';
 import MenuBar from './MenuBar.jsx';
 
 vi.mock('../lib/scryfall.js', () => ({ fetchSets: vi.fn() }));
+vi.mock('../lib/storage.js', () => ({
+  loadCards: vi.fn().mockResolvedValue([]),
+  loadCollection: vi.fn().mockResolvedValue({}),
+}));
 
 function renderMenu(theme = 'light') {
   const onThemeChange = vi.fn();
@@ -333,6 +338,238 @@ describe('MenuBar My Collection menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
     expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
     expect(screen.queryByText('Recent')).toBeNull();
+  });
+});
+
+describe('MenuBar Export Collection menu', () => {
+  function renderExport({ onExportCsv = vi.fn() } = {}) {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} onExportCsv={onExportCsv} />);
+    return { onExportCsv };
+  }
+
+  test('renders the Export Collection menu label', () => {
+    renderExport();
+    expect(screen.getByText('Export Collection')).not.toBeNull();
+  });
+
+  test('Export Collection dropdown is closed by default', () => {
+    renderExport();
+    expect(screen.queryByRole('button', { name: 'CSV' })).toBeNull();
+  });
+
+  test('clicking Export Collection opens a dropdown with CSV option', () => {
+    renderExport();
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'CSV' })).not.toBeNull();
+  });
+
+  test('clicking CSV calls onExportCsv and closes the dropdown', () => {
+    const { onExportCsv } = renderExport();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    expect(onExportCsv).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'CSV' })).toBeNull();
+  });
+});
+
+describe('MenuBar card search', () => {
+  const OPEN_SETS = [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }];
+  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}' };
+  const BEAR = { id: 'bear', name: 'Grizzly Bears', number: '2', set: 'KTK', rarity: 'common', cost: '{1}{G}' };
+
+  beforeEach(() => {
+    loadCards.mockResolvedValue([BOLT, BEAR]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 2 } });
+  });
+
+  function renderWithSearch({ onAddCard = vi.fn(), openSets = OPEN_SETS } = {}) {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} openSets={openSets} onAddCard={onAddCard} />);
+    return { onAddCard };
+  }
+
+  test('renders a card search input', () => {
+    renderWithSearch();
+    expect(screen.getByPlaceholderText('Search for a card')).not.toBeNull();
+  });
+
+  test('shows matching card results when typing', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: /Lightning Bolt/ })).not.toBeNull();
+  });
+
+  test('shows current qty in results', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    expect(screen.getByText(/KTK.*2|2.*KTK/)).not.toBeNull();
+  });
+
+  test('shows no qty text for unowned cards', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Grizzly' } });
+    await act(async () => {});
+    const btn = screen.getByRole('button', { name: /Grizzly Bears/ });
+    expect(btn.textContent).not.toMatch(/·/);
+  });
+
+  test('shows no results when nothing matches', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'zzznomatch' } });
+    await act(async () => {});
+    expect(screen.queryByRole('listitem')).toBeNull();
+  });
+
+  test('calls onAddCard and clears search when a result is clicked', async () => {
+    const { onAddCard } = renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    expect(onAddCard).toHaveBeenCalledWith('ktk', 'bolt');
+    expect(screen.getByPlaceholderText('Search for a card').value).toBe('');
+  });
+
+  test('arrow down highlights first result', async () => {
+    renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  test('arrow down at last result stays at last result', async () => {
+    renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  test('arrow up from first result clears highlight', async () => {
+    renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  test('Enter on highlighted result calls onAddCard and clears search', async () => {
+    const { onAddCard } = renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onAddCard).toHaveBeenCalledWith('ktk', 'bolt');
+    expect(input.value).toBe('');
+  });
+
+  test('Enter without highlight does nothing', async () => {
+    const { onAddCard } = renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onAddCard).not.toHaveBeenCalled();
+  });
+
+  test('Escape clears the search', () => {
+    renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('');
+  });
+
+  test('other key press does nothing special', async () => {
+    renderWithSearch();
+    const input = screen.getByPlaceholderText('Search for a card');
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: /Lightning Bolt/ })).not.toBeNull();
+  });
+
+  test('typing closes any open menu', () => {
+    renderWithSearch();
+    fireEvent.click(screen.getByText('View'));
+    expect(screen.queryByText('Light Mode')).not.toBeNull();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'L' } });
+    expect(screen.queryByText('Light Mode')).toBeNull();
+  });
+
+  test('clicking a menu closes the card search results', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByText('View'));
+    expect(screen.queryByRole('button', { name: /Lightning Bolt/ })).toBeNull();
+  });
+
+  test('clicking outside closes the card search results', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.mouseDown(document.body);
+    expect(screen.getByPlaceholderText('Search for a card').value).toBe('');
+  });
+
+  test('shows Loading while card data is being fetched', async () => {
+    let resolveCards;
+    loadCards.mockReturnValue(new Promise((r) => { resolveCards = r; }));
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    expect(screen.getByText('Loading…')).not.toBeNull();
+    resolveCards([BOLT]);
+  });
+
+  test('recovers gracefully when card data load fails', async () => {
+    loadCards.mockRejectedValue(new Error('db error'));
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: /Lightning Bolt/ })).toBeNull();
+  });
+
+  test('resets cached data when openSets changes', async () => {
+    const { rerender } = render(
+      <MenuBar theme="light" onThemeChange={vi.fn()} openSets={OPEN_SETS} onAddCard={vi.fn()} />,
+    );
+    // Load data for initial openSets
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledTimes(1);
+    // Change openSets — cache resets, next search re-loads
+    const newSets = [...OPEN_SETS, { code: 'eld', name: 'Throne of Eldraine', minimized: false }];
+    rerender(<MenuBar theme="light" onThemeChange={vi.fn()} openSets={newSets} onAddCard={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Bolt' } });
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledTimes(1 + newSets.length);
+  });
+
+  test('does not reload card data when already loaded', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    // Change search text — no new loads since data is cached
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Bolt' } });
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledTimes(1);
+  });
+
+  test('falls back to empty array when loadCards returns null', async () => {
+    loadCards.mockResolvedValue(null);
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    // No crash, no results (cards array is empty)
+    expect(screen.queryByRole('button', { name: /Lightning/ })).toBeNull();
   });
 });
 

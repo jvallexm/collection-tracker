@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
 import {
   deleteCards,
+  loadCards,
   loadCollection,
   loadConfig,
   saveCollection,
@@ -299,5 +300,100 @@ describe('App Debug menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
     fireEvent.click(screen.getByText('Debug'));
     expect(screen.queryByRole('button', { name: 'Refresh current set' })).toBeNull();
+  });
+});
+
+describe('App Export Collection', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn().mockReturnValue('blob:test'),
+      revokeObjectURL: vi.fn(),
+    });
+  });
+
+  test('clicking CSV loads cards and collection for each open set', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledWith('ktk');
+    expect(loadCollection).toHaveBeenCalledWith('ktk');
+  });
+
+  test('clicking CSV triggers a file download', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    await act(async () => {});
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+  });
+
+  test('clicking CSV works when loadCards returns actual cards', async () => {
+    loadCards.mockResolvedValue([{ id: 'a', name: 'Test Card', number: '1', set: 'KTK', rarity: 'common', cost: '{1}' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    await act(async () => {});
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+  });
+
+  test('clicking CSV before openSets resolves falls back to empty array', async () => {
+    let resolveOpenSets;
+    loadConfig.mockImplementation((key) => {
+      if (key === 'openSets') return new Promise((r) => { resolveOpenSets = r; });
+      return Promise.resolve(null);
+    });
+    render(<App />);
+    // Export before openSets config resolves — openSets is null
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    await act(async () => {});
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    resolveOpenSets(null);
+  });
+});
+
+describe('App handleAddCard', () => {
+  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}' };
+
+  test('adds a first copy when card has no prior entry', async () => {
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({});
+    await renderApp();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    await act(async () => {});
+    expect(saveCollection).toHaveBeenCalledWith('ktk', expect.objectContaining({ bolt: { qty: 1 } }));
+  });
+
+  test('increments qty when card already has copies', async () => {
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
+    await renderApp();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    await act(async () => {});
+    expect(saveCollection).toHaveBeenCalledWith('ktk', expect.objectContaining({ bolt: { qty: 4 } }));
+  });
+
+  test('adding twice covers both branches of collectionVersions update', async () => {
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({});
+    await renderApp();
+    const input = screen.getByPlaceholderText('Search for a card');
+    // First add: v['ktk'] is undefined → ?? 0 fires
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    await act(async () => {});
+    // Second add: v['ktk'] is 1 → ?? 0 skipped
+    fireEvent.change(input, { target: { value: 'Lightning' } });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    await act(async () => {});
+    expect(saveCollection).toHaveBeenCalledWith('ktk', expect.any(Object));
   });
 });

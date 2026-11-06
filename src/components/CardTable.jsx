@@ -40,6 +40,7 @@ function selectInputText(event) {
 
 export default function CardTable({
   cards,
+  tokenCards = [],
   collection,
   sort = { key: 'name', direction: 1 },
   onQuantityChange,
@@ -82,7 +83,7 @@ export default function CardTable({
           {cards.map((card) => {
             const entry = collection[card.id];
             return (
-              <tr key={card.id}>
+              <tr key={card.id} data-card-id={card.id}>
                 <QuantityCell
                   col="have"
                   label={`Copies of ${card.name}`}
@@ -112,6 +113,38 @@ export default function CardTable({
               </tr>
             );
           })}
+          {tokenCards.length > 0 && (
+            <>
+              <tr className="token-section-heading">
+                <td colSpan={6}>Tokens</td>
+              </tr>
+              {tokenCards.map((card) => {
+                const entry = collection[card.id];
+                return (
+                  <tr key={card.id} data-card-id={card.id}>
+                    <QuantityCell
+                      col="have"
+                      label={`Copies of ${card.name}`}
+                      value={entry?.qty || ''}
+                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card); }}
+                      onChange={(e) => onQuantityChange(card.id, e.target.value)}
+                    />
+                    <QuantityCell
+                      col="foil"
+                      label={`Foil copies of ${card.name}`}
+                      value={entry?.foil || ''}
+                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card); }}
+                      onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
+                    />
+                    <td>{card.name}</td>
+                    <td>{RARITY_LETTER[card.rarity]}</td>
+                    <td className="cost-cell"><ManaCost cost={card.cost} /></td>
+                    <td className="number-cell">{card.number}</td>
+                  </tr>
+                );
+              })}
+            </>
+          )}
         </tbody>
       </table>
     </div>

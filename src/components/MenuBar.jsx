@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchSets } from '../lib/scryfall.js';
+import { loadCards, loadCollection } from '../lib/storage.js';
 
-/**
- * Site-wide menu bar in a Windows 3.x style.
- * @param {Object} props
- * @param {'light'|'dark'|'synthwave'} props.theme - Currently active theme.
- * @param {function(string): void} props.onThemeChange - Called with the chosen theme name.
- * @param {{ code: string, name: string }[]} props.recentSets - Up to 3 recently opened sets.
- * @param {function(string, string): void} props.onOpenSet - Called with (code, name) when a set is chosen.
- */
 export default function MenuBar({
   theme,
   onThemeChange,
@@ -16,17 +9,58 @@ export default function MenuBar({
   onOpenSet,
   activeSet = null,
   onRefreshSet,
+  onExportCsv,
+  openSets = [],
+  onAddCard,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const barRef = useRef(null);
 
+  const [cardSearch, setCardSearch] = useState('');
+  const [cardSearchSets, setCardSearchSets] = useState(null);
+  const [cardSearchLoading, setCardSearchLoading] = useState(false);
+  const [cardHighlight, setCardHighlight] = useState(-1);
+
   useEffect(() => {
     function handleMouseDown(e) {
-      if (openMenu && !barRef.current.contains(e.target)) setOpenMenu(null);
+      if (barRef.current.contains(e.target)) return;
+      if (openMenu) setOpenMenu(null);
+      if (cardSearch) { setCardSearch(''); setCardHighlight(-1); }
     }
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [openMenu]);
+  }, [openMenu, cardSearch]);
+
+  useEffect(() => { setCardSearchSets(null); }, [openSets]);
+
+  useEffect(() => {
+    if (!cardSearch.trim() || cardSearchSets !== null || cardSearchLoading) return;
+    setCardSearchLoading(true);
+    Promise.all(
+      openSets.map(async (set) => ({
+        setCode: set.code,
+        cards: (await loadCards(set.code)) ?? [],
+        collection: await loadCollection(set.code),
+      })),
+    )
+      .then((data) => { setCardSearchSets(data); setCardSearchLoading(false); })
+      .catch(() => { setCardSearchSets([]); setCardSearchLoading(false); });
+  }, [cardSearch, cardSearchSets, cardSearchLoading, openSets]);
+
+  const cardResults =
+    cardSearch.trim() && cardSearchSets
+      ? cardSearchSets
+          .flatMap(({ setCode, cards, collection }) =>
+            cards
+              .filter((c) => c.name.toLowerCase().includes(cardSearch.toLowerCase()))
+              .map((c) => ({
+                setCode,
+                card: c,
+                qty: (collection[c.id]?.qty ?? 0) + (collection[c.id]?.foil ?? 0),
+              })),
+          )
+          .slice(0, 8)
+      : [];
   const [setSearch, setSetSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [allSets, setAllSets] = useState(null);
@@ -35,6 +69,8 @@ export default function MenuBar({
   function toggle(name) {
     const isOpening = openMenu !== name;
     setOpenMenu(isOpening ? name : null);
+    setCardSearch('');
+    setCardHighlight(-1);
     if (name === 'addset' && isOpening && allSets === null && !setsLoading) {
       setSetsLoading(true);
       fetchSets()
@@ -69,6 +105,37 @@ export default function MenuBar({
       e.preventDefault();
       openSet(filteredSets[highlightedIndex].code, filteredSets[highlightedIndex].name);
     }
+  }
+
+  function handleCardSearchChange(e) {
+    setCardSearch(e.target.value);
+    setCardHighlight(-1);
+    setOpenMenu(null);
+  }
+
+  function handleCardSearchKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCardHighlight((i) => Math.min(i + 1, cardResults.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCardHighlight((i) => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter' && cardHighlight >= 0) {
+      e.preventDefault();
+      const r = cardResults[cardHighlight];
+      onAddCard?.(r.setCode, r.card.id);
+      setCardSearch('');
+      setCardHighlight(-1);
+    } else if (e.key === 'Escape') {
+      setCardSearch('');
+      setCardHighlight(-1);
+    }
+  }
+
+  function handleAddFromSearch(setCode, cardId) {
+    onAddCard?.(setCode, cardId);
+    setCardSearch('');
+    setCardHighlight(-1);
   }
 
   const filteredSets =
@@ -181,6 +248,26 @@ export default function MenuBar({
       </div>
       <div className="menu">
         <button
+          className={`menu-label${openMenu === 'export' ? ' menu-label--open' : ''}`}
+          onClick={() => toggle('export')}
+        >
+          Export Collection
+        </button>
+        {openMenu === 'export' && (
+          <ul className="menu-dropdown">
+            <li>
+              <button
+                className="menu-dropdown-item"
+                onClick={() => { onExportCsv?.(); setOpenMenu(null); }}
+              >
+                CSV
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+      <div className="menu">
+        <button
           className={`menu-label${openMenu === 'debug' ? ' menu-label--open' : ''}`}
           onClick={() => toggle('debug')}
         >
@@ -202,6 +289,35 @@ export default function MenuBar({
               </li>
             )}
             {!activeSet && <li className="menu-subheading">No active set</li>}
+          </ul>
+        )}
+      </div>
+      <div className="menu-card-search">
+        <input
+          className="menu-card-search-input"
+          type="search"
+          placeholder="Search for a card"
+          value={cardSearch}
+          onChange={handleCardSearchChange}
+          onKeyDown={handleCardSearchKeyDown}
+        />
+        {(cardResults.length > 0 || (cardSearch.trim() && cardSearchLoading)) && (
+          <ul className="menu-dropdown menu-card-search-dropdown">
+            {cardSearchLoading && <li className="menu-subheading">Loading…</li>}
+            {cardResults.map((result, i) => (
+              <li key={`${result.setCode}-${result.card.id}`}>
+                <button
+                  className="menu-dropdown-item menu-card-result"
+                  aria-selected={i === cardHighlight}
+                  onClick={() => handleAddFromSearch(result.setCode, result.card.id)}
+                >
+                  <span className="menu-card-result-name">{result.card.name}</span>
+                  <span className="menu-card-result-meta">
+                    {result.setCode.toUpperCase()} {result.card.number}{result.qty > 0 ? ` · ${result.qty}` : ''}
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>
         )}
       </div>

@@ -173,7 +173,7 @@ describe('fetchSetCards', () => {
     expect(cards).toEqual(cached);
   });
 
-  test('merges token set cards when a token set exists', async () => {
+  test('returns only main cards when a token set exists', async () => {
     const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
     vi.stubGlobal(
       'fetch',
@@ -188,25 +188,10 @@ describe('fetchSetCards', () => {
 
     const cards = await fetchSetCards('ktk');
 
-    expect(cards.map((c) => c.name)).toEqual(['Abzan Guide', 'Soldier Token']);
-  });
-
-  test('silently omits tokens when no token set exists', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
-          : Promise.resolve(noTokens),
-      ),
-    );
-
-    const cards = await fetchSetCards('ktk');
-
     expect(cards.map((c) => c.name)).toEqual(['Abzan Guide']);
   });
 
-  test('caches main and token cards together under the set code', async () => {
+  test('saves token cards under the token set code', async () => {
     const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
     vi.stubGlobal(
       'fetch',
@@ -221,8 +206,22 @@ describe('fetchSetCards', () => {
 
     await fetchSetCards('ktk');
 
-    const cached = await loadCards('ktk');
-    expect(cached).toHaveLength(2);
-    expect(cached.map((c) => c.name)).toEqual(['Abzan Guide', 'Soldier Token']);
+    expect(await loadCards('tktk')).toHaveLength(1);
+    expect((await loadCards('tktk'))[0].name).toBe('Soldier Token');
+  });
+
+  test('does not save a token set entry when no token set exists', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+          : Promise.resolve(noTokens),
+      ),
+    );
+
+    await fetchSetCards('ktk');
+
+    expect(await loadCards('tktk')).toBeNull();
   });
 });

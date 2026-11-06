@@ -93,12 +93,13 @@ export async function fetchSetCards(setCode) {
   const cached = await loadCards(setCode);
   if (cached) return cached;
 
+  const tokenCode = `t${setCode}`;
   const [mainCards, tokenCards] = await Promise.all([
     fetchCardsFromScryfall(setCode),
-    fetchCardsFromScryfall(`t${setCode}`).catch(() => []),
+    fetchCardsFromScryfall(tokenCode).catch(() => null),
   ]);
 
-  const cards = [...mainCards, ...tokenCards];
-  await saveCards(setCode, cards);
-  return cards;
+  await saveCards(setCode, mainCards);
+  if (tokenCards) await saveCards(tokenCode, tokenCards);
+  return mainCards;
 }
