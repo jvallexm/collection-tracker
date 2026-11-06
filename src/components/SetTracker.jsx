@@ -88,10 +88,12 @@ export default function SetTracker({
   // Load saved quantities from IDB. Uses a functional update so any quantity the user
   // types before the load completes is not overwritten by the arriving saved data.
   useEffect(() => {
+    let cancelled = false;
     setCollection(null);
     loadCollection(setCode).then((saved) => {
-      setCollection((current) => current ?? saved);
+      if (!cancelled) setCollection((current) => current ?? saved);
     });
+    return () => { cancelled = true; };
   }, [setCode]);
 
   // Persist every change to IDB, but skip the initial render before the load completes.
@@ -118,11 +120,15 @@ export default function SetTracker({
   }, [cardFocus]);
 
   useEffect(() => {
+    let cancelled = false;
     setSortLoaded(false);
     loadConfig(`sort:${setCode}`).then((saved) => {
-      if (saved) setSort(saved);
-      setSortLoaded(true);
+      if (!cancelled) {
+        if (saved) setSort(saved);
+        setSortLoaded(true);
+      }
     });
+    return () => { cancelled = true; };
   }, [setCode]);
 
   useEffect(() => {
