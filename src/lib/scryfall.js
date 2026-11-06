@@ -69,7 +69,7 @@ export async function fetchSets() {
   if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
   const json = await response.json();
   return json.data
-    .filter(({ set_type }) => set_type !== 'alchemy')
+    .filter(({ set_type }) => set_type !== 'alchemy' && set_type !== 'token')
     .map(({ code, name }) => ({ code, name }));
 }
 

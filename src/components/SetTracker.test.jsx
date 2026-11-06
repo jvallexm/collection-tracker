@@ -524,3 +524,47 @@ describe('SetTracker cardFocus', () => {
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Copies of Bolt' }));
   });
 });
+
+describe('SetTracker cardPreviewPos', () => {
+  test('card preview uses saved position when cardPreviewPos is provided', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardPreviewPos={{ x: 400, y: 150 }} />);
+    await act(async () => {});
+    fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
+    const el = document.querySelector('.card-preview');
+    expect(el.style.left).toBe('400px');
+    expect(el.style.top).toBe('150px');
+  });
+
+  test('card preview image uses cardImageSize when provided', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardImageSize="large" />);
+    await act(async () => {});
+    fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
+    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain('version=large');
+  });
+});
+
+describe('SetTracker onEscapeTop', () => {
+  test('pressing Up on the first row focuses the search input', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    const firstInput = screen.getByLabelText('Copies of Arrow');
+    firstInput.focus();
+    fireEvent.keyDown(firstInput, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
+  });
+
+  test('pressing Up on the first row selects all text in the search input', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    const searchInput = screen.getByPlaceholderText('Search…');
+    searchInput.select = vi.fn();
+    const firstInput = screen.getByLabelText('Copies of Arrow');
+    firstInput.focus();
+    fireEvent.keyDown(firstInput, { key: 'ArrowUp' });
+    expect(searchInput.select).toHaveBeenCalled();
+  });
+});

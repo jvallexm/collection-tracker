@@ -530,6 +530,54 @@ th {
   z-index: 150;
   width: 160px;
 }
+.draggable-preview {
+  width: 180px;
+}
+.draggable-preview .titlebar {
+  cursor: move;
+}
+.size-box {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid currentColor;
+}
+.size-box--0 { width: 6px; height: 6px; }
+.size-box--1 { width: 9px; height: 9px; }
+.size-box--2 { width: 11px; height: 11px; }
+.titlebar-btn[aria-pressed="true"] {
+  box-shadow: inset 1px 1px 0 var(--shadow);
+  background: var(--shadow);
+}
+.draggable-preview-footer {
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.draggable-preview-resize {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.draggable-preview-resize-label {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.draggable-preview-size-btns {
+  display: flex;
+  gap: 2px;
+}
+.draggable-preview-pos-btns {
+  display: flex;
+  gap: 4px;
+}
+.draggable-preview-reset-btn {
+  flex-shrink: 0;
+}
+.draggable-preview-move-btn {
+  flex: 1;
+}
 .card-preview-body {
   padding: 4px;
 }

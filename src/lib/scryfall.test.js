@@ -93,6 +93,23 @@ describe('fetchSets', () => {
     expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
   });
 
+  test('excludes token-only sets from results', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            { code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' },
+            { code: 'tktk', name: 'Khans of Tarkir Tokens', set_type: 'token' },
+          ],
+        }),
+      }),
+    );
+    const sets = await fetchSets();
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+  });
+
   test('throws a readable error when Scryfall responds with a failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
     await expect(fetchSets()).rejects.toThrow('Scryfall request failed (HTTP 503)');

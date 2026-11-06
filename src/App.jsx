@@ -11,6 +11,8 @@ export default function App() {
   const [recentSets, setRecentSets] = useState([{ code: 'ktk', name: 'Khans of Tarkir' }]);
   const [collectionVersions, setCollectionVersions] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
+  const [cardPreviewPos, setCardPreviewPos] = useState(null);
+  const [cardImageSize, setCardImageSize] = useState(null);
 
   useEffect(() => {
     loadConfig('theme').then((saved) => {
@@ -23,6 +25,12 @@ export default function App() {
       setOpenSets(
         Array.isArray(saved) ? saved : [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }],
       );
+    });
+    loadConfig('cardPreviewPos').then((saved) => {
+      if (saved) setCardPreviewPos(saved);
+    });
+    loadConfig('cardImageSize').then((saved) => {
+      if (saved) setCardImageSize(saved);
     });
   }, []);
 
@@ -89,6 +97,16 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  function handleSaveCardPreviewPos(pos) {
+    setCardPreviewPos(pos);
+    saveConfig('cardPreviewPos', pos);
+  }
+
+  function handleSaveCardImageSize(size) {
+    setCardImageSize(size);
+    saveConfig('cardImageSize', size);
+  }
+
   async function handleAddCard(setCode, cardId) {
     const current = await loadCollection(setCode);
     const newQty = (current[cardId]?.qty ?? 0) + 1;
@@ -123,6 +141,10 @@ export default function App() {
         onExportCsv={handleExportCsv}
         openSets={openSets ?? []}
         onAddCard={handleAddCard}
+        cardPreviewPos={cardPreviewPos}
+        onSaveCardPreviewPos={handleSaveCardPreviewPos}
+        cardImageSize={cardImageSize}
+        onSaveCardImageSize={handleSaveCardImageSize}
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => (
@@ -137,6 +159,8 @@ export default function App() {
             onClose={() => handleClose(set.code)}
             collectionVersion={collectionVersions[set.code] ?? 0}
             cardFocus={focusTarget?.setCode === set.code ? focusTarget : null}
+            cardPreviewPos={cardPreviewPos}
+            cardImageSize={cardImageSize}
           />
         ))}
       </div>

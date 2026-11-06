@@ -15,7 +15,7 @@ const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
 
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 
-function moveFocusBetweenInputs(event) {
+function moveFocusBetweenInputs(event, onEscapeTop) {
   const key = event.key.toLowerCase();
   const vStep = VERTICAL_STEP[key];
   const hStep = HORIZONTAL_STEP[key];
@@ -25,7 +25,12 @@ function moveFocusBetweenInputs(event) {
   if (vStep !== undefined) {
     const col = event.target.dataset.col;
     const colInputs = Array.from(event.currentTarget.querySelectorAll(`input[data-col="${col}"]`));
-    const neighbor = colInputs[colInputs.indexOf(event.target) + vStep];
+    const idx = colInputs.indexOf(event.target);
+    if (idx + vStep < 0) {
+      onEscapeTop?.();
+      return;
+    }
+    const neighbor = colInputs[idx + vStep];
     if (neighbor) neighbor.focus();
   } else {
     const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input'));
@@ -48,6 +53,7 @@ export default function CardTable({
   onSort,
   onInputFocus,
   onTableBlur,
+  onEscapeTop,
 }) {
   useEffect(() => {
     const focused = document.activeElement;
@@ -75,7 +81,7 @@ export default function CardTable({
           </tr>
         </thead>
         <tbody
-          onKeyDown={moveFocusBetweenInputs}
+          onKeyDown={(e) => moveFocusBetweenInputs(e, onEscapeTop)}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget)) onTableBlur?.();
           }}

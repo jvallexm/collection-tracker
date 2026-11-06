@@ -49,6 +49,105 @@ test('clicking View opens the dropdown with all three theme items', () => {
   expect(screen.getByText('Synthwave (experimental)')).not.toBeNull();
 });
 
+test('View menu contains Move card preview option under a Windows heading', () => {
+  renderMenu();
+  fireEvent.click(screen.getByText('View'));
+  expect(screen.getByText('Windows')).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Move card preview' })).not.toBeNull();
+});
+
+test('clicking Move card preview opens the draggable preview and closes the menu', () => {
+  renderMenu();
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  expect(screen.getByText('Cut // Ribbons')).not.toBeNull();
+  expect(screen.queryByText('Light Mode')).toBeNull();
+});
+
+test('clicking Move card preview again closes the preview', () => {
+  renderMenu();
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  expect(screen.queryByText('Cut // Ribbons')).toBeNull();
+});
+
+test('shows checkmark next to Move card preview when open', () => {
+  renderMenu();
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  fireEvent.click(screen.getByText('View'));
+  expect(screen.getByRole('button', { name: 'Move card preview' }).textContent).toMatch(/✓/);
+});
+
+test('clicking Close on the draggable preview closes it', () => {
+  renderMenu();
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(screen.queryByText('Cut // Ribbons')).toBeNull();
+});
+
+test('passes cardPreviewPos to DraggableCardPreview as initial position', () => {
+  render(
+    <MenuBar
+      theme="light"
+      onThemeChange={vi.fn()}
+      cardPreviewPos={{ x: 500, y: 200 }}
+    />,
+  );
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  const el = document.querySelector('.draggable-preview');
+  expect(el.style.left).toBe('500px');
+  expect(el.style.top).toBe('200px');
+});
+
+test('passes cardImageSize to DraggableCardPreview as initial image size', () => {
+  render(
+    <MenuBar
+      theme="light"
+      onThemeChange={vi.fn()}
+      cardImageSize="large"
+    />,
+  );
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  expect(screen.getByRole('button', { name: 'large size' }).getAttribute('aria-pressed')).toBe('true');
+});
+
+test('clicking a size button calls onSaveCardImageSize', () => {
+  const onSaveCardImageSize = vi.fn();
+  render(
+    <MenuBar
+      theme="light"
+      onThemeChange={vi.fn()}
+      onSaveCardImageSize={onSaveCardImageSize}
+    />,
+  );
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  fireEvent.click(screen.getByRole('button', { name: 'normal size' }));
+  expect(onSaveCardImageSize).toHaveBeenCalledWith('normal');
+});
+
+test('clicking Move here on preview calls onSaveCardPreviewPos and closes the preview', () => {
+  const onSaveCardPreviewPos = vi.fn();
+  render(
+    <MenuBar
+      theme="light"
+      onThemeChange={vi.fn()}
+      onSaveCardPreviewPos={onSaveCardPreviewPos}
+    />,
+  );
+  fireEvent.click(screen.getByText('View'));
+  fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Move here' }));
+  expect(onSaveCardPreviewPos).toHaveBeenCalledWith({ x: 300, y: 100 });
+  expect(screen.queryByText('Cut // Ribbons')).toBeNull();
+});
+
 test('clicking View again closes the dropdown', () => {
   renderMenu();
   fireEvent.click(screen.getByText('View'));

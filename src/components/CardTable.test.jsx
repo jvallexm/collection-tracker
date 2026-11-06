@@ -184,6 +184,42 @@ describe('CardTable keyboard navigation', () => {
     expect(document.activeElement).toBe(foil('Arrow'));
   });
 
+  test.each(['w', 'W', 'ArrowUp'])('"%s" on the first row calls onEscapeTop', (key) => {
+    const onEscapeTop = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        onEscapeTop={onEscapeTop}
+      />,
+    );
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key });
+    expect(onEscapeTop).toHaveBeenCalled();
+  });
+
+  test('onEscapeTop is not called when moving up from a non-first row', () => {
+    const onEscapeTop = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        onEscapeTop={onEscapeTop}
+      />,
+    );
+    have('Bolt').focus();
+    fireEvent.keyDown(have('Bolt'), { key: 'w' });
+    expect(onEscapeTop).not.toHaveBeenCalled();
+  });
+
   test('stays put at the bottom of each column', () => {
     renderTable();
     have('Charm').focus();

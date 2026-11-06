@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchSets } from '../lib/scryfall.js';
 import { loadCards, loadCollection } from '../lib/storage.js';
+import DraggableCardPreview from './DraggableCardPreview.jsx';
 
 export default function MenuBar({
   theme,
@@ -12,8 +13,13 @@ export default function MenuBar({
   onExportCsv,
   openSets = [],
   onAddCard,
+  cardPreviewPos = null,
+  onSaveCardPreviewPos,
+  cardImageSize = null,
+  onSaveCardImageSize,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const barRef = useRef(null);
 
   const [cardSearch, setCardSearch] = useState('');
@@ -154,6 +160,7 @@ export default function MenuBar({
   }
 
   return (
+    <>
     <div className="menubar" ref={barRef}>
       <div className="menu">
         <button
@@ -243,6 +250,15 @@ export default function MenuBar({
                 (experimental)
               </button>
             </li>
+            <li className="menu-subheading">Windows</li>
+            <li>
+              <button
+                className="menu-dropdown-item"
+                onClick={() => { setPreviewOpen((o) => !o); setOpenMenu(null); }}
+              >
+                {previewOpen && <span aria-hidden="true">✓ </span>}Move card preview
+              </button>
+            </li>
           </ul>
         )}
       </div>
@@ -322,5 +338,7 @@ export default function MenuBar({
         )}
       </div>
     </div>
+    {previewOpen && <DraggableCardPreview onClose={() => setPreviewOpen(false)} initialPos={cardPreviewPos} onSavePos={onSaveCardPreviewPos} initialImageSize={cardImageSize ?? 'small'} onSaveSize={onSaveCardImageSize} />}
+    </>
   );
 }

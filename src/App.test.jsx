@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { makeCard } from './test/fixtures.js';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
 import {
   deleteCards,
@@ -395,5 +396,79 @@ describe('App handleAddCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
     await act(async () => {});
     expect(saveCollection).toHaveBeenCalledWith('ktk', expect.any(Object));
+  });
+});
+
+describe('App card preview position', () => {
+  test('loads saved position from config and applies it to the preview window', async () => {
+    loadConfig.mockImplementation((key) =>
+      key === 'cardPreviewPos'
+        ? Promise.resolve({ x: 500, y: 200 })
+        : key === 'openSets'
+          ? Promise.resolve([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }])
+          : Promise.resolve(null),
+    );
+    await renderApp();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+    const el = document.querySelector('.draggable-preview');
+    expect(el.style.left).toBe('500px');
+    expect(el.style.top).toBe('200px');
+  });
+
+  test('clicking Move here saves position to config', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move here' }));
+    expect(saveConfig).toHaveBeenCalledWith('cardPreviewPos', { x: 300, y: 100 });
+  });
+
+  test('clicking a size button saves the size to config', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+    fireEvent.click(screen.getByRole('button', { name: 'large size' }));
+    expect(saveConfig).toHaveBeenCalledWith('cardImageSize', 'large');
+  });
+
+  test('loads saved image size from config and applies it to the preview', async () => {
+    loadConfig.mockImplementation((key) =>
+      key === 'cardImageSize' ? Promise.resolve('normal') : Promise.resolve(null),
+    );
+    await renderApp();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
+    expect(screen.getByRole('button', { name: 'normal size' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  test('saved image size is used in the card table preview', async () => {
+    fetchSetCards.mockResolvedValue([makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' })]);
+    loadConfig.mockImplementation((key) =>
+      key === 'cardImageSize'
+        ? Promise.resolve('large')
+        : key === 'openSets'
+          ? Promise.resolve([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }])
+          : Promise.resolve(null),
+    );
+    await renderApp();
+    fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
+    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain('version=large');
+  });
+
+  test('saved position is applied to card preview in set tracker', async () => {
+    fetchSetCards.mockResolvedValue([makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' })]);
+    loadConfig.mockImplementation((key) =>
+      key === 'cardPreviewPos'
+        ? Promise.resolve({ x: 400, y: 150 })
+        : key === 'openSets'
+          ? Promise.resolve([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }])
+          : Promise.resolve(null),
+    );
+    await renderApp();
+    fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
+    const el = document.querySelector('.card-preview');
+    expect(el.style.left).toBe('400px');
+    expect(el.style.top).toBe('150px');
   });
 });

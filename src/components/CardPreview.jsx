@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
 
-/**
- * Floating card image preview shown when a quantity input is focused.
- * @param {Object} props
- * @param {Object|null} props.card - Card to preview, or null to render nothing.
- */
-export default function CardPreview({ card }) {
+export default function CardPreview({ card, pos = null, imageSize = 'small' }) {
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => { setLoading(true); }, [imageSize]);
 
   if (!card) return null;
 
+  const SIZE_WIDTHS = { small: 160, normal: 230, large: 300 };
+  const style = {
+    ...(pos ? { left: pos.x, top: pos.y } : {}),
+    width: SIZE_WIDTHS[imageSize],
+  };
+
   return (
-    <div className="card-preview window">
+    <div className="card-preview window" style={style}>
       <Titlebar>{card.name}</Titlebar>
       <div className="card-preview-body">
         {loading && (
@@ -21,7 +24,8 @@ export default function CardPreview({ card }) {
           </div>
         )}
         <img
-          src={`https://api.scryfall.com/cards/${card.id}?format=image&version=small`}
+          key={imageSize}
+          src={`https://api.scryfall.com/cards/${card.id}?format=image&version=${imageSize}`}
           alt={card.name}
           style={loading ? { display: 'none' } : undefined}
           onLoad={() => setLoading(false)}

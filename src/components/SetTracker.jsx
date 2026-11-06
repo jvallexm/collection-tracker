@@ -59,8 +59,11 @@ export default function SetTracker({
   onClose,
   collectionVersion = 0,
   cardFocus = null,
+  cardPreviewPos = null,
+  cardImageSize = null,
 }) {
   const windowRef = useRef(null);
+  const searchRef = useRef(null);
   const [cards, setCards] = useState([]);
   const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
@@ -224,6 +227,7 @@ export default function SetTracker({
           Export…
         </button>
         <input
+          ref={searchRef}
           className="search-input"
           type="search"
           placeholder="Search…"
@@ -246,9 +250,10 @@ export default function SetTracker({
           onSort={handleSort}
           onInputFocus={setFocusedCard}
           onTableBlur={() => setFocusedCard(null)}
+          onEscapeTop={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
         />
       )}
-      <CardPreview key={focusedCard?.id} card={focusedCard} />
+      <CardPreview key={focusedCard?.id} card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} />
       <div className="statusbar">
         {describeStatus({ loadError, cards, collection: safeCollection })}
       </div>
