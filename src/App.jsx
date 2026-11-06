@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
 import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
@@ -13,6 +13,7 @@ export default function App() {
   const [focusTarget, setFocusTarget] = useState(null);
   const [cardPreviewPos, setCardPreviewPos] = useState(null);
   const [cardImageSize, setCardImageSize] = useState(null);
+  const hasBackgroundRefreshed = useRef(false);
 
   useEffect(() => {
     loadConfig('theme').then((saved) => {
@@ -39,6 +40,21 @@ export default function App() {
     saveConfig('openSets', openSets);
   }, [openSets]);
 
+  useEffect(() => {
+    if (openSets === null || hasBackgroundRefreshed.current) return;
+    hasBackgroundRefreshed.current = true;
+    (async () => {
+      for (const set of openSets) {
+        await deleteCards(set.code);
+        setOpenSets((current) =>
+          current.map((s) =>
+            s.code === set.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s,
+          ),
+        );
+      }
+    })();
+  }, [openSets]);
+
   function handleThemeChange(newTheme) {
     setTheme(newTheme);
     saveConfig('theme', newTheme);
@@ -56,7 +72,7 @@ export default function App() {
     });
     setRecentSets((current) => {
       const without = current.filter((s) => s.code !== code);
-      const updated = [{ code, name }, ...without].slice(0, 3);
+      const updated = [{ code, name }, ...without].slice(0, 5);
       saveConfig('recentSets', updated);
       return updated;
     });

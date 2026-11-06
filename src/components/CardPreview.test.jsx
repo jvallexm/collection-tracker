@@ -68,6 +68,16 @@ test('widens the container for large size', () => {
   expect(document.querySelector('.card-preview').style.width).toBe('300px');
 });
 
+test('shows no foil overlay by default', () => {
+  render(<CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} />);
+  expect(document.querySelector('.card-preview-foil-overlay')).toBeNull();
+});
+
+test('shows foil overlay when isFoil is true', () => {
+  render(<CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} isFoil={true} />);
+  expect(document.querySelector('.card-preview-foil-overlay')).not.toBeNull();
+});
+
 test('resets loading spinner when imageSize changes', async () => {
   const { rerender } = render(
     <CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} imageSize="small" />,

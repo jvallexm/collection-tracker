@@ -282,6 +282,19 @@ describe('SetTracker card preview', () => {
     expect(screen.queryByAltText('Arrow')).toBeNull();
   });
 
+  test('shows foil overlay when a foil input is focused', async () => {
+    await renderLoadedTracker();
+    fireEvent.focus(screen.getByLabelText('Foil copies of Arrow'));
+    expect(document.querySelector('.card-preview-foil-overlay')).not.toBeNull();
+  });
+
+  test('hides foil overlay when a qty input is focused', async () => {
+    await renderLoadedTracker();
+    fireEvent.focus(screen.getByLabelText('Foil copies of Arrow'));
+    fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
+    expect(document.querySelector('.card-preview-foil-overlay')).toBeNull();
+  });
+
   test('hides the preview when focus leaves the table', async () => {
     await renderLoadedTracker();
     const input = screen.getByLabelText('Copies of Arrow');
@@ -542,6 +555,28 @@ describe('SetTracker cardPreviewPos', () => {
     await act(async () => {});
     fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
     expect(document.querySelector('.card-preview img').getAttribute('src')).toContain('version=large');
+  });
+});
+
+describe('SetTracker search ArrowDown', () => {
+  test('pressing ArrowDown in the search bar focuses the first table input', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    const search = screen.getByPlaceholderText('Search…');
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByLabelText('Copies of Arrow'));
+  });
+
+  test('pressing other keys in the search bar does nothing special', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    const search = screen.getByPlaceholderText('Search…');
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(search);
   });
 });
 

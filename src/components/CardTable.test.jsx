@@ -265,7 +265,7 @@ describe('CardTable keyboard navigation', () => {
     expect(input.select).toHaveBeenCalled();
   });
 
-  test('calls onInputFocus with the card when an input gains focus', () => {
+  test('calls onInputFocus with the card and isFoil=false for a qty input', () => {
     const onInputFocus = vi.fn();
     render(
       <CardTable
@@ -279,7 +279,24 @@ describe('CardTable keyboard navigation', () => {
       />,
     );
     fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
-    expect(onInputFocus).toHaveBeenCalledWith(expect.objectContaining({ name: 'Arrow' }));
+    expect(onInputFocus).toHaveBeenCalledWith(expect.objectContaining({ name: 'Arrow' }), false);
+  });
+
+  test('calls onInputFocus with isFoil=true for a foil input', () => {
+    const onInputFocus = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        onInputFocus={onInputFocus}
+      />,
+    );
+    fireEvent.focus(screen.getByLabelText('Foil copies of Arrow'));
+    expect(onInputFocus).toHaveBeenCalledWith(expect.objectContaining({ name: 'Arrow' }), true);
   });
 
   test('calls onTableBlur when focus moves outside the table', () => {
@@ -435,10 +452,11 @@ describe('CardTable token section', () => {
       />,
     );
     fireEvent.focus(screen.getByLabelText('Copies of Soldier Token'));
-    expect(onInputFocus).toHaveBeenCalledWith(TOKEN);
+    expect(onInputFocus).toHaveBeenCalledWith(TOKEN, false);
     fireEvent.change(screen.getByLabelText('Copies of Soldier Token'), { target: { value: '2' } });
     expect(onQuantityChange).toHaveBeenCalledWith('tok1', '2');
     fireEvent.focus(screen.getByLabelText('Foil copies of Soldier Token'));
+    expect(onInputFocus).toHaveBeenCalledWith(TOKEN, true);
     fireEvent.change(screen.getByLabelText('Foil copies of Soldier Token'), { target: { value: '1' } });
     expect(onFoilQuantityChange).toHaveBeenCalledWith('tok1', '1');
   });

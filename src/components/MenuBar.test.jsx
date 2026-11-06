@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSets } from '../lib/scryfall.js';
-import { loadCards, loadCollection } from '../lib/storage.js';
+import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import MenuBar from './MenuBar.jsx';
 
 vi.mock('../lib/scryfall.js', () => ({ fetchSets: vi.fn() }));
 vi.mock('../lib/storage.js', () => ({
+  loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCards: vi.fn().mockResolvedValue([]),
   loadCollection: vi.fn().mockResolvedValue({}),
 }));
@@ -287,6 +288,20 @@ describe('MenuBar Add Set menu', () => {
     expect(fetchSets).toHaveBeenCalledTimes(1);
   });
 
+  test('shows loading spinner next to search bar while set list is loading', () => {
+    fetchSets.mockReturnValue(new Promise(() => {}));
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    expect(screen.getByLabelText('Loading')).not.toBeNull();
+  });
+
+  test('hides loading spinner after set list finishes loading', async () => {
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    expect(screen.queryByLabelText('Loading')).toBeNull();
+  });
+
   test('arrow down in search input highlights the first result', async () => {
     renderWithSets();
     fireEvent.click(screen.getByText('Add Set'));
@@ -437,6 +452,136 @@ describe('MenuBar My Collection menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
     expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
     expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  test('shows All sets… item in My Collection dropdown', () => {
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    expect(screen.getByText(/All sets/)).not.toBeNull();
+  });
+
+  test('hovering All sets… shows a loading state while keys load', () => {
+    let resolveKeys;
+    loadAllCollectionKeys.mockReturnValue(new Promise((r) => { resolveKeys = r; }));
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    expect(screen.getByText('Loading…')).not.toBeNull();
+    resolveKeys([]);
+  });
+
+  test('hovering All sets… shows No sets catalogued yet when collection is empty', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByText('No sets catalogued yet')).not.toBeNull();
+  });
+
+  test('hovering All sets… shows set names when collection has sets', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    fetchSets.mockResolvedValue([
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+    ]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Throne of Eldraine' })).not.toBeNull();
+  });
+
+  test('shows Loading while fetchSets is still pending even after keys have loaded', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    fetchSets.mockReturnValue(new Promise(() => {}));
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByText('Loading…')).not.toBeNull();
+  });
+
+  test('shows set codes as names when fetchSets fails to load', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    fetchSets.mockRejectedValue(new Error('network error'));
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'KTK' })).not.toBeNull();
+  });
+
+  test('excludes token set codes from the All sets list', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'tktk']);
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'TKTK' })).toBeNull();
+  });
+
+  test('clicking a set in the All sets submenu calls onOpenSet and closes the dropdown', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    const { onOpenSet } = renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Khans of Tarkir' }));
+    expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
+    expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  test('leaving the All sets… item hides the submenu', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    const li = screen.getByText(/All sets/).closest('li');
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    fireEvent.mouseLeave(li);
+    expect(screen.queryByText('No sets catalogued yet')).toBeNull();
+  });
+
+  test('hovering All sets… does not re-fetch sets when already loaded', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    const li = screen.getByText(/All sets/).closest('li');
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    fireEvent.mouseLeave(li);
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    expect(fetchSets).toHaveBeenCalledTimes(1);
+  });
+
+  test('hovering All sets… does not re-load keys when already loaded', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    const li = screen.getByText(/All sets/).closest('li');
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    fireEvent.mouseLeave(li);
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    expect(loadAllCollectionKeys).toHaveBeenCalledTimes(1);
+  });
+
+  test('recovers gracefully when fetchSets fails during All sets hover', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    fetchSets.mockRejectedValue(new Error('network error'));
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByText('No sets catalogued yet')).not.toBeNull();
   });
 });
 
@@ -626,6 +771,22 @@ describe('MenuBar card search', () => {
     fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
     expect(screen.getByText('Loading…')).not.toBeNull();
     resolveCards([BOLT]);
+  });
+
+  test('shows loading spinner next to search bar while card data is loading', () => {
+    let resolveCards;
+    loadCards.mockReturnValue(new Promise((r) => { resolveCards = r; }));
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    expect(screen.getByLabelText('Loading')).not.toBeNull();
+    resolveCards([BOLT]);
+  });
+
+  test('hides loading spinner after card data finishes loading', async () => {
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    await act(async () => {});
+    expect(screen.queryByLabelText('Loading')).toBeNull();
   });
 
   test('recovers gracefully when card data load fails', async () => {

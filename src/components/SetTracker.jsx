@@ -72,6 +72,7 @@ export default function SetTracker({
   const [sortLoaded, setSortLoaded] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
+  const [focusedCardIsFoil, setFocusedCardIsFoil] = useState(false);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -233,6 +234,12 @@ export default function SetTracker({
           placeholder="Search…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const first = windowRef.current?.querySelector('table input');
+            if (first) first.focus();
+          }}
         />
       </div>
       {cards.length === 0 && !loadError ? (
@@ -248,12 +255,12 @@ export default function SetTracker({
           onQuantityChange={handleQuantityChange}
           onFoilQuantityChange={handleFoilQuantityChange}
           onSort={handleSort}
-          onInputFocus={setFocusedCard}
-          onTableBlur={() => setFocusedCard(null)}
+          onInputFocus={(card, isFoil) => { setFocusedCard(card); setFocusedCardIsFoil(isFoil); }}
+          onTableBlur={() => { setFocusedCard(null); setFocusedCardIsFoil(false); }}
           onEscapeTop={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
         />
       )}
-      <CardPreview key={focusedCard?.id} card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} />
+      <CardPreview key={focusedCard?.id} card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} isFoil={focusedCardIsFoil} />
       <div className="statusbar">
         {describeStatus({ loadError, cards, collection: safeCollection })}
       </div>

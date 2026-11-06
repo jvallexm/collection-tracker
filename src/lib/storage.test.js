@@ -1,5 +1,6 @@
 import {
   deleteCards,
+  loadAllCollectionKeys,
   loadCards,
   loadCollection,
   loadConfig,
@@ -14,6 +15,7 @@ import { openDatabase } from './db.js';
 const makeDb = (store = {}) => ({
   get: vi.fn((_, key) => Promise.resolve(store[key])),
   put: vi.fn(() => Promise.resolve()),
+  getAllKeys: vi.fn(() => Promise.resolve([])),
 });
 
 describe('loadCollection', () => {
@@ -122,5 +124,23 @@ describe('saveConfig', () => {
   test('does not throw when the database errors', async () => {
     openDatabase.mockRejectedValue(new Error('db error'));
     await expect(saveConfig('theme', 'dark')).resolves.toBeUndefined();
+  });
+});
+
+describe('loadAllCollectionKeys', () => {
+  test('returns all keys from the collections store', async () => {
+    const db = { ...makeDb(), getAllKeys: vi.fn().mockResolvedValue(['ktk', 'eld']) };
+    openDatabase.mockResolvedValue(db);
+    expect(await loadAllCollectionKeys()).toEqual(['ktk', 'eld']);
+  });
+
+  test('returns an empty array when no collections exist', async () => {
+    openDatabase.mockResolvedValue(makeDb());
+    expect(await loadAllCollectionKeys()).toEqual([]);
+  });
+
+  test('returns an empty array when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    expect(await loadAllCollectionKeys()).toEqual([]);
   });
 });

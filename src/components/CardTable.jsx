@@ -96,7 +96,7 @@ export default function CardTable({
                   value={entry?.qty || ''}
                   onFocus={(e) => {
                     selectInputText(e);
-                    onInputFocus?.(card);
+                    onInputFocus?.(card, false);
                   }}
                   onChange={(e) => onQuantityChange(card.id, e.target.value)}
                 />
@@ -106,7 +106,7 @@ export default function CardTable({
                   value={entry?.foil || ''}
                   onFocus={(e) => {
                     selectInputText(e);
-                    onInputFocus?.(card);
+                    onInputFocus?.(card, true);
                   }}
                   onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
                 />
@@ -132,14 +132,14 @@ export default function CardTable({
                       col="have"
                       label={`Copies of ${card.name}`}
                       value={entry?.qty || ''}
-                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card); }}
+                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card, false); }}
                       onChange={(e) => onQuantityChange(card.id, e.target.value)}
                     />
                     <QuantityCell
                       col="foil"
                       label={`Foil copies of ${card.name}`}
                       value={entry?.foil || ''}
-                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card); }}
+                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
                       onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
                     />
                     <td>{card.name}</td>

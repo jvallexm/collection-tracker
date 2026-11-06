@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchSets } from '../lib/scryfall.js';
-import { loadCards, loadCollection } from '../lib/storage.js';
+import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import DraggableCardPreview from './DraggableCardPreview.jsx';
 
 export default function MenuBar({
@@ -71,6 +71,8 @@ export default function MenuBar({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [allSets, setAllSets] = useState(null);
   const [setsLoading, setSetsLoading] = useState(false);
+  const [collectedSetCodes, setCollectedSetCodes] = useState(null);
+  const [allSetsSubmenuOpen, setAllSetsSubmenuOpen] = useState(false);
 
   function toggle(name) {
     const isOpening = openMenu !== name;
@@ -159,6 +161,28 @@ export default function MenuBar({
     setHighlightedIndex(-1);
   }
 
+  function handleAllSetsEnter() {
+    setAllSetsSubmenuOpen(true);
+    if (collectedSetCodes === null) {
+      loadAllCollectionKeys().then(setCollectedSetCodes);
+    }
+    if (allSets === null && !setsLoading) {
+      setSetsLoading(true);
+      fetchSets()
+        .then((sets) => { setAllSets(sets); setSetsLoading(false); })
+        .catch(() => setSetsLoading(false));
+    }
+  }
+
+  const collectedSets = useMemo(() => {
+    if (collectedSetCodes === null || (allSets === null && setsLoading)) return null;
+    const nameMap = allSets ? new Map(allSets.map((s) => [s.code, s.name])) : new Map();
+    return collectedSetCodes
+      .filter((code) => !allSets || nameMap.has(code))
+      .map((code) => ({ code, name: nameMap.get(code) ?? code.toUpperCase() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [collectedSetCodes, allSets, setsLoading]);
+
   return (
     <>
     <div className="menubar" ref={barRef}>
@@ -185,6 +209,32 @@ export default function MenuBar({
             ) : (
               <li className="menu-subheading">No recent sets</li>
             )}
+            <li
+              className="menu-item-has-submenu"
+              onMouseEnter={handleAllSetsEnter}
+              onMouseLeave={() => setAllSetsSubmenuOpen(false)}
+            >
+              <span className="menu-dropdown-item menu-dropdown-item--submenu-trigger">All sets…</span>
+              {allSetsSubmenuOpen && (
+                <div className="menu-submenu-panel">
+                  {collectedSets === null ? (
+                    <span className="menu-submenu-status">Loading…</span>
+                  ) : collectedSets.length === 0 ? (
+                    <span className="menu-submenu-status">No sets catalogued yet</span>
+                  ) : (
+                    <ul className="menu-submenu-sets">
+                      {collectedSets.map((s) => (
+                        <li key={s.code}>
+                          <button className="menu-dropdown-item" onClick={() => openSet(s.code, s.name)}>
+                            {s.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </li>
           </ul>
         )}
       </div>
@@ -309,6 +359,9 @@ export default function MenuBar({
         )}
       </div>
       <div className="menu-card-search">
+        {(cardSearchLoading || setsLoading) && (
+          <span className="menu-loading-spinner" aria-label="Loading" />
+        )}
         <input
           className="menu-card-search-input"
           type="search"

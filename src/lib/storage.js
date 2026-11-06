@@ -107,3 +107,17 @@ export async function saveConfig(key, value) {
     // Database unavailable; preference is not persisted.
   }
 }
+
+/**
+ * Returns all set codes that have a saved collection entry in IndexedDB.
+ * Returns an empty array if the database errors or no collections exist.
+ * @returns {Promise<string[]>} Array of set codes, e.g. ["ktk", "eld"].
+ */
+export async function loadAllCollectionKeys() {
+  try {
+    const db = await openDatabase();
+    return await db.getAllKeys('collections');
+  } catch {
+    return [];
+  }
+}

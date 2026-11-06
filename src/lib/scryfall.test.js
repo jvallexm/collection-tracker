@@ -227,6 +227,22 @@ describe('fetchSetCards', () => {
     expect((await loadCards('tktk'))[0].name).toBe('Soldier Token');
   });
 
+  test('excludes digital-only cards from results', async () => {
+    const digitalCard = rawCard({ id: 'digital1', name: 'Digital Card', digital: true });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(jsonResponse({ data: [rawCard(), digitalCard], has_more: false }))
+          : Promise.resolve(noTokens),
+      ),
+    );
+
+    const cards = await fetchSetCards('ktk');
+
+    expect(cards.map((c) => c.name)).toEqual(['Abzan Guide']);
+  });
+
   test('does not save a token set entry when no token set exists', async () => {
     vi.stubGlobal(
       'fetch',

@@ -116,13 +116,15 @@ describe('App recent sets', () => {
     ]);
   });
 
-  test('recent sets list is capped at 3', async () => {
+  test('recent sets list is capped at 5', async () => {
     loadConfig.mockImplementation((key) => {
       if (key === 'recentSets')
         return Promise.resolve([
           { code: 'a', name: 'Set A' },
           { code: 'b', name: 'Set B' },
           { code: 'c', name: 'Set C' },
+          { code: 'e', name: 'Set E' },
+          { code: 'f', name: 'Set F' },
         ]);
       return Promise.resolve(null);
     });
@@ -137,6 +139,8 @@ describe('App recent sets', () => {
       { code: 'd', name: 'Set D' },
       { code: 'a', name: 'Set A' },
       { code: 'b', name: 'Set B' },
+      { code: 'c', name: 'Set C' },
+      { code: 'e', name: 'Set E' },
     ]);
   });
 });
@@ -249,6 +253,34 @@ describe('App multi-set windows', () => {
 
     expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
     expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(2);
+  });
+});
+
+describe('App background refresh', () => {
+  test('deletes and re-fetches each open set on initial load', async () => {
+    loadConfig.mockImplementation((key) =>
+      key === 'openSets'
+        ? Promise.resolve([
+            { code: 'ktk', name: 'Khans of Tarkir', minimized: false },
+            { code: 'eld', name: 'Throne of Eldraine', minimized: true },
+          ])
+        : Promise.resolve(null),
+    );
+    await renderApp();
+    expect(deleteCards).toHaveBeenCalledWith('ktk');
+    expect(deleteCards).toHaveBeenCalledWith('eld');
+  });
+
+  test('does not re-refresh when openSets changes after initial load', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    deleteCards.mockClear();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    expect(deleteCards).not.toHaveBeenCalled();
   });
 });
 

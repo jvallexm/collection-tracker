@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
 
-export default function CardPreview({ card, pos = null, imageSize = 'small' }) {
+export default function CardPreview({ card, pos = null, imageSize = 'small', isFoil = false }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { setLoading(true); }, [imageSize]);
@@ -30,6 +30,7 @@ export default function CardPreview({ card, pos = null, imageSize = 'small' }) {
           style={loading ? { display: 'none' } : undefined}
           onLoad={() => setLoading(false)}
         />
+        {isFoil && <div className="card-preview-foil-overlay" aria-hidden="true" />}
       </div>
     </div>
   );

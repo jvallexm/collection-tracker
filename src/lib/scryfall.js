@@ -81,7 +81,7 @@ async function fetchCardsFromScryfall(setCode) {
     const response = await fetch(nextUrl, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
     const page = await response.json();
-    cards.push(...page.data.map(normalizeCard));
+    cards.push(...page.data.filter((c) => !c.digital).map(normalizeCard));
     nextUrl = page.has_more ? page.next_page : null;
     if (nextUrl) await delay(DELAY_BETWEEN_PAGES_MS);
   }
