@@ -43,6 +43,25 @@ describe('CardTable rows', () => {
     expect(screen.getByRole('cell', { name: letter })).not.toBeNull();
   });
 
+  test('shows RL badge after name for reserved list cards', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Black Lotus', reserved: true })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('RL')).not.toBeNull();
+  });
+
+  test('shows no RL badge for non-reserved cards', () => {
+    renderTable();
+    expect(screen.queryByText('RL')).toBeNull();
+  });
+
   test('shows owned regular quantities and leaves blanks for unowned cards', () => {
     renderTable({ a: { qty: 3 } });
     expect(screen.getByLabelText('Copies of Arrow').value).toBe('3');
@@ -433,6 +452,22 @@ describe('CardTable token section', () => {
       />,
     );
     expect(screen.getByText('Soldier Token')).not.toBeNull();
+  });
+
+  test('shows RL badge on a reserved token card', () => {
+    const reservedToken = makeCard({ id: 'rt1', name: 'Reserved Token', reserved: true });
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[reservedToken]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('RL')).not.toBeNull();
   });
 
   test('calls onQuantityChange and onFoilQuantityChange for token card inputs', () => {

@@ -110,7 +110,7 @@ export default function CardTable({
                   }}
                   onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
                 />
-                <td>{card.name}</td>
+                <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
                 <td>{RARITY_LETTER[card.rarity]}</td>
                 <td className="cost-cell">
                   <ManaCost cost={card.cost} />
@@ -142,7 +142,7 @@ export default function CardTable({
                       onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
                       onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
                     />
-                    <td>{card.name}</td>
+                    <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
                     <td>{RARITY_LETTER[card.rarity]}</td>
                     <td className="cost-cell"><ManaCost cost={card.cost} /></td>
                     <td className="number-cell">{card.number}</td>

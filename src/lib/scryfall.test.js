@@ -30,7 +30,16 @@ describe('normalizeCard', () => {
       cost: '{2}{W}{B}{G}',
       number: '169',
       set: 'KTK',
+      reserved: false,
     });
+  });
+
+  test('sets reserved true when the card is on the reserved list', () => {
+    expect(normalizeCard(rawCard({ reserved: true })).reserved).toBe(true);
+  });
+
+  test('defaults reserved to false when the field is absent', () => {
+    expect(normalizeCard(rawCard()).reserved).toBe(false);
   });
 
   test('keeps an empty mana cost (lands)', () => {

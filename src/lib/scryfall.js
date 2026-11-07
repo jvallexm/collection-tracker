@@ -47,6 +47,7 @@ export function normalizeCard(rawCard) {
     cost: getManaCost(rawCard),
     number: rawCard.collector_number,
     set: rawCard.set.toUpperCase(),
+    reserved: rawCard.reserved ?? false,
   };
 }
 
