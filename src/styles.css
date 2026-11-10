@@ -522,6 +522,10 @@ th {
 .number-cell {
   width: 48px;
 }
+.price-cell {
+  width: 44px;
+  text-align: right;
+}
 .cost-cell {
   width: 60px;
 }
@@ -630,12 +634,6 @@ th {
   z-index: 150;
   width: 160px;
 }
-.draggable-preview {
-  width: 180px;
-}
-.draggable-preview .titlebar {
-  cursor: move;
-}
 .size-box {
   display: inline-block;
   background: transparent;
@@ -648,7 +646,7 @@ th {
   box-shadow: inset 1px 1px 0 var(--shadow);
   background: var(--shadow);
 }
-.draggable-preview-footer {
+.draggable-window-footer {
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -668,14 +666,14 @@ th {
   display: flex;
   gap: 2px;
 }
-.draggable-preview-pos-btns {
+.draggable-window-pos-btns {
   display: flex;
   gap: 4px;
 }
-.draggable-preview-reset-btn {
+.draggable-window-reset-btn {
   flex-shrink: 0;
 }
-.draggable-preview-move-btn {
+.draggable-window-move-btn {
   flex: 1;
 }
 .card-preview-body {

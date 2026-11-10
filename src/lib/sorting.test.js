@@ -38,6 +38,38 @@ describe('sortCards', () => {
     expect(idsAfterSorting('number', -1)).toEqual(['c', 'a', 'd', 'b']);
   });
 
+  test('sorts non-numeric collector numbers (e.g. The List) lexicographically', () => {
+    const cards = [
+      makeCard({ id: 'x', name: 'Snap', number: 'ISD-30' }),
+      makeCard({ id: 'y', name: 'Dark', number: 'ARN-5' }),
+      makeCard({ id: 'z', name: 'Bolt', number: 'LEA-10' }),
+    ];
+    // ARN-5 < ISD-30 < LEA-10 lexicographically
+    expect(sortCards(cards, 'number', 1).map((c) => c.id)).toEqual(['y', 'x', 'z']);
+    expect(sortCards(cards, 'number', -1).map((c) => c.id)).toEqual(['z', 'x', 'y']);
+  });
+
+  test('sorts by priceFoil, with null prices last', () => {
+    const cards = [
+      makeCard({ id: 'a', name: 'A', priceFoil: '5.00' }),
+      makeCard({ id: 'b', name: 'B', priceFoil: null }),
+      makeCard({ id: 'c', name: 'C', priceFoil: '1.50' }),
+    ];
+    expect(sortCards(cards, 'priceFoil', 1).map((c) => c.id)).toEqual(['c', 'a', 'b']);
+    expect(sortCards(cards, 'priceFoil', -1).map((c) => c.id)).toEqual(['b', 'a', 'c']);
+  });
+
+  test('sorts by price (non-foil), with null prices last', () => {
+    const cards = [
+      makeCard({ id: 'a', name: 'A', price: '5.00' }),
+      makeCard({ id: 'b', name: 'B', price: null }),
+      makeCard({ id: 'c', name: 'C', price: '1.50' }),
+      makeCard({ id: 'd', name: 'D', price: '10.00' }),
+    ];
+    expect(sortCards(cards, 'price', 1).map((c) => c.id)).toEqual(['c', 'a', 'd', 'b']);
+    expect(sortCards(cards, 'price', -1).map((c) => c.id)).toEqual(['b', 'd', 'a', 'c']);
+  });
+
   test('does not modify the original list', () => {
     sortCards(CARDS, 'name', -1);
     expect(CARDS.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd']);

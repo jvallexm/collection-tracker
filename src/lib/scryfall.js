@@ -48,6 +48,8 @@ export function normalizeCard(rawCard) {
     number: rawCard.collector_number,
     set: rawCard.set.toUpperCase(),
     reserved: rawCard.reserved ?? false,
+    price: rawCard.prices?.usd ?? null,
+    priceFoil: rawCard.prices?.usd_foil ?? null,
   };
 }
 

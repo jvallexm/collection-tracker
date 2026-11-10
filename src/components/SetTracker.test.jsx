@@ -182,6 +182,18 @@ describe('SetTracker sorting', () => {
       secondary: null,
     });
   });
+
+  test('sorting before config loads falls back to default sort', async () => {
+    let resolveConfig;
+    loadConfig.mockReturnValue(new Promise((r) => { resolveConfig = r; }));
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    fireEvent.click(screen.getByRole('columnheader', { name: 'R' }));
+    expect(rowNames()).toEqual(['Bolt', 'Charm', 'Arrow']);
+    resolveConfig(null);
+    await act(async () => {});
+  });
 });
 
 describe('SetTracker have sorting', () => {

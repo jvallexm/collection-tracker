@@ -6,5 +6,7 @@ export const makeCard = (overrides) => ({
   cost: '{G}',
   number: '1',
   set: 'KTK',
+  price: null,
+  priceFoil: null,
   ...overrides,
 });

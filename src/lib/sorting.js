@@ -8,7 +8,22 @@ const COMPARATORS = {
   name: compareByName,
   rarity: (a, b) => rarityRank(a) - rarityRank(b),
   cost: (a, b) => a.cost.localeCompare(b.cost),
-  number: (a, b) => parseInt(a.number, 10) - parseInt(b.number, 10),
+  number: (a, b) => {
+    const na = parseInt(a.number, 10);
+    const nb = parseInt(b.number, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.number.localeCompare(b.number);
+  },
+  price: (a, b) => {
+    const na = a.price != null ? parseFloat(a.price) : Infinity;
+    const nb = b.price != null ? parseFloat(b.price) : Infinity;
+    return na - nb;
+  },
+  priceFoil: (a, b) => {
+    const na = a.priceFoil != null ? parseFloat(a.priceFoil) : Infinity;
+    const nb = b.priceFoil != null ? parseFloat(b.priceFoil) : Infinity;
+    return na - nb;
+  },
 };
 
 /**

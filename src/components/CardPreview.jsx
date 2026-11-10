@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
+import { CARD_IMAGE_WIDTHS } from '../lib/constants.js';
 
 export default function CardPreview({ card, pos = null, imageSize = 'small', isFoil = false }) {
   const [loading, setLoading] = useState(true);
@@ -8,10 +9,9 @@ export default function CardPreview({ card, pos = null, imageSize = 'small', isF
 
   if (!card) return null;
 
-  const SIZE_WIDTHS = { small: 160, normal: 230, large: 300 };
   const style = {
     ...(pos ? { left: pos.x, top: pos.y } : {}),
-    width: SIZE_WIDTHS[imageSize],
+    width: CARD_IMAGE_WIDTHS[imageSize],
   };
 
   return (

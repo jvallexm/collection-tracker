@@ -8,7 +8,15 @@ const COLUMNS = [
   { key: 'rarity', label: 'R' },
   { key: 'cost', label: 'Cost', className: 'cost-cell' },
   { key: 'number', label: '#', className: 'number-cell' },
+  { key: 'price', label: '$', className: 'price-cell' },
+  { key: 'priceFoil', label: '$F', className: 'price-cell' },
 ];
+
+function formatPrice(p) {
+  if (p == null) return '—';
+  const num = parseFloat(p);
+  return num < 10 ? p : `${Math.floor(num)}`;
+}
 
 const VERTICAL_STEP = { w: -1, arrowup: -1, s: 1, arrowdown: 1, enter: 1 };
 const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
@@ -41,6 +49,33 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
 
 function selectInputText(event) {
   event.target.select();
+}
+
+function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus }) {
+  return (
+    <tr data-card-id={card.id}>
+      <QuantityCell
+        col="have"
+        label={`Copies of ${card.name}`}
+        value={entry?.qty || ''}
+        onFocus={(e) => { selectInputText(e); onInputFocus?.(card, false); }}
+        onChange={(e) => onQuantityChange(card.id, e.target.value)}
+      />
+      <QuantityCell
+        col="foil"
+        label={`Foil copies of ${card.name}`}
+        value={entry?.foil || ''}
+        onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
+        onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
+      />
+      <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
+      <td>{RARITY_LETTER[card.rarity]}</td>
+      <td className="cost-cell"><ManaCost cost={card.cost} /></td>
+      <td className="number-cell">{card.number}</td>
+      <td className="price-cell">{formatPrice(card.price)}</td>
+      <td className="price-cell">{formatPrice(card.priceFoil)}</td>
+    </tr>
+  );
 }
 
 export default function CardTable({
@@ -86,69 +121,31 @@ export default function CardTable({
             if (!e.currentTarget.contains(e.relatedTarget)) onTableBlur?.();
           }}
         >
-          {cards.map((card) => {
-            const entry = collection[card.id];
-            return (
-              <tr key={card.id} data-card-id={card.id}>
-                <QuantityCell
-                  col="have"
-                  label={`Copies of ${card.name}`}
-                  value={entry?.qty || ''}
-                  onFocus={(e) => {
-                    selectInputText(e);
-                    onInputFocus?.(card, false);
-                  }}
-                  onChange={(e) => onQuantityChange(card.id, e.target.value)}
-                />
-                <QuantityCell
-                  col="foil"
-                  label={`Foil copies of ${card.name}`}
-                  value={entry?.foil || ''}
-                  onFocus={(e) => {
-                    selectInputText(e);
-                    onInputFocus?.(card, true);
-                  }}
-                  onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
-                />
-                <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
-                <td>{RARITY_LETTER[card.rarity]}</td>
-                <td className="cost-cell">
-                  <ManaCost cost={card.cost} />
-                </td>
-                <td className="number-cell">{card.number}</td>
-              </tr>
-            );
-          })}
+          {cards.map((card) => (
+            <CardRow
+              key={card.id}
+              card={card}
+              entry={collection[card.id]}
+              onQuantityChange={onQuantityChange}
+              onFoilQuantityChange={onFoilQuantityChange}
+              onInputFocus={onInputFocus}
+            />
+          ))}
           {tokenCards.length > 0 && (
             <>
               <tr className="token-section-heading">
-                <td colSpan={6}>Tokens</td>
+                <td colSpan={8}>Tokens</td>
               </tr>
-              {tokenCards.map((card) => {
-                const entry = collection[card.id];
-                return (
-                  <tr key={card.id} data-card-id={card.id}>
-                    <QuantityCell
-                      col="have"
-                      label={`Copies of ${card.name}`}
-                      value={entry?.qty || ''}
-                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card, false); }}
-                      onChange={(e) => onQuantityChange(card.id, e.target.value)}
-                    />
-                    <QuantityCell
-                      col="foil"
-                      label={`Foil copies of ${card.name}`}
-                      value={entry?.foil || ''}
-                      onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
-                      onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
-                    />
-                    <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
-                    <td>{RARITY_LETTER[card.rarity]}</td>
-                    <td className="cost-cell"><ManaCost cost={card.cost} /></td>
-                    <td className="number-cell">{card.number}</td>
-                  </tr>
-                );
-              })}
+              {tokenCards.map((card) => (
+                <CardRow
+                  key={card.id}
+                  card={card}
+                  entry={collection[card.id]}
+                  onQuantityChange={onQuantityChange}
+                  onFoilQuantityChange={onFoilQuantityChange}
+                  onInputFocus={onInputFocus}
+                />
+              ))}
             </>
           )}
         </tbody>

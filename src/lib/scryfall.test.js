@@ -31,7 +31,27 @@ describe('normalizeCard', () => {
       number: '169',
       set: 'KTK',
       reserved: false,
+      price: null,
+      priceFoil: null,
     });
+  });
+
+  test('extracts usd and usd_foil prices when present', () => {
+    const card = normalizeCard(rawCard({ prices: { usd: '1.23', usd_foil: '4.56' } }));
+    expect(card.price).toBe('1.23');
+    expect(card.priceFoil).toBe('4.56');
+  });
+
+  test('defaults price and priceFoil to null when prices field is absent', () => {
+    const card = normalizeCard(rawCard());
+    expect(card.price).toBeNull();
+    expect(card.priceFoil).toBeNull();
+  });
+
+  test('defaults individual prices to null when only one is present', () => {
+    const card = normalizeCard(rawCard({ prices: { usd: '2.00' } }));
+    expect(card.price).toBe('2.00');
+    expect(card.priceFoil).toBeNull();
   });
 
   test('sets reserved true when the card is on the reserved list', () => {

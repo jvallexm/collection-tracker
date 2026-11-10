@@ -62,6 +62,56 @@ describe('CardTable rows', () => {
     expect(screen.queryByText('RL')).toBeNull();
   });
 
+  test('shows price and foil price in separate cells', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Bolt', price: '1.23', priceFoil: '4.56' })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('1.23')).not.toBeNull();
+    expect(screen.getByText('4.56')).not.toBeNull();
+  });
+
+  test('drops cents for prices >= $10', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Bolt', price: '10.30', priceFoil: '150.00' })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('10')).not.toBeNull();
+    expect(screen.getByText('150')).not.toBeNull();
+  });
+
+  test('shows dashes when prices are null', () => {
+    renderTable();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  test('shows dash for missing foil price', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Bolt', price: '2.00', priceFoil: null })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('2.00')).not.toBeNull();
+    expect(screen.getByText('—')).not.toBeNull();
+  });
+
   test('shows owned regular quantities and leaves blanks for unowned cards', () => {
     renderTable({ a: { qty: 3 } });
     expect(screen.getByLabelText('Copies of Arrow').value).toBe('3');
@@ -100,6 +150,8 @@ describe('CardTable headings', () => {
     ['R', 'rarity'],
     ['Cost', 'cost'],
     ['#', 'number'],
+    ['$', 'price'],
+    ['$F', 'priceFoil'],
   ])('clicking "%s" asks to sort by %s', (label, key) => {
     const { onSort } = renderTable();
     fireEvent.click(screen.getByRole('columnheader', { name: label }));

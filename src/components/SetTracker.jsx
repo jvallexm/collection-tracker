@@ -37,6 +37,19 @@ function matchesSearch(card, query) {
   return normalizeSearchText(card.name).includes(normalizeSearchText(query));
 }
 
+function computeVisibleCards(cards, sort, collection, search) {
+  const filtered = search.trim() ? cards.filter((card) => matchesSearch(card, search)) : cards;
+  if (sort.key === 'have') {
+    const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
+    return [...bySecondary].sort((a, b) => {
+      const hasA = collection[a.id] ? 1 : 0;
+      const hasB = collection[b.id] ? 1 : 0;
+      return (hasB - hasA) * sort.direction;
+    });
+  }
+  return sortCards(filtered, sort.key, sort.direction);
+}
+
 /**
  * Tracks a user's card collection for a single Magic: The Gathering set.
  * Fetches the card list from Scryfall, persists quantities to IndexedDB,
@@ -68,8 +81,7 @@ export default function SetTracker({
   const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
-  const [sort, setSort] = useState({ key: 'name', direction: 1, secondary: null });
-  const [sortLoaded, setSortLoaded] = useState(false);
+  const [sort, setSort] = useState(null); // null = not yet loaded from IDB
   const [exportOpen, setExportOpen] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
   const [focusedCardIsFoil, setFocusedCardIsFoil] = useState(false);
@@ -119,50 +131,34 @@ export default function SetTracker({
     if (input) input.focus();
   }, [cardFocus]);
 
+  const DEFAULT_SORT = { key: 'name', direction: 1, secondary: null };
+
   useEffect(() => {
     let cancelled = false;
-    setSortLoaded(false);
+    setSort(null);
     loadConfig(`sort:${setCode}`).then((saved) => {
-      if (!cancelled) {
-        if (saved) setSort(saved);
-        setSortLoaded(true);
-      }
+      if (!cancelled) setSort(saved ?? DEFAULT_SORT);
     });
     return () => { cancelled = true; };
   }, [setCode]);
 
   useEffect(() => {
-    if (!sortLoaded) return;
+    if (sort === null) return;
     saveConfig(`sort:${setCode}`, sort);
-  }, [sort, setCode, sortLoaded]);
+  }, [sort, setCode]);
 
   const safeCollection = collection ?? {};
+  const safeSort = sort ?? DEFAULT_SORT;
 
-  const visibleCards = useMemo(() => {
-    const filtered = search.trim() ? cards.filter((card) => matchesSearch(card, search)) : cards;
-    if (sort.key === 'have') {
-      const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
-      return [...bySecondary].sort((a, b) => {
-        const hasA = safeCollection[a.id] ? 1 : 0;
-        const hasB = safeCollection[b.id] ? 1 : 0;
-        return (hasB - hasA) * sort.direction;
-      });
-    }
-    return sortCards(filtered, sort.key, sort.direction);
-  }, [cards, sort, safeCollection, search]);
+  const visibleCards = useMemo(
+    () => computeVisibleCards(cards, safeSort, safeCollection, search),
+    [cards, safeSort, safeCollection, search],
+  );
 
-  const visibleTokenCards = useMemo(() => {
-    const filtered = search.trim() ? tokenCards.filter((card) => matchesSearch(card, search)) : tokenCards;
-    if (sort.key === 'have') {
-      const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
-      return [...bySecondary].sort((a, b) => {
-        const hasA = safeCollection[a.id] ? 1 : 0;
-        const hasB = safeCollection[b.id] ? 1 : 0;
-        return (hasB - hasA) * sort.direction;
-      });
-    }
-    return sortCards(filtered, sort.key, sort.direction);
-  }, [tokenCards, sort, safeCollection, search]);
+  const visibleTokenCards = useMemo(
+    () => computeVisibleCards(tokenCards, safeSort, safeCollection, search),
+    [tokenCards, safeSort, safeCollection, search],
+  );
 
   /**
    * Updates the active sort column and direction.
@@ -172,16 +168,17 @@ export default function SetTracker({
    */
   function handleSort(key) {
     setSort((current) => {
+      const c = current ?? DEFAULT_SORT;
       if (key === 'have') {
         const secondary =
-          current.key === 'have'
-            ? current.secondary
-            : { key: current.key, direction: current.direction };
-        const direction = current.key === 'have' ? -current.direction : 1;
+          c.key === 'have'
+            ? c.secondary
+            : { key: c.key, direction: c.direction };
+        const direction = c.key === 'have' ? -c.direction : 1;
         return { key: 'have', direction, secondary };
       }
-      return current.key === key
-        ? { key, direction: -current.direction, secondary: null }
+      return c.key === key
+        ? { key, direction: -c.direction, secondary: null }
         : { key, direction: 1, secondary: null };
     });
   }
@@ -257,7 +254,7 @@ export default function SetTracker({
           cards={visibleCards}
           tokenCards={visibleTokenCards}
           collection={safeCollection}
-          sort={sort}
+          sort={safeSort}
           onQuantityChange={handleQuantityChange}
           onFoilQuantityChange={handleFoilQuantityChange}
           onSort={handleSort}
