@@ -8,5 +8,7 @@ export const makeCard = (overrides) => ({
   set: 'KTK',
   price: null,
   priceFoil: null,
+  nonfoil: true,
+  foil: true,
   ...overrides,
 });

@@ -542,6 +542,10 @@ th {
 .mana-sep {
   padding: 0 3px;
 }
+.card-number-disambig {
+  font-style: italic;
+  opacity: 0.7;
+}
 .rl-badge {
   font-size: 0.6em;
   position: relative;
@@ -616,6 +620,10 @@ th {
 }
 .qty-input:focus {
   outline: 1px dotted var(--border);
+}
+.qty-input:disabled {
+  opacity: 0.25;
+  cursor: default;
 }
 .sort-indicator {
   color: #555;

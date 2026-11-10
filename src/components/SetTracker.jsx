@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import CardPreview from './CardPreview.jsx';
@@ -149,15 +149,16 @@ export default function SetTracker({
 
   const safeCollection = collection ?? {};
   const safeSort = sort ?? DEFAULT_SORT;
+  const deferredSearch = useDeferredValue(search);
 
   const visibleCards = useMemo(
-    () => computeVisibleCards(cards, safeSort, safeCollection, search),
-    [cards, safeSort, safeCollection, search],
+    () => computeVisibleCards(cards, safeSort, safeCollection, deferredSearch),
+    [cards, safeSort, safeCollection, deferredSearch],
   );
 
   const visibleTokenCards = useMemo(
-    () => computeVisibleCards(tokenCards, safeSort, safeCollection, search),
-    [tokenCards, safeSort, safeCollection, search],
+    () => computeVisibleCards(tokenCards, safeSort, safeCollection, deferredSearch),
+    [tokenCards, safeSort, safeCollection, deferredSearch],
   );
 
   /**

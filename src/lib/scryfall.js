@@ -40,6 +40,7 @@ function getManaCost(rawCard) {
  * @returns {{ id: string, name: string, rarity: string, cost: string, number: string, set: string }}
  */
 export function normalizeCard(rawCard) {
+  const finishes = rawCard.finishes ?? ['nonfoil', 'foil'];
   return {
     id: rawCard.id,
     name: rawCard.name,
@@ -50,6 +51,8 @@ export function normalizeCard(rawCard) {
     reserved: rawCard.reserved ?? false,
     price: rawCard.prices?.usd ?? null,
     priceFoil: rawCard.prices?.usd_foil ?? null,
+    nonfoil: finishes.includes('nonfoil'),
+    foil: finishes.includes('foil') || finishes.includes('etched'),
   };
 }
 

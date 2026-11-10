@@ -1,4 +1,4 @@
-export default function QuantityCell({ col, label, value, onFocus, onChange }) {
+export default function QuantityCell({ col, label, value, onFocus, onChange, disabled = false }) {
   return (
     <td className="qty-cell">
       <input
@@ -11,6 +11,7 @@ export default function QuantityCell({ col, label, value, onFocus, onChange }) {
         value={value}
         onFocus={onFocus}
         onChange={onChange}
+        disabled={disabled}
       />
     </td>
   );

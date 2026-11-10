@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import ManaCost from './ManaCost.jsx';
 import QuantityCell from './reuse/QuantityCell.jsx';
 import SortIndicator from './reuse/SortIndicator.jsx';
@@ -15,7 +15,7 @@ const COLUMNS = [
 function formatPrice(p) {
   if (p == null) return '—';
   const num = parseFloat(p);
-  return num < 10 ? p : `${Math.floor(num)}`;
+  return num < 10 ? `$${p}` : `$${Math.floor(num)}`;
 }
 
 const VERTICAL_STEP = { w: -1, arrowup: -1, s: 1, arrowdown: 1, enter: 1 };
@@ -32,7 +32,7 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
   event.preventDefault();
   if (vStep !== undefined) {
     const col = event.target.dataset.col;
-    const colInputs = Array.from(event.currentTarget.querySelectorAll(`input[data-col="${col}"]`));
+    const colInputs = Array.from(event.currentTarget.querySelectorAll(`input[data-col="${col}"]`)).filter((i) => !i.disabled);
     const idx = colInputs.indexOf(event.target);
     if (idx + vStep < 0) {
       onEscapeTop?.();
@@ -51,7 +51,7 @@ function selectInputText(event) {
   event.target.select();
 }
 
-function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus }) {
+function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus, showNumber }) {
   return (
     <tr data-card-id={card.id}>
       <QuantityCell
@@ -60,6 +60,7 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
         value={entry?.qty || ''}
         onFocus={(e) => { selectInputText(e); onInputFocus?.(card, false); }}
         onChange={(e) => onQuantityChange(card.id, e.target.value)}
+        disabled={!card.nonfoil}
       />
       <QuantityCell
         col="foil"
@@ -67,8 +68,13 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
         value={entry?.foil || ''}
         onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
         onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
+        disabled={!card.foil}
       />
-      <td>{card.name}{card.reserved && <span className="rl-badge">RL</span>}</td>
+      <td>
+        {card.name}
+        {showNumber && <i className="card-number-disambig"> ({card.number})</i>}
+        {card.reserved && <span className="rl-badge">RL</span>}
+      </td>
       <td>{RARITY_LETTER[card.rarity]}</td>
       <td className="cost-cell"><ManaCost cost={card.cost} /></td>
       <td className="number-cell">{card.number}</td>
@@ -96,6 +102,12 @@ export default function CardTable({
       focused.scrollIntoView({ block: 'nearest' });
     }
   }, [cards]);
+
+  const duplicateNames = useMemo(() => {
+    const counts = new Map();
+    for (const card of [...cards, ...tokenCards]) counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name));
+  }, [cards, tokenCards]);
 
   return (
     <div className="table-scroll">
@@ -129,6 +141,7 @@ export default function CardTable({
               onQuantityChange={onQuantityChange}
               onFoilQuantityChange={onFoilQuantityChange}
               onInputFocus={onInputFocus}
+              showNumber={duplicateNames.has(card.name)}
             />
           ))}
           {tokenCards.length > 0 && (
@@ -144,6 +157,7 @@ export default function CardTable({
                   onQuantityChange={onQuantityChange}
                   onFoilQuantityChange={onFoilQuantityChange}
                   onInputFocus={onInputFocus}
+                  showNumber={duplicateNames.has(card.name)}
                 />
               ))}
             </>

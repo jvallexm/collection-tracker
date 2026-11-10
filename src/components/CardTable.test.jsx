@@ -62,6 +62,75 @@ describe('CardTable rows', () => {
     expect(screen.queryByText('RL')).toBeNull();
   });
 
+  test('disables the qty input for foil-only cards', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Bolt', nonfoil: false, foil: true })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Copies of Bolt').disabled).toBe(true);
+    expect(screen.getByLabelText('Foil copies of Bolt').disabled).toBe(false);
+  });
+
+  test('disables the foil input for nonfoil-only cards', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Bolt', nonfoil: true, foil: false })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Copies of Bolt').disabled).toBe(false);
+    expect(screen.getByLabelText('Foil copies of Bolt').disabled).toBe(true);
+  });
+
+  test('shows collector number in parentheses for cards with duplicate names', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: '1', name: 'Mountain', number: '265' }),
+          makeCard({ id: '2', name: 'Mountain', number: '266' }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('(265)')).not.toBeNull();
+    expect(screen.getByText('(266)')).not.toBeNull();
+  });
+
+  test('does not show collector number for cards with unique names', () => {
+    renderTable();
+    expect(screen.queryByText(/\(\d+\)/)).toBeNull();
+  });
+
+  test('shows collector number when a main card name duplicates a token name', () => {
+    render(
+      <CardTable
+        cards={[makeCard({ id: '1', name: 'Soldier', number: '10' })]}
+        tokenCards={[makeCard({ id: '2', name: 'Soldier', number: 'T1' })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('(10)')).not.toBeNull();
+    expect(screen.getByText('(T1)')).not.toBeNull();
+  });
+
   test('shows price and foil price in separate cells', () => {
     render(
       <CardTable
@@ -73,8 +142,8 @@ describe('CardTable rows', () => {
         onSort={vi.fn()}
       />,
     );
-    expect(screen.getByText('1.23')).not.toBeNull();
-    expect(screen.getByText('4.56')).not.toBeNull();
+    expect(screen.getByText('$1.23')).not.toBeNull();
+    expect(screen.getByText('$4.56')).not.toBeNull();
   });
 
   test('drops cents for prices >= $10', () => {
@@ -88,8 +157,8 @@ describe('CardTable rows', () => {
         onSort={vi.fn()}
       />,
     );
-    expect(screen.getByText('10')).not.toBeNull();
-    expect(screen.getByText('150')).not.toBeNull();
+    expect(screen.getByText('$10')).not.toBeNull();
+    expect(screen.getByText('$150')).not.toBeNull();
   });
 
   test('shows dashes when prices are null', () => {
@@ -108,7 +177,7 @@ describe('CardTable rows', () => {
         onSort={vi.fn()}
       />,
     );
-    expect(screen.getByText('2.00')).not.toBeNull();
+    expect(screen.getByText('$2.00')).not.toBeNull();
     expect(screen.getByText('—')).not.toBeNull();
   });
 
@@ -300,6 +369,25 @@ describe('CardTable keyboard navigation', () => {
     foil('Charm').focus();
     fireEvent.keyDown(foil('Charm'), { key: 's' });
     expect(document.activeElement).toBe(foil('Charm'));
+  });
+
+  test('down arrow skips disabled inputs in the same column', () => {
+    const handlers = { onQuantityChange: vi.fn(), onFoilQuantityChange: vi.fn(), onSort: vi.fn() };
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow', nonfoil: true, foil: true }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: false, foil: true }),
+          makeCard({ id: 'c', name: 'Charm', nonfoil: true, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        {...handlers}
+      />,
+    );
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key: 's' });
+    expect(document.activeElement).toBe(have('Charm'));
   });
 
   test('stays put at the left edge (Have column)', () => {

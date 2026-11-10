@@ -47,6 +47,16 @@ test('calls onChange when the input changes', () => {
   expect(onChange).toHaveBeenCalledTimes(1);
 });
 
+test('input is enabled by default', () => {
+  renderCell();
+  expect(screen.getByLabelText('Copies of Arrow').disabled).toBe(false);
+});
+
+test('input is disabled when disabled prop is true', () => {
+  renderCell({ disabled: true });
+  expect(screen.getByLabelText('Copies of Arrow').disabled).toBe(true);
+});
+
 test('calls onFocus when the input is focused', () => {
   const onFocus = vi.fn();
   renderCell({ onFocus });

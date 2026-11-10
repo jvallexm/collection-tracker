@@ -33,6 +33,8 @@ describe('normalizeCard', () => {
       reserved: false,
       price: null,
       priceFoil: null,
+      nonfoil: true,
+      foil: true,
     });
   });
 
@@ -52,6 +54,30 @@ describe('normalizeCard', () => {
     const card = normalizeCard(rawCard({ prices: { usd: '2.00' } }));
     expect(card.price).toBe('2.00');
     expect(card.priceFoil).toBeNull();
+  });
+
+  test('defaults nonfoil and foil to true when finishes is absent', () => {
+    const card = normalizeCard(rawCard());
+    expect(card.nonfoil).toBe(true);
+    expect(card.foil).toBe(true);
+  });
+
+  test('sets nonfoil false for foil-only cards', () => {
+    const card = normalizeCard(rawCard({ finishes: ['foil'] }));
+    expect(card.nonfoil).toBe(false);
+    expect(card.foil).toBe(true);
+  });
+
+  test('sets foil false for nonfoil-only cards', () => {
+    const card = normalizeCard(rawCard({ finishes: ['nonfoil'] }));
+    expect(card.nonfoil).toBe(true);
+    expect(card.foil).toBe(false);
+  });
+
+  test('treats etched as foil', () => {
+    const card = normalizeCard(rawCard({ finishes: ['etched'] }));
+    expect(card.nonfoil).toBe(false);
+    expect(card.foil).toBe(true);
   });
 
   test('sets reserved true when the card is on the reserved list', () => {
