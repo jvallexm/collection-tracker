@@ -3,7 +3,8 @@ import MenuBar from './components/MenuBar.jsx';
 import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
 import { buildMoxfieldCsv } from './lib/moxfield.js';
-import { deleteCards, loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
+import { fetchSetCards } from './lib/scryfall.js';
+import { deleteCards, loadAllCollectionKeys, loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
@@ -14,6 +15,7 @@ export default function App() {
   const [cardPreviewPos, setCardPreviewPos] = useState(null);
   const [cardImageSize, setCardImageSize] = useState(null);
   const hasBackgroundRefreshed = useRef(false);
+  const [backgroundSyncing, setBackgroundSyncing] = useState(false);
 
   useEffect(() => {
     loadConfig('theme').then((saved) => {
@@ -43,15 +45,16 @@ export default function App() {
   useEffect(() => {
     if (openSets === null || hasBackgroundRefreshed.current) return;
     hasBackgroundRefreshed.current = true;
+    setBackgroundSyncing(true);
+    const openCodes = new Set(openSets.map((s) => s.code));
     (async () => {
-      for (const set of openSets) {
-        await deleteCards(set.code);
-        setOpenSets((current) =>
-          current.map((s) =>
-            s.code === set.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s,
-          ),
-        );
+      const allKeys = await loadAllCollectionKeys();
+      const nonOpenKeys = allKeys.filter((code) => !openCodes.has(code));
+      for (const code of nonOpenKeys) {
+        await deleteCards(code);
+        await fetchSetCards(code);
       }
+      setBackgroundSyncing(false);
     })();
   }, [openSets]);
 
@@ -93,6 +96,7 @@ export default function App() {
   }
 
   function handleClose(code) {
+    deleteCards(code);
     setOpenSets((current) => current.filter((s) => s.code !== code));
   }
 
@@ -161,6 +165,7 @@ export default function App() {
         onSaveCardPreviewPos={handleSaveCardPreviewPos}
         cardImageSize={cardImageSize}
         onSaveCardImageSize={handleSaveCardImageSize}
+        backgroundSyncing={backgroundSyncing}
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => (

@@ -17,6 +17,7 @@ export default function MenuBar({
   onSaveCardPreviewPos,
   cardImageSize = null,
   onSaveCardImageSize,
+  backgroundSyncing = false,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -359,6 +360,7 @@ export default function MenuBar({
         )}
       </div>
       <div className="menu-card-search">
+        {backgroundSyncing && <span className="menu-syncing-text">Syncing…</span>}
         {(cardSearchLoading || setsLoading) && (
           <span className="menu-loading-spinner" aria-label="Loading" />
         )}

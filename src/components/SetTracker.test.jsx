@@ -247,13 +247,17 @@ describe('SetTracker search', () => {
 
   test('shows all cards when the search box contains only whitespace', async () => {
     await renderLoadedTracker();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '   ' } });
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: '   ' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
     expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
   });
 
   test('filters cards to those whose name matches the search string', async () => {
     await renderLoadedTracker();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'arr' } });
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'arr' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
     expect(rowNames()).toEqual(['Arrow']);
   });
 
@@ -266,16 +270,94 @@ describe('SetTracker search', () => {
     await screen.findByLabelText('Copies of Ajani, Outland Liberator');
     await act(async () => {});
 
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ajani out' } });
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'ajani out' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
     expect(rowNames()).toContain('Ajani, Outland Liberator');
+    expect(rowNames()).not.toContain('Arrow');
+  });
+
+  test('ignores apostrophes in card names when matching', async () => {
+    fetchSetCards.mockResolvedValue([
+      ...CARDS,
+      makeCard({ id: 'd', name: "Urza's Mine", rarity: 'uncommon', number: '4' }),
+    ]);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText("Copies of Urza's Mine");
+    await act(async () => {});
+
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'urzas mine' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(rowNames()).toContain("Urza's Mine");
     expect(rowNames()).not.toContain('Arrow');
   });
 
   test('restores all cards when search is cleared', async () => {
     await renderLoadedTracker();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'arr' } });
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'arr' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    fireEvent.change(box, { target: { value: '' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
     expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
+  });
+});
+
+describe('SetTracker search debounce', () => {
+  test('does not filter immediately on change', async () => {
+    await renderLoadedTracker();
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'arr' } });
+    expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
+    vi.useRealTimers();
+  });
+
+  test('filters after 150 ms debounce', async () => {
+    await renderLoadedTracker();
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'arr' } });
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(rowNames()).toEqual(['Arrow']);
+    vi.useRealTimers();
+  });
+
+  test('deletion does not commit immediately', async () => {
+    await renderLoadedTracker();
+    vi.useFakeTimers();
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'bol' } });
+    act(() => { vi.advanceTimersByTime(150); });
+    fireEvent.change(box, { target: { value: 'bo' } });
+    expect(rowNames()).toEqual(['Bolt']);
+    vi.useRealTimers();
+  });
+
+  test('2 chars after deletion commits without waiting for timer', async () => {
+    await renderLoadedTracker();
+    vi.useFakeTimers();
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'bol' } });
+    act(() => { vi.advanceTimersByTime(150); });
+    fireEvent.change(box, { target: { value: 'bo' } });   // delete
+    fireEvent.change(box, { target: { value: 'bol' } });  // 1st char after delete
+    expect(rowNames()).toEqual(['Bolt']);                  // not committed yet
+    fireEvent.change(box, { target: { value: 'bolt' } }); // 2nd char — commits
+    expect(rowNames()).toEqual(['Bolt']);
+    vi.useRealTimers();
+  });
+
+  test('commits after 150 ms following deletion with fewer than 2 chars', async () => {
+    await renderLoadedTracker();
+    vi.useFakeTimers();
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'bol' } });
+    act(() => { vi.advanceTimersByTime(150); });
+    fireEvent.change(box, { target: { value: 'bo' } });  // delete
+    fireEvent.change(box, { target: { value: 'bol' } }); // only 1 char after delete
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(rowNames()).toEqual(['Bolt']);
+    vi.useRealTimers();
   });
 });
 
@@ -415,7 +497,9 @@ describe('SetTracker token section', () => {
     const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
     loadCards.mockResolvedValue([TOKEN, TOKEN2]);
     await renderLoadedTracker();
-    fireEvent.change(screen.getByPlaceholderText('Search…'), { target: { value: 'Sol' } });
+    const box = screen.getByPlaceholderText('Search…');
+    fireEvent.change(box, { target: { value: 'Sol' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
     expect(screen.getByText('Soldier Token')).not.toBeNull();
     expect(screen.queryByText('Goblin Token')).toBeNull();
   });
@@ -579,6 +663,17 @@ describe('SetTracker search ArrowDown', () => {
     search.focus();
     fireEvent.keyDown(search, { key: 'ArrowDown' });
     expect(document.activeElement).toBe(screen.getByLabelText('Copies of Arrow'));
+  });
+
+  test('pressing ArrowDown commits the search text before focusing', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    const search = screen.getByPlaceholderText('Search…');
+    fireEvent.change(search, { target: { value: 'arr' } });
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByLabelText('Copies of Arrow'));
+    expect(screen.queryByLabelText('Copies of Bolt')).toBeNull();
   });
 
   test('pressing other keys in the search bar does nothing special', async () => {

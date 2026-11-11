@@ -390,6 +390,100 @@ describe('CardTable keyboard navigation', () => {
     expect(document.activeElement).toBe(have('Charm'));
   });
 
+  test('down crosses to foil column when no more enabled have inputs below', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow', nonfoil: true, foil: true }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: false, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key: 's' });
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
+
+  test('up crosses to foil column when no more enabled have inputs above', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow', nonfoil: false, foil: true }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: true, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    have('Bolt').focus();
+    fireEvent.keyDown(have('Bolt'), { key: 'w' });
+    expect(document.activeElement).toBe(foil('Arrow'));
+  });
+
+  test('down crosses to have column when no more enabled foil inputs below', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow', nonfoil: true, foil: true }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: true, foil: false }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Arrow').focus();
+    fireEvent.keyDown(foil('Arrow'), { key: 's' });
+    expect(document.activeElement).toBe(have('Bolt'));
+  });
+
+  test('up crosses to have column when no more enabled foil inputs above', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow', nonfoil: true, foil: false }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: true, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Bolt').focus();
+    fireEvent.keyDown(foil('Bolt'), { key: 'w' });
+    expect(document.activeElement).toBe(have('Arrow'));
+  });
+
+  test('up at first row calls onEscapeTop even when other column has no input above', () => {
+    const onEscapeTop = vi.fn();
+    render(
+      <CardTable
+        cards={[makeCard({ id: 'a', name: 'Arrow', nonfoil: true, foil: false })]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        onEscapeTop={onEscapeTop}
+      />,
+    );
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key: 'w' });
+    expect(onEscapeTop).toHaveBeenCalled();
+  });
+
   test('stays put at the left edge (Have column)', () => {
     renderTable();
     have('Bolt').focus();

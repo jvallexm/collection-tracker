@@ -556,6 +556,7 @@ th {
 .mana-hybrid {
   display: inline-flex;
   align-items: center;
+  align-self: center;
 }
 .mana-hybrid-slash {
   font-size: 1em;

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useDeferredValue } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import CardPreview from './CardPreview.jsx';
@@ -30,7 +31,7 @@ function describeStatus({ loadError, cards, collection }) {
 }
 
 function normalizeSearchText(s) {
-  return s.replace(/,/g, '').toLowerCase();
+  return s.replace(/[,']/g, '').toLowerCase();
 }
 
 function matchesSearch(card, query) {
@@ -77,6 +78,9 @@ export default function SetTracker({
 }) {
   const windowRef = useRef(null);
   const searchRef = useRef(null);
+  const deletePendingRef = useRef(false);
+  const charsAfterDeleteRef = useRef(0);
+  const commitTimerRef = useRef(null);
   const [cards, setCards] = useState([]);
   const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
@@ -85,6 +89,7 @@ export default function SetTracker({
   const [exportOpen, setExportOpen] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
   const [focusedCardIsFoil, setFocusedCardIsFoil] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -131,6 +136,8 @@ export default function SetTracker({
     if (input) input.focus();
   }, [cardFocus]);
 
+  useEffect(() => () => clearTimeout(commitTimerRef.current), []);
+
   const DEFAULT_SORT = { key: 'name', direction: 1, secondary: null };
 
   useEffect(() => {
@@ -149,16 +156,15 @@ export default function SetTracker({
 
   const safeCollection = collection ?? {};
   const safeSort = sort ?? DEFAULT_SORT;
-  const deferredSearch = useDeferredValue(search);
 
   const visibleCards = useMemo(
-    () => computeVisibleCards(cards, safeSort, safeCollection, deferredSearch),
-    [cards, safeSort, safeCollection, deferredSearch],
+    () => computeVisibleCards(cards, safeSort, safeCollection, search),
+    [cards, safeSort, safeCollection, search],
   );
 
   const visibleTokenCards = useMemo(
-    () => computeVisibleCards(tokenCards, safeSort, safeCollection, deferredSearch),
-    [tokenCards, safeSort, safeCollection, deferredSearch],
+    () => computeVisibleCards(tokenCards, safeSort, safeCollection, search),
+    [tokenCards, safeSort, safeCollection, search],
   );
 
   /**
@@ -236,12 +242,42 @@ export default function SetTracker({
           className="search-input"
           type="search"
           placeholder="Search…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchText}
+          onChange={(e) => {
+            const newText = e.target.value;
+            const isAddition = newText.length > searchText.length;
+            if (!isAddition) {
+              deletePendingRef.current = true;
+              charsAfterDeleteRef.current = 0;
+            } else if (deletePendingRef.current) {
+              charsAfterDeleteRef.current += 1;
+            }
+            setSearchText(newText);
+            clearTimeout(commitTimerRef.current);
+            if (deletePendingRef.current && charsAfterDeleteRef.current >= 2) {
+              deletePendingRef.current = false;
+              charsAfterDeleteRef.current = 0;
+              setSearch(newText);
+            } else {
+              commitTimerRef.current = setTimeout(() => {
+                deletePendingRef.current = false;
+                setSearch(newText);
+              }, 150);
+            }
+          }}
           onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              clearTimeout(commitTimerRef.current);
+              deletePendingRef.current = false;
+              setSearch(searchText);
+              return;
+            }
             if (e.key !== 'ArrowDown') return;
             e.preventDefault();
-            const first = windowRef.current?.querySelector('table input');
+            clearTimeout(commitTimerRef.current);
+            deletePendingRef.current = false;
+            flushSync(() => setSearch(searchText));
+            const first = windowRef.current?.querySelector('table input:not(:disabled)');
             if (first) first.focus();
           }}
         />

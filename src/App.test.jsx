@@ -3,6 +3,7 @@ import { makeCard } from './test/fixtures.js';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
 import {
   deleteCards,
+  loadAllCollectionKeys,
   loadCards,
   loadCollection,
   loadConfig,
@@ -16,6 +17,7 @@ vi.mock('./lib/scryfall.js', () => ({
   fetchSets: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('./lib/storage.js', () => ({
+  loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCollection: vi.fn().mockResolvedValue({}),
   saveCollection: vi.fn().mockResolvedValue(undefined),
   loadCards: vi.fn().mockResolvedValue(null),
@@ -257,24 +259,41 @@ describe('App multi-set windows', () => {
 });
 
 describe('App background refresh', () => {
-  test('deletes and re-fetches each open set on initial load', async () => {
+  test('skips currently open sets during background refresh', async () => {
     loadConfig.mockImplementation((key) =>
       key === 'openSets'
-        ? Promise.resolve([
-            { code: 'ktk', name: 'Khans of Tarkir', minimized: false },
-            { code: 'eld', name: 'Throne of Eldraine', minimized: true },
-          ])
+        ? Promise.resolve([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }])
         : Promise.resolve(null),
     );
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    await renderApp();
+    expect(deleteCards).not.toHaveBeenCalledWith('ktk');
+  });
+
+  test('refreshes non-open cached sets on startup', async () => {
+    loadConfig.mockImplementation((key) =>
+      key === 'openSets'
+        ? Promise.resolve([{ code: 'eld', name: 'Throne of Eldraine', minimized: false }])
+        : Promise.resolve(null),
+    );
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
     await renderApp();
     expect(deleteCards).toHaveBeenCalledWith('ktk');
-    expect(deleteCards).toHaveBeenCalledWith('eld');
+    expect(deleteCards).not.toHaveBeenCalledWith('eld');
+  });
+
+  test('does nothing when all cached sets are currently open', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    await renderApp();
+    expect(deleteCards).not.toHaveBeenCalled();
   });
 
   test('does not re-refresh when openSets changes after initial load', async () => {
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    loadAllCollectionKeys.mockResolvedValue(['znr']);
     await renderApp();
     deleteCards.mockClear();
+    fetchSetCards.mockClear();
     fireEvent.click(screen.getByText('Add Set'));
     await act(async () => {});
     fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
@@ -289,6 +308,12 @@ describe('App close window', () => {
     await renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('button', { name: 'Minimize' })).toBeNull();
+  });
+
+  test('closing a window deletes its card cache', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(deleteCards).toHaveBeenCalledWith('ktk');
   });
 
   test('closing a minimized window removes it', async () => {

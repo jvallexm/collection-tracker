@@ -23,6 +23,16 @@ const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
 
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 
+function findCrossColumnInput(table, currentInput, otherCol, vStep) {
+  const otherInputs = Array.from(table.querySelectorAll(`input[data-col="${otherCol}"]`)).filter((i) => !i.disabled);
+  const allRows = Array.from(table.querySelectorAll('tr'));
+  const currentRowIdx = allRows.indexOf(currentInput.closest('tr'));
+  if (vStep > 0) {
+    return otherInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx) ?? null;
+  }
+  return [...otherInputs].reverse().find((i) => allRows.indexOf(i.closest('tr')) < currentRowIdx) ?? null;
+}
+
 function moveFocusBetweenInputs(event, onEscapeTop) {
   const key = event.key.toLowerCase();
   const vStep = VERTICAL_STEP[key];
@@ -32,14 +42,22 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
   event.preventDefault();
   if (vStep !== undefined) {
     const col = event.target.dataset.col;
+    const otherCol = col === 'have' ? 'foil' : 'have';
     const colInputs = Array.from(event.currentTarget.querySelectorAll(`input[data-col="${col}"]`)).filter((i) => !i.disabled);
     const idx = colInputs.indexOf(event.target);
     if (idx + vStep < 0) {
+      const crossInput = findCrossColumnInput(event.currentTarget, event.target, otherCol, vStep);
+      if (crossInput) { crossInput.focus(); return; }
       onEscapeTop?.();
       return;
     }
     const neighbor = colInputs[idx + vStep];
-    if (neighbor) neighbor.focus();
+    if (neighbor) {
+      neighbor.focus();
+    } else {
+      const crossInput = findCrossColumnInput(event.currentTarget, event.target, otherCol, vStep);
+      if (crossInput) crossInput.focus();
+    }
   } else {
     const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input'));
     const neighbor = rowInputs[rowInputs.indexOf(event.target) + hStep];

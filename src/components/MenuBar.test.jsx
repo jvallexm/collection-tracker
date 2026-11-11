@@ -879,3 +879,20 @@ describe('MenuBar Debug menu', () => {
     expect(screen.queryByText('Refresh current set')).toBeNull();
   });
 });
+
+describe('MenuBar background syncing indicator', () => {
+  test('shows Syncing text when backgroundSyncing is true', () => {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} backgroundSyncing={true} />);
+    expect(screen.getByText('Syncing…')).not.toBeNull();
+  });
+
+  test('hides Syncing text when backgroundSyncing is false', () => {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} backgroundSyncing={false} />);
+    expect(screen.queryByText('Syncing…')).toBeNull();
+  });
+
+  test('hides Syncing text by default', () => {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} />);
+    expect(screen.queryByText('Syncing…')).toBeNull();
+  });
+});
