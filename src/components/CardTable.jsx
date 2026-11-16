@@ -33,9 +33,8 @@ function findNextRowInput(table, currentInput, vStep) {
   const otherCol = col === 'have' ? 'foil' : 'have';
   const allRows = Array.from(table.querySelectorAll('tr'));
   const currentRowIdx = allRows.indexOf(currentInput.closest('tr'));
-  const candidateRows = vStep > 0
-    ? allRows.slice(currentRowIdx + 1)
-    : allRows.slice(0, currentRowIdx).reverse();
+  const candidateRows =
+    vStep > 0 ? allRows.slice(currentRowIdx + 1) : allRows.slice(0, currentRowIdx).reverse();
   for (const row of candidateRows) {
     const sameColInput = row.querySelector(`input[data-col="${col}"]`);
     if (sameColInput && !sameColInput.disabled) return sameColInput;
@@ -69,7 +68,7 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
       const allRows = Array.from(event.currentTarget.querySelectorAll('tr'));
       const currentRowIdx = allRows.indexOf(event.target.closest('tr'));
       const targetInputs = Array.from(
-        event.currentTarget.querySelectorAll(`input[data-col="${neighbor.dataset.col}"]`)
+        event.currentTarget.querySelectorAll(`input[data-col="${neighbor.dataset.col}"]`),
       ).filter((i) => !i.disabled);
       const next = targetInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx);
       if (next) next.focus();
@@ -81,7 +80,18 @@ function selectInputText(event) {
   event.target.select();
 }
 
-function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus, showNumber, ckPrices, sellIds, onSellToggle, showCKTools }) {
+function CardRow({
+  card,
+  entry,
+  onQuantityChange,
+  onFoilQuantityChange,
+  onInputFocus,
+  showNumber,
+  ckPrices,
+  sellIds,
+  onSellToggle,
+  showCKTools,
+}) {
   const ckEntry = ckPrices?.get(card.id);
   return (
     <tr data-card-id={card.id}>
@@ -89,7 +99,10 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
         col="have"
         label={`Copies of ${card.name}`}
         value={entry?.qty || ''}
-        onFocus={(e) => { selectInputText(e); onInputFocus?.(card, false); }}
+        onFocus={(e) => {
+          selectInputText(e);
+          onInputFocus?.(card, false);
+        }}
         onChange={(e) => onQuantityChange(card.id, e.target.value)}
         disabled={!card.nonfoil}
       />
@@ -97,7 +110,10 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
         col="foil"
         label={`Foil copies of ${card.name}`}
         value={entry?.foil || ''}
-        onFocus={(e) => { selectInputText(e); onInputFocus?.(card, true); }}
+        onFocus={(e) => {
+          selectInputText(e);
+          onInputFocus?.(card, true);
+        }}
         onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
         disabled={!card.foil}
       />
@@ -107,7 +123,9 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
         {card.reserved && <span className="rl-badge">RL</span>}
       </td>
       <td>{RARITY_LETTER[card.rarity]}</td>
-      <td className="cost-cell"><ManaCost cost={card.cost} /></td>
+      <td className="cost-cell">
+        <ManaCost cost={card.cost} />
+      </td>
       <td className="number-cell">{card.number}</td>
       <td className="price-cell">{formatPrice(card.price)}</td>
       <td className="price-cell">{formatPrice(card.priceFoil)}</td>
@@ -153,7 +171,8 @@ export default function CardTable({
 
   const duplicateNames = useMemo(() => {
     const counts = new Map();
-    for (const card of [...cards, ...tokenCards]) counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+    for (const card of [...cards, ...tokenCards])
+      counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
     return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name));
   }, [cards, tokenCards]);
 

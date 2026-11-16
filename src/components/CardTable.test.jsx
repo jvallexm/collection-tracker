@@ -827,7 +827,9 @@ describe('CardTable token section', () => {
     expect(onQuantityChange).toHaveBeenCalledWith('tok1', '2');
     fireEvent.focus(screen.getByLabelText('Foil copies of Soldier Token'));
     expect(onInputFocus).toHaveBeenCalledWith(TOKEN, true);
-    fireEvent.change(screen.getByLabelText('Foil copies of Soldier Token'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Foil copies of Soldier Token'), {
+      target: { value: '1' },
+    });
     expect(onFoilQuantityChange).toHaveBeenCalledWith('tok1', '1');
   });
 });
@@ -848,7 +850,7 @@ describe('CardTable CK buy prices', () => {
   }
 
   test('shows nonfoil and foil CK buy prices when buying', () => {
-    const map = new Map([['a', { nonfoilBuy: 1.25, foilBuy: 3.00 }]]);
+    const map = new Map([['a', { nonfoilBuy: 1.25, foilBuy: 3.0 }]]);
     renderWithCK(map);
     expect(screen.getByText('$1.25')).not.toBeNull();
     expect(screen.getByText('$3.00')).not.toBeNull();

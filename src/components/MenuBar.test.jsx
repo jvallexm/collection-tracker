@@ -3,7 +3,10 @@ import { fetchSet, fetchSets } from '../lib/scryfall.js';
 import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import MenuBar from './MenuBar.jsx';
 
-vi.mock('../lib/scryfall.js', () => ({ fetchSets: vi.fn(), fetchSet: vi.fn().mockResolvedValue(null) }));
+vi.mock('../lib/scryfall.js', () => ({
+  fetchSets: vi.fn(),
+  fetchSet: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('../lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCards: vi.fn().mockResolvedValue([]),
@@ -91,13 +94,7 @@ test('clicking Close on the draggable preview closes it', () => {
 });
 
 test('passes cardPreviewPos to DraggableCardPreview as initial position', () => {
-  render(
-    <MenuBar
-      theme="light"
-      onThemeChange={vi.fn()}
-      cardPreviewPos={{ x: 500, y: 200 }}
-    />,
-  );
+  render(<MenuBar theme="light" onThemeChange={vi.fn()} cardPreviewPos={{ x: 500, y: 200 }} />);
   fireEvent.click(screen.getByText('View'));
   fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
   const el = document.querySelector('.draggable-preview');
@@ -106,26 +103,18 @@ test('passes cardPreviewPos to DraggableCardPreview as initial position', () => 
 });
 
 test('passes cardImageSize to DraggableCardPreview as initial image size', () => {
-  render(
-    <MenuBar
-      theme="light"
-      onThemeChange={vi.fn()}
-      cardImageSize="large"
-    />,
-  );
+  render(<MenuBar theme="light" onThemeChange={vi.fn()} cardImageSize="large" />);
   fireEvent.click(screen.getByText('View'));
   fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
-  expect(screen.getByRole('button', { name: 'large size' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'large size' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
 });
 
 test('clicking a size button calls onSaveCardImageSize', () => {
   const onSaveCardImageSize = vi.fn();
   render(
-    <MenuBar
-      theme="light"
-      onThemeChange={vi.fn()}
-      onSaveCardImageSize={onSaveCardImageSize}
-    />,
+    <MenuBar theme="light" onThemeChange={vi.fn()} onSaveCardImageSize={onSaveCardImageSize} />,
   );
   fireEvent.click(screen.getByText('View'));
   fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
@@ -136,11 +125,7 @@ test('clicking a size button calls onSaveCardImageSize', () => {
 test('clicking Move here on preview calls onSaveCardPreviewPos and closes the preview', () => {
   const onSaveCardPreviewPos = vi.fn();
   render(
-    <MenuBar
-      theme="light"
-      onThemeChange={vi.fn()}
-      onSaveCardPreviewPos={onSaveCardPreviewPos}
-    />,
+    <MenuBar theme="light" onThemeChange={vi.fn()} onSaveCardPreviewPos={onSaveCardPreviewPos} />,
   );
   fireEvent.click(screen.getByText('View'));
   fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
@@ -204,12 +189,16 @@ describe('MenuBar View > Card Kingdom toggle', () => {
 
   test('shows a checkmark when showCKTools is true', () => {
     renderWithCK({ showCKTools: true });
-    expect(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent).toContain('✓');
+    expect(
+      screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent,
+    ).toContain('✓');
   });
 
   test('shows no checkmark when showCKTools is false', () => {
     renderWithCK({ showCKTools: false });
-    expect(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent).not.toContain('✓');
+    expect(
+      screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent,
+    ).not.toContain('✓');
   });
 
   test('clicking calls onToggleCKTools and closes the menu', () => {
@@ -497,7 +486,11 @@ describe('MenuBar My Collection menu', () => {
 
   test('hovering All sets… shows a loading state while keys load', () => {
     let resolveKeys;
-    loadAllCollectionKeys.mockReturnValue(new Promise((r) => { resolveKeys = r; }));
+    loadAllCollectionKeys.mockReturnValue(
+      new Promise((r) => {
+        resolveKeys = r;
+      }),
+    );
     renderWithRecent();
     fireEvent.click(screen.getByText('My Collection'));
     fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
@@ -662,8 +655,22 @@ describe('MenuBar Export Collection menu', () => {
 
 describe('MenuBar card search', () => {
   const OPEN_SETS = [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }];
-  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}' };
-  const BEAR = { id: 'bear', name: 'Grizzly Bears', number: '2', set: 'KTK', rarity: 'common', cost: '{1}{G}' };
+  const BOLT = {
+    id: 'bolt',
+    name: 'Lightning Bolt',
+    number: '1',
+    set: 'KTK',
+    rarity: 'common',
+    cost: '{R}',
+  };
+  const BEAR = {
+    id: 'bear',
+    name: 'Grizzly Bears',
+    number: '2',
+    set: 'KTK',
+    rarity: 'common',
+    cost: '{1}{G}',
+  };
 
   beforeEach(() => {
     loadCards.mockResolvedValue([BOLT, BEAR]);
@@ -671,7 +678,9 @@ describe('MenuBar card search', () => {
   });
 
   function renderWithSearch({ onAddCard = vi.fn(), openSets = OPEN_SETS } = {}) {
-    render(<MenuBar theme="light" onThemeChange={vi.fn()} openSets={openSets} onAddCard={onAddCard} />);
+    render(
+      <MenuBar theme="light" onThemeChange={vi.fn()} openSets={openSets} onAddCard={onAddCard} />,
+    );
     return { onAddCard };
   }
 
@@ -682,21 +691,27 @@ describe('MenuBar card search', () => {
 
   test('shows matching card results when typing', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     expect(screen.getByRole('button', { name: /Lightning Bolt/ })).not.toBeNull();
   });
 
   test('shows current qty in results', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     expect(screen.getByText(/KTK.*2|2.*KTK/)).not.toBeNull();
   });
 
   test('shows no qty text for unowned cards', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Grizzly' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Grizzly' },
+    });
     await act(async () => {});
     const btn = screen.getByRole('button', { name: /Grizzly Bears/ });
     expect(btn.textContent).not.toMatch(/·/);
@@ -704,14 +719,18 @@ describe('MenuBar card search', () => {
 
   test('shows no results when nothing matches', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'zzznomatch' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'zzznomatch' },
+    });
     await act(async () => {});
     expect(screen.queryByRole('listitem')).toBeNull();
   });
 
   test('calls onAddCard and clears search when a result is clicked', async () => {
     const { onAddCard } = renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
     expect(onAddCard).toHaveBeenCalledWith('ktk', 'bolt');
@@ -724,7 +743,9 @@ describe('MenuBar card search', () => {
     fireEvent.change(input, { target: { value: 'Lightning' } });
     await act(async () => {});
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('true');
+    expect(
+      screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected'),
+    ).toBe('true');
   });
 
   test('arrow down at last result stays at last result', async () => {
@@ -734,7 +755,9 @@ describe('MenuBar card search', () => {
     await act(async () => {});
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('true');
+    expect(
+      screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected'),
+    ).toBe('true');
   });
 
   test('arrow up from first result clears highlight', async () => {
@@ -744,7 +767,9 @@ describe('MenuBar card search', () => {
     await act(async () => {});
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowUp' });
-    expect(screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected')).toBe('false');
+    expect(
+      screen.getByRole('button', { name: /Lightning Bolt/ }).getAttribute('aria-selected'),
+    ).toBe('false');
   });
 
   test('Enter on highlighted result calls onAddCard and clears search', async () => {
@@ -794,7 +819,9 @@ describe('MenuBar card search', () => {
 
   test('clicking a menu closes the card search results', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     fireEvent.click(screen.getByText('View'));
     expect(screen.queryByRole('button', { name: /Lightning Bolt/ })).toBeNull();
@@ -802,7 +829,9 @@ describe('MenuBar card search', () => {
 
   test('clicking outside closes the card search results', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     fireEvent.mouseDown(document.body);
     expect(screen.getByPlaceholderText('Search for a card').value).toBe('');
@@ -810,25 +839,39 @@ describe('MenuBar card search', () => {
 
   test('shows Loading while card data is being fetched', async () => {
     let resolveCards;
-    loadCards.mockReturnValue(new Promise((r) => { resolveCards = r; }));
+    loadCards.mockReturnValue(
+      new Promise((r) => {
+        resolveCards = r;
+      }),
+    );
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     expect(screen.getByText('Loading…')).not.toBeNull();
     resolveCards([BOLT]);
   });
 
   test('shows loading spinner next to search bar while card data is loading', () => {
     let resolveCards;
-    loadCards.mockReturnValue(new Promise((r) => { resolveCards = r; }));
+    loadCards.mockReturnValue(
+      new Promise((r) => {
+        resolveCards = r;
+      }),
+    );
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     expect(screen.getByLabelText('Loading')).not.toBeNull();
     resolveCards([BOLT]);
   });
 
   test('hides loading spinner after card data finishes loading', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     expect(screen.queryByLabelText('Loading')).toBeNull();
   });
@@ -836,7 +879,9 @@ describe('MenuBar card search', () => {
   test('recovers gracefully when card data load fails', async () => {
     loadCards.mockRejectedValue(new Error('db error'));
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     expect(screen.queryByRole('button', { name: /Lightning Bolt/ })).toBeNull();
   });
@@ -846,23 +891,33 @@ describe('MenuBar card search', () => {
       <MenuBar theme="light" onThemeChange={vi.fn()} openSets={OPEN_SETS} onAddCard={vi.fn()} />,
     );
     // Load data for initial openSets
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     expect(loadCards).toHaveBeenCalledTimes(1);
     // Change openSets — cache resets, next search re-loads
     const newSets = [...OPEN_SETS, { code: 'eld', name: 'Throne of Eldraine', minimized: false }];
-    rerender(<MenuBar theme="light" onThemeChange={vi.fn()} openSets={newSets} onAddCard={vi.fn()} />);
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Bolt' } });
+    rerender(
+      <MenuBar theme="light" onThemeChange={vi.fn()} openSets={newSets} onAddCard={vi.fn()} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Bolt' },
+    });
     await act(async () => {});
     expect(loadCards).toHaveBeenCalledTimes(1 + newSets.length);
   });
 
   test('does not reload card data when already loaded', async () => {
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     // Change search text — no new loads since data is cached
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Bolt' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Bolt' },
+    });
     await act(async () => {});
     expect(loadCards).toHaveBeenCalledTimes(1);
   });
@@ -870,7 +925,9 @@ describe('MenuBar card search', () => {
   test('falls back to empty array when loadCards returns null', async () => {
     loadCards.mockResolvedValue(null);
     renderWithSearch();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     // No crash, no results (cards array is empty)
     expect(screen.queryByRole('button', { name: /Lightning/ })).toBeNull();
@@ -973,6 +1030,53 @@ describe('MenuBar Add Set direct code lookup', () => {
     const buttons = screen.getAllByRole('button', { name: /fifth dawn/i });
     expect(buttons[0].textContent).toBe('Fifth Dawn');
     expect(buttons[1].textContent).toBe('Fifth Dawn Promos');
+  });
+
+  test('masterpiece sets appear after main sets in search results', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'exp', name: 'Zendikar Expeditions', set_type: 'masterpiece' },
+      { code: 'zen', name: 'Zendikar', set_type: 'expansion' },
+    ]);
+    fetchSet.mockResolvedValue(null);
+    renderAddSet();
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'zen' } });
+    await act(async () => {});
+    const buttons = screen.getAllByRole('button', { name: /zendikar/i });
+    expect(buttons[0].textContent).toBe('Zendikar');
+    expect(buttons[1].textContent).toBe('Zendikar Expeditions');
+  });
+
+  test('memorabilia sets appear after main sets in search results', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'sld', name: 'Secret Lair Drop', set_type: 'memorabilia' },
+      { code: 'znr', name: 'Zendikar Rising', set_type: 'expansion' },
+    ]);
+    fetchSet.mockResolvedValue(null);
+    renderAddSet();
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'secret' } });
+    await act(async () => {});
+    // Only SLD matches "secret" — just verify it appears (no ordering to check)
+    expect(screen.getByRole('button', { name: 'Secret Lair Drop' })).not.toBeNull();
+  });
+
+  test('secondary types (promo, masterpiece, memorabilia) all sort after primary types', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'exp', name: 'Zendikar Expeditions', set_type: 'masterpiece' },
+      { code: 'pzen', name: 'Zendikar Promos', set_type: 'promo' },
+      { code: 'sld', name: 'Zendikar Secret Lair', set_type: 'memorabilia' },
+      { code: 'zen', name: 'Zendikar', set_type: 'expansion' },
+    ]);
+    fetchSet.mockResolvedValue(null);
+    renderAddSet();
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), {
+      target: { value: 'zendikar' },
+    });
+    await act(async () => {});
+    const buttons = screen.getAllByRole('button', { name: /zendikar/i });
+    expect(buttons[0].textContent).toBe('Zendikar');
   });
 });
 

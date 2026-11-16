@@ -42,7 +42,9 @@ test('uses CSS default position when no pos is given', () => {
 });
 
 test('overrides position when pos prop is provided', () => {
-  render(<CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} pos={{ x: 400, y: 150 }} />);
+  render(
+    <CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} pos={{ x: 400, y: 150 }} />,
+  );
   const el = document.querySelector('.card-preview');
   expect(el.style.left).toBe('400px');
   expect(el.style.top).toBe('150px');

@@ -5,7 +5,7 @@ function renderWindow({ children = <div>body</div>, ...props } = {}) {
   render(
     <DraggableWindow title="Test Window" onClose={vi.fn()} {...props}>
       {children}
-    </DraggableWindow>
+    </DraggableWindow>,
   );
   return document.querySelector('.draggable-window');
 }
@@ -27,7 +27,11 @@ test('renders controls when provided', () => {
 
 test('renders Close button that calls onClose', () => {
   const onClose = vi.fn();
-  render(<DraggableWindow title="T" onClose={onClose}><div /></DraggableWindow>);
+  render(
+    <DraggableWindow title="T" onClose={onClose}>
+      <div />
+    </DraggableWindow>,
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(onClose).toHaveBeenCalled();
 });
@@ -147,7 +151,11 @@ test('clicking Move here calls onSavePos with current position', () => {
 
 test('clicking Move here calls onClose', () => {
   const onClose = vi.fn();
-  render(<DraggableWindow title="T" onClose={onClose} onSavePos={vi.fn()}><div /></DraggableWindow>);
+  render(
+    <DraggableWindow title="T" onClose={onClose} onSavePos={vi.fn()}>
+      <div />
+    </DraggableWindow>,
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Move here' }));
   expect(onClose).toHaveBeenCalled();
 });
@@ -169,6 +177,10 @@ test('clicking Move here without onSavePos does not throw', () => {
 });
 
 test('clicking Move here without onClose does not throw', () => {
-  render(<DraggableWindow title="T" onSavePos={vi.fn()}><div /></DraggableWindow>);
+  render(
+    <DraggableWindow title="T" onSavePos={vi.fn()}>
+      <div />
+    </DraggableWindow>,
+  );
   expect(() => fireEvent.click(screen.getByRole('button', { name: 'Move here' }))).not.toThrow();
 });

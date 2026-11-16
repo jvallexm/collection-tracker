@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchSetCards } from '../lib/scryfall.js';
-import { loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
+import {
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveCollection,
+  saveConfig,
+} from '../lib/storage.js';
 import { makeCard } from '../test/fixtures.js';
 import SetTracker from './SetTracker.jsx';
 
@@ -185,7 +191,11 @@ describe('SetTracker sorting', () => {
 
   test('sorting before config loads falls back to default sort', async () => {
     let resolveConfig;
-    loadConfig.mockReturnValue(new Promise((r) => { resolveConfig = r; }));
+    loadConfig.mockReturnValue(
+      new Promise((r) => {
+        resolveConfig = r;
+      }),
+    );
     fetchSetCards.mockResolvedValue(CARDS);
     render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
     await screen.findByLabelText('Copies of Arrow');
@@ -317,7 +327,9 @@ describe('SetTracker search debounce', () => {
     await renderLoadedTracker();
     vi.useFakeTimers();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'arr' } });
-    act(() => { vi.advanceTimersByTime(150); });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(rowNames()).toEqual(['Arrow']);
     vi.useRealTimers();
   });
@@ -327,7 +339,9 @@ describe('SetTracker search debounce', () => {
     vi.useFakeTimers();
     const box = screen.getByRole('searchbox');
     fireEvent.change(box, { target: { value: 'bol' } });
-    act(() => { vi.advanceTimersByTime(150); });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     fireEvent.change(box, { target: { value: 'bo' } });
     expect(rowNames()).toEqual(['Bolt']);
     vi.useRealTimers();
@@ -338,10 +352,12 @@ describe('SetTracker search debounce', () => {
     vi.useFakeTimers();
     const box = screen.getByRole('searchbox');
     fireEvent.change(box, { target: { value: 'bol' } });
-    act(() => { vi.advanceTimersByTime(150); });
-    fireEvent.change(box, { target: { value: 'bo' } });   // delete
-    fireEvent.change(box, { target: { value: 'bol' } });  // 1st char after delete
-    expect(rowNames()).toEqual(['Bolt']);                  // not committed yet
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    fireEvent.change(box, { target: { value: 'bo' } }); // delete
+    fireEvent.change(box, { target: { value: 'bol' } }); // 1st char after delete
+    expect(rowNames()).toEqual(['Bolt']); // not committed yet
     fireEvent.change(box, { target: { value: 'bolt' } }); // 2nd char — commits
     expect(rowNames()).toEqual(['Bolt']);
     vi.useRealTimers();
@@ -352,10 +368,14 @@ describe('SetTracker search debounce', () => {
     vi.useFakeTimers();
     const box = screen.getByRole('searchbox');
     fireEvent.change(box, { target: { value: 'bol' } });
-    act(() => { vi.advanceTimersByTime(150); });
-    fireEvent.change(box, { target: { value: 'bo' } });  // delete
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    fireEvent.change(box, { target: { value: 'bo' } }); // delete
     fireEvent.change(box, { target: { value: 'bol' } }); // only 1 char after delete
-    act(() => { vi.advanceTimersByTime(150); });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(rowNames()).toEqual(['Bolt']);
     vi.useRealTimers();
   });
@@ -578,7 +598,13 @@ describe('SetTracker cardFocus', () => {
 
   test('focuses the qty input for the given card', async () => {
     const { rerender } = await renderAndLoad();
-    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    rerender(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        cardFocus={{ setCode: 'ktk', cardId: 'b' }}
+      />,
+    );
     await act(async () => {});
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Copies of Bolt' }));
   });
@@ -590,7 +616,13 @@ describe('SetTracker cardFocus', () => {
 
   test('does nothing when card id is not found in the table', async () => {
     const { rerender } = await renderAndLoad();
-    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'unknown-id' }} />);
+    rerender(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        cardFocus={{ setCode: 'ktk', cardId: 'unknown-id' }}
+      />,
+    );
     await act(async () => {});
     expect(document.activeElement).toBe(document.body);
   });
@@ -618,17 +650,35 @@ describe('SetTracker cardFocus', () => {
     const fakeEl = document.createElement('div');
     fakeEl.setAttribute('data-card-id', 'no-input-card');
     windowEl.appendChild(fakeEl);
-    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'no-input-card' }} />);
+    rerender(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        cardFocus={{ setCode: 'ktk', cardId: 'no-input-card' }}
+      />,
+    );
     await act(async () => {});
     expect(document.activeElement).toBe(document.body);
   });
 
   test('refocuses when cardFocus changes to a new object for the same card', async () => {
     const { rerender } = await renderAndLoad();
-    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    rerender(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        cardFocus={{ setCode: 'ktk', cardId: 'b' }}
+      />,
+    );
     await act(async () => {});
     screen.getByRole('textbox', { name: 'Copies of Arrow' }).focus();
-    rerender(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardFocus={{ setCode: 'ktk', cardId: 'b' }} />);
+    rerender(
+      <SetTracker
+        setCode="ktk"
+        setName="Khans of Tarkir"
+        cardFocus={{ setCode: 'ktk', cardId: 'b' }}
+      />,
+    );
     await act(async () => {});
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Copies of Bolt' }));
   });
@@ -637,7 +687,9 @@ describe('SetTracker cardFocus', () => {
 describe('SetTracker cardPreviewPos', () => {
   test('card preview uses saved position when cardPreviewPos is provided', async () => {
     fetchSetCards.mockResolvedValue(CARDS);
-    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardPreviewPos={{ x: 400, y: 150 }} />);
+    render(
+      <SetTracker setCode="ktk" setName="Khans of Tarkir" cardPreviewPos={{ x: 400, y: 150 }} />,
+    );
     await act(async () => {});
     fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
     const el = document.querySelector('.card-preview');
@@ -650,7 +702,9 @@ describe('SetTracker cardPreviewPos', () => {
     render(<SetTracker setCode="ktk" setName="Khans of Tarkir" cardImageSize="large" />);
     await act(async () => {});
     fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
-    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain('version=large');
+    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain(
+      'version=large',
+    );
   });
 });
 

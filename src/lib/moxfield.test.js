@@ -7,7 +7,8 @@ const CARDS = [
   makeCard({ id: 'c', name: 'Bolt', number: '7' }),
 ];
 
-const HEADER = '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
+const HEADER =
+  '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
 
 describe('buildMoxfieldCsv', () => {
   test('returns only the header when collection is empty', () => {
@@ -18,26 +19,29 @@ describe('buildMoxfieldCsv', () => {
   test('includes regular card rows sorted alphabetically', () => {
     const csv = buildMoxfieldCsv([{ cards: CARDS, collection: { a: { qty: 1 }, b: { qty: 2 } } }]);
     expect(csv).toBe(
-      HEADER + '\n' +
-      '"2","2","Arrow","ktk","Near Mint","English","","","","","False","False",""\n' +
-      '"1","1","Zurgo","ktk","Near Mint","English","","","","","False","False",""',
+      HEADER +
+        '\n' +
+        '"2","2","Arrow","ktk","Near Mint","English","","","","","False","False",""\n' +
+        '"1","1","Zurgo","ktk","Near Mint","English","","","","","False","False",""',
     );
   });
 
   test('includes foil rows with the foil column set', () => {
     const csv = buildMoxfieldCsv([{ cards: CARDS, collection: { b: { foil: 2 } } }]);
     expect(csv).toBe(
-      HEADER + '\n' +
-      '"2","2","Arrow","ktk","Near Mint","English","foil","","","","False","False",""',
+      HEADER +
+        '\n' +
+        '"2","2","Arrow","ktk","Near Mint","English","foil","","","","False","False",""',
     );
   });
 
   test('emits both regular and foil rows for a card with both', () => {
     const csv = buildMoxfieldCsv([{ cards: CARDS, collection: { b: { qty: 3, foil: 1 } } }]);
     expect(csv).toBe(
-      HEADER + '\n' +
-      '"3","3","Arrow","ktk","Near Mint","English","","","","","False","False",""\n' +
-      '"1","1","Arrow","ktk","Near Mint","English","foil","","","","False","False",""',
+      HEADER +
+        '\n' +
+        '"3","3","Arrow","ktk","Near Mint","English","","","","","False","False",""\n' +
+        '"1","1","Arrow","ktk","Near Mint","English","foil","","","","False","False",""',
     );
   });
 

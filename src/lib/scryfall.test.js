@@ -244,11 +244,13 @@ describe('fetchSetCards', () => {
   const noTokens = { ok: false, status: 404 };
 
   test('returns normalized cards from a single page', async () => {
-    const fetchMock = vi.fn().mockImplementation((url) =>
-      url === buildSearchUrl('ktk')
-        ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
-        : Promise.resolve(noTokens),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+          : Promise.resolve(noTokens),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     const cards = await fetchSetCards('ktk');
@@ -263,7 +265,13 @@ describe('fetchSetCards', () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockImplementation((url) => {
       if (url === buildSearchUrl('ktk'))
-        return Promise.resolve(jsonResponse({ data: [rawCard({ id: '1' })], has_more: true, next_page: 'https://next-page' }));
+        return Promise.resolve(
+          jsonResponse({
+            data: [rawCard({ id: '1' })],
+            has_more: true,
+            next_page: 'https://next-page',
+          }),
+        );
       if (url === 'https://next-page')
         return Promise.resolve(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
       return Promise.resolve(noTokens);
@@ -286,11 +294,13 @@ describe('fetchSetCards', () => {
   test('stores fetched cards in the database for future calls', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+            : Promise.resolve(noTokens),
+        ),
     );
 
     await fetchSetCards('ktk');
@@ -355,11 +365,13 @@ describe('fetchSetCards', () => {
     const digitalCard = rawCard({ id: 'digital1', name: 'Digital Card', digital: true });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(jsonResponse({ data: [rawCard(), digitalCard], has_more: false }))
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(jsonResponse({ data: [rawCard(), digitalCard], has_more: false }))
+            : Promise.resolve(noTokens),
+        ),
     );
 
     const cards = await fetchSetCards('ktk');
@@ -370,11 +382,13 @@ describe('fetchSetCards', () => {
   test('does not save a token set entry when no token set exists', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }))
+            : Promise.resolve(noTokens),
+        ),
     );
 
     await fetchSetCards('ktk');

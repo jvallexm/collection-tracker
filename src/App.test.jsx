@@ -423,7 +423,9 @@ describe('App Export Collection', () => {
   });
 
   test('clicking CSV works when loadCards returns actual cards', async () => {
-    loadCards.mockResolvedValue([{ id: 'a', name: 'Test Card', number: '1', set: 'KTK', rarity: 'common', cost: '{1}' }]);
+    loadCards.mockResolvedValue([
+      { id: 'a', name: 'Test Card', number: '1', set: 'KTK', rarity: 'common', cost: '{1}' },
+    ]);
     await renderApp();
     fireEvent.click(screen.getByText('Export Collection'));
     fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
@@ -434,7 +436,10 @@ describe('App Export Collection', () => {
   test('clicking CSV before openSets resolves falls back to empty array', async () => {
     let resolveOpenSets;
     loadConfig.mockImplementation((key) => {
-      if (key === 'openSets') return new Promise((r) => { resolveOpenSets = r; });
+      if (key === 'openSets')
+        return new Promise((r) => {
+          resolveOpenSets = r;
+        });
       return Promise.resolve(null);
     });
     render(<App />);
@@ -448,46 +453,70 @@ describe('App Export Collection', () => {
 });
 
 describe('App CK tools toggle', () => {
-  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}', nonfoil: true, foil: true, reserved: false, price: null, priceFoil: null };
+  const BOLT = {
+    id: 'bolt',
+    name: 'Lightning Bolt',
+    number: '1',
+    set: 'KTK',
+    rarity: 'common',
+    cost: '{R}',
+    nonfoil: true,
+    foil: true,
+    reserved: false,
+    price: null,
+    priceFoil: null,
+  };
 
   beforeEach(() => {
     fetchSetCards.mockResolvedValue([BOLT]);
   });
 
-  test('CK columns are shown by default', async () => {
+  test('CK columns are hidden by default', async () => {
+    await renderApp();
+    expect(screen.queryByRole('columnheader', { name: 'CK' })).toBeNull();
+  });
+
+  test('loads saved showCKTools=true from config and shows columns', async () => {
+    loadConfig.mockImplementation((key) =>
+      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
+    );
     await renderApp();
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
   });
 
-  test('loads saved showCKTools=false from config and hides columns', async () => {
-    loadConfig.mockImplementation((key) =>
-      key === 'showCKTools' ? Promise.resolve(false) : Promise.resolve(null),
-    );
+  test('clicking toggle shows columns and persists setting', async () => {
     await renderApp();
-    expect(screen.queryByRole('columnheader', { name: 'CK' })).toBeNull();
-  });
-
-  test('clicking toggle hides columns and persists setting', async () => {
-    await renderApp();
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
-    expect(screen.queryByRole('columnheader', { name: 'CK' })).toBeNull();
-    expect(saveConfig).toHaveBeenCalledWith('showCKTools', false);
-  });
-
-  test('clicking toggle twice re-shows columns', async () => {
-    await renderApp();
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
     expect(saveConfig).toHaveBeenCalledWith('showCKTools', true);
   });
+
+  test('clicking toggle twice re-hides columns', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
+    expect(screen.queryByRole('columnheader', { name: 'CK' })).toBeNull();
+    expect(saveConfig).toHaveBeenCalledWith('showCKTools', false);
+  });
 });
 
 describe('App sell to Card Kingdom', () => {
-  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}', nonfoil: true, foil: true, reserved: false, price: null, priceFoil: null };
+  const BOLT = {
+    id: 'bolt',
+    name: 'Lightning Bolt',
+    number: '1',
+    set: 'KTK',
+    rarity: 'common',
+    cost: '{R}',
+    nonfoil: true,
+    foil: true,
+    reserved: false,
+    price: null,
+    priceFoil: null,
+  };
 
   beforeEach(() => {
     fetchSetCards.mockResolvedValue([]);
@@ -510,6 +539,9 @@ describe('App sell to Card Kingdom', () => {
   test('toggling a sell checkbox checks it', async () => {
     fetchSetCards.mockResolvedValue([BOLT]);
     loadCards.mockResolvedValue(null);
+    loadConfig.mockImplementation((key) =>
+      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
+    );
     await renderApp();
     const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
     fireEvent.click(checkbox);
@@ -521,6 +553,9 @@ describe('App sell to Card Kingdom', () => {
     // loadCards is called for token cards (tktk) — return null to avoid duplicates
     loadCards.mockImplementation((code) => Promise.resolve(code === 'tktk' ? null : [BOLT]));
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadConfig.mockImplementation((key) =>
+      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
+    );
     await renderApp();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
     fireEvent.click(screen.getByText('Export Collection'));
@@ -532,7 +567,10 @@ describe('App sell to Card Kingdom', () => {
   test('sell export before openSets resolves falls back to empty array', async () => {
     let resolveOpenSets;
     loadConfig.mockImplementation((key) => {
-      if (key === 'openSets') return new Promise((r) => { resolveOpenSets = r; });
+      if (key === 'openSets')
+        return new Promise((r) => {
+          resolveOpenSets = r;
+        });
       return Promise.resolve(null);
     });
     render(<App />);
@@ -546,6 +584,9 @@ describe('App sell to Card Kingdom', () => {
   test('toggling the same checkbox twice unchecks it', async () => {
     fetchSetCards.mockResolvedValue([BOLT]);
     loadCards.mockResolvedValue(null);
+    loadConfig.mockImplementation((key) =>
+      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
+    );
     await renderApp();
     const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
     fireEvent.click(checkbox);
@@ -555,28 +596,45 @@ describe('App sell to Card Kingdom', () => {
 });
 
 describe('App handleAddCard', () => {
-  const BOLT = { id: 'bolt', name: 'Lightning Bolt', number: '1', set: 'KTK', rarity: 'common', cost: '{R}' };
+  const BOLT = {
+    id: 'bolt',
+    name: 'Lightning Bolt',
+    number: '1',
+    set: 'KTK',
+    rarity: 'common',
+    cost: '{R}',
+  };
 
   test('adds a first copy when card has no prior entry', async () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({});
     await renderApp();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
     await act(async () => {});
-    expect(saveCollection).toHaveBeenCalledWith('ktk', expect.objectContaining({ bolt: { qty: 1 } }));
+    expect(saveCollection).toHaveBeenCalledWith(
+      'ktk',
+      expect.objectContaining({ bolt: { qty: 1 } }),
+    );
   });
 
   test('increments qty when card already has copies', async () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
     await renderApp();
-    fireEvent.change(screen.getByPlaceholderText('Search for a card'), { target: { value: 'Lightning' } });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
     await act(async () => {});
     fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
     await act(async () => {});
-    expect(saveCollection).toHaveBeenCalledWith('ktk', expect.objectContaining({ bolt: { qty: 4 } }));
+    expect(saveCollection).toHaveBeenCalledWith(
+      'ktk',
+      expect.objectContaining({ bolt: { qty: 4 } }),
+    );
   });
 
   test('adding twice covers both branches of collectionVersions update', async () => {
@@ -638,11 +696,15 @@ describe('App card preview position', () => {
     await renderApp();
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByRole('button', { name: 'Move card preview' }));
-    expect(screen.getByRole('button', { name: 'normal size' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'normal size' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
   });
 
   test('saved image size is used in the card table preview', async () => {
-    fetchSetCards.mockResolvedValue([makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' })]);
+    fetchSetCards.mockResolvedValue([
+      makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' }),
+    ]);
     loadConfig.mockImplementation((key) =>
       key === 'cardImageSize'
         ? Promise.resolve('large')
@@ -652,12 +714,15 @@ describe('App card preview position', () => {
     );
     await renderApp();
     fireEvent.focus(screen.getByLabelText('Copies of Arrow'));
-    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain('version=large');
+    expect(document.querySelector('.card-preview img').getAttribute('src')).toContain(
+      'version=large',
+    );
   });
 
   test('saved position is applied to card preview in set tracker', async () => {
-
-    fetchSetCards.mockResolvedValue([makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' })]);
+    fetchSetCards.mockResolvedValue([
+      makeCard({ id: 'a', name: 'Arrow', rarity: 'rare', number: '1' }),
+    ]);
     loadConfig.mockImplementation((key) =>
       key === 'cardPreviewPos'
         ? Promise.resolve({ x: 400, y: 150 })
@@ -721,6 +786,44 @@ describe('App close all minimized', () => {
     await act(async () => {});
     expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Close all minimized sets' })).toBeNull();
+  });
+
+  test('Close sets button is at the bottom of the stack (bottom: 8px)', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
+    const icons = document.querySelectorAll('.window-icon');
+    const closeAllIcon = icons[icons.length - 1];
+    expect(closeAllIcon.style.bottom).toBe('8px');
+  });
+
+  test('minimized windows are shifted up when Close sets button is showing', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ]);
+    await renderApp();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
+    const icons = document.querySelectorAll('.window-icon');
+    expect(icons[0].style.bottom).toBe('48px');
+    expect(icons[1].style.bottom).toBe('88px');
   });
 
   test('active window is kept when closing all minimized', async () => {

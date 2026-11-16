@@ -1,6 +1,7 @@
 import { sortCards } from './sorting.js';
 
-const CSV_HEADER = '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
+const CSV_HEADER =
+  '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
 
 function csvRow(count, name, edition, foil) {
   return `"${count}","${count}","${name}","${edition.toLowerCase()}","Near Mint","English","${foil}","","","","False","False",""`;

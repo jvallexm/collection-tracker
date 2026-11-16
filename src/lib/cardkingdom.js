@@ -49,9 +49,7 @@ export async function fetchCKPrices() {
     const existing = map.get(item.scryfall_id) ?? {};
     map.set(
       item.scryfall_id,
-      isFoil
-        ? { ...existing, foilBuy: buy }
-        : { ...existing, nonfoilBuy: buy },
+      isFoil ? { ...existing, foilBuy: buy } : { ...existing, nonfoilBuy: buy },
     );
   }
   return map;

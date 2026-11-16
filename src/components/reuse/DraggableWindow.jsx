@@ -22,7 +22,9 @@ export default function DraggableWindow({
     function onMove(e) {
       setPos({ x: e.clientX - drag.startX, y: e.clientY - drag.startY });
     }
-    function onUp() { setDrag(null); }
+    function onUp() {
+      setDrag(null);
+    }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     return () => {
@@ -40,7 +42,14 @@ export default function DraggableWindow({
   return (
     <div
       className={cls}
-      style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 200, userSelect: drag ? 'none' : undefined, width }}
+      style={{
+        position: 'fixed',
+        left: pos.x,
+        top: pos.y,
+        zIndex: 200,
+        userSelect: drag ? 'none' : undefined,
+        width,
+      }}
     >
       <Titlebar onMouseDown={handleTitlebarMouseDown} cursor={drag ? 'grabbing' : 'move'}>
         <span>{title}</span>
@@ -52,16 +61,16 @@ export default function DraggableWindow({
       <div className="draggable-window-footer">
         {controls}
         <div className="draggable-window-pos-btns">
-          <button
-            className="draggable-window-reset-btn"
-            onClick={() => setPos(initialPos)}
-          >
+          <button className="draggable-window-reset-btn" onClick={() => setPos(initialPos)}>
             Reset
           </button>
           <button
             className="draggable-window-move-btn"
             disabled={pos.x < 0 || pos.y < 0}
-            onClick={() => { onSavePos?.(pos); onClose?.(); }}
+            onClick={() => {
+              onSavePos?.(pos);
+              onClose?.();
+            }}
           >
             Move here
           </button>

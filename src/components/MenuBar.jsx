@@ -35,13 +35,18 @@ export default function MenuBar({
     function handleMouseDown(e) {
       if (barRef.current.contains(e.target)) return;
       if (openMenu) setOpenMenu(null);
-      if (cardSearch) { setCardSearch(''); setCardHighlight(-1); }
+      if (cardSearch) {
+        setCardSearch('');
+        setCardHighlight(-1);
+      }
     }
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [openMenu, cardSearch]);
 
-  useEffect(() => { setCardSearchSets(null); }, [openSets]);
+  useEffect(() => {
+    setCardSearchSets(null);
+  }, [openSets]);
 
   useEffect(() => {
     if (!cardSearch.trim() || cardSearchSets !== null || cardSearchLoading) return;
@@ -53,8 +58,14 @@ export default function MenuBar({
         collection: await loadCollection(set.code),
       })),
     )
-      .then((data) => { setCardSearchSets(data); setCardSearchLoading(false); })
-      .catch(() => { setCardSearchSets([]); setCardSearchLoading(false); });
+      .then((data) => {
+        setCardSearchSets(data);
+        setCardSearchLoading(false);
+      })
+      .catch(() => {
+        setCardSearchSets([]);
+        setCardSearchLoading(false);
+      });
   }, [cardSearch, cardSearchSets, cardSearchLoading, openSets]);
 
   const cardResults =
@@ -81,10 +92,17 @@ export default function MenuBar({
 
   useEffect(() => {
     const q = setSearch.trim();
-    if (!q) { setDirectSetResult(null); return; }
+    if (!q) {
+      setDirectSetResult(null);
+      return;
+    }
     let cancelled = false;
-    fetchSet(q).then((result) => { if (!cancelled) setDirectSetResult(result); });
-    return () => { cancelled = true; };
+    fetchSet(q).then((result) => {
+      if (!cancelled) setDirectSetResult(result);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [setSearch]);
 
   function toggle(name) {
@@ -172,7 +190,10 @@ export default function MenuBar({
     directSetResult && !baseFilteredSets.some((s) => s.code === directSetResult.code)
       ? [directSetResult, ...baseFilteredSets].slice(0, 8)
       : baseFilteredSets
-  ).sort((a, b) => (a.set_type === 'promo') - (b.set_type === 'promo'));
+  ).sort((a, b) => {
+    const SECONDARY = new Set(['promo', 'masterpiece', 'memorabilia', 'treasure_chest']);
+    return SECONDARY.has(a.set_type) - SECONDARY.has(b.set_type);
+  });
 
   function handleSearchChange(e) {
     setSetSearch(e.target.value);
@@ -187,7 +208,10 @@ export default function MenuBar({
     if (allSets === null && !setsLoading) {
       setSetsLoading(true);
       fetchSets()
-        .then((sets) => { setAllSets(sets); setSetsLoading(false); })
+        .then((sets) => {
+          setAllSets(sets);
+          setSetsLoading(false);
+        })
         .catch(() => setSetsLoading(false));
     }
   }
@@ -203,231 +227,260 @@ export default function MenuBar({
 
   return (
     <>
-    <div className="menubar" ref={barRef}>
-      <div className="menu">
-        <button
-          className={`menu-label${openMenu === 'collection' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('collection')}
-        >
-          My Collection
-        </button>
-        {openMenu === 'collection' && (
-          <ul className="menu-dropdown">
-            {recentSets.length > 0 ? (
-              <>
-                <li className="menu-subheading">Recent</li>
-                {recentSets.map((s) => (
-                  <li key={s.code}>
-                    <button className="menu-dropdown-item" onClick={() => openSet(s.code, s.name)}>
-                      {s.name}
-                    </button>
-                  </li>
-                ))}
-              </>
-            ) : (
-              <li className="menu-subheading">No recent sets</li>
-            )}
-            <li
-              className="menu-item-has-submenu"
-              onMouseEnter={handleAllSetsEnter}
-              onMouseLeave={() => setAllSetsSubmenuOpen(false)}
-            >
-              <span className="menu-dropdown-item menu-dropdown-item--submenu-trigger">All sets…</span>
-              {allSetsSubmenuOpen && (
-                <div className="menu-submenu-panel">
-                  {collectedSets === null ? (
-                    <span className="menu-submenu-status">Loading…</span>
-                  ) : collectedSets.length === 0 ? (
-                    <span className="menu-submenu-status">No sets catalogued yet</span>
-                  ) : (
-                    <ul className="menu-submenu-sets">
-                      {collectedSets.map((s) => (
-                        <li key={s.code}>
-                          <button className="menu-dropdown-item" onClick={() => openSet(s.code, s.name)}>
-                            {s.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+      <div className="menubar" ref={barRef}>
+        <div className="menu">
+          <button
+            className={`menu-label${openMenu === 'collection' ? ' menu-label--open' : ''}`}
+            onClick={() => toggle('collection')}
+          >
+            My Collection
+          </button>
+          {openMenu === 'collection' && (
+            <ul className="menu-dropdown">
+              {recentSets.length > 0 ? (
+                <>
+                  <li className="menu-subheading">Recent</li>
+                  {recentSets.map((s) => (
+                    <li key={s.code}>
+                      <button
+                        className="menu-dropdown-item"
+                        onClick={() => openSet(s.code, s.name)}
+                      >
+                        {s.name}
+                      </button>
+                    </li>
+                  ))}
+                </>
+              ) : (
+                <li className="menu-subheading">No recent sets</li>
               )}
-            </li>
-          </ul>
-        )}
-      </div>
-      <div className="menu">
-        <button
-          className={`menu-label${openMenu === 'addset' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('addset')}
-        >
-          Add Set
-        </button>
-        {openMenu === 'addset' && (
-          <ul className="menu-dropdown">
-            <li className="menu-subheading">Search</li>
-            <li className="menu-sets-search">
-              <input
-                className="menu-sets-search-input"
-                type="search"
-                placeholder="Search sets…"
-                value={setSearch}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-                autoFocus
-              />
-            </li>
-            {setsLoading && <li className="menu-subheading">Loading…</li>}
-            {filteredSets.map((s, i) => (
-              <li key={s.code}>
-                <button
-                  className="menu-dropdown-item"
-                  aria-selected={i === highlightedIndex}
-                  onClick={() => openSet(s.code, s.name)}
-                >
-                  {s.name}
+              <li
+                className="menu-item-has-submenu"
+                onMouseEnter={handleAllSetsEnter}
+                onMouseLeave={() => setAllSetsSubmenuOpen(false)}
+              >
+                <span className="menu-dropdown-item menu-dropdown-item--submenu-trigger">
+                  All sets…
+                </span>
+                {allSetsSubmenuOpen && (
+                  <div className="menu-submenu-panel">
+                    {collectedSets === null ? (
+                      <span className="menu-submenu-status">Loading…</span>
+                    ) : collectedSets.length === 0 ? (
+                      <span className="menu-submenu-status">No sets catalogued yet</span>
+                    ) : (
+                      <ul className="menu-submenu-sets">
+                        {collectedSets.map((s) => (
+                          <li key={s.code}>
+                            <button
+                              className="menu-dropdown-item"
+                              onClick={() => openSet(s.code, s.name)}
+                            >
+                              {s.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            </ul>
+          )}
+        </div>
+        <div className="menu">
+          <button
+            className={`menu-label${openMenu === 'addset' ? ' menu-label--open' : ''}`}
+            onClick={() => toggle('addset')}
+          >
+            Add Set
+          </button>
+          {openMenu === 'addset' && (
+            <ul className="menu-dropdown">
+              <li className="menu-subheading">Search</li>
+              <li className="menu-sets-search">
+                <input
+                  className="menu-sets-search-input"
+                  type="search"
+                  placeholder="Search sets…"
+                  value={setSearch}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  autoFocus
+                />
+              </li>
+              {setsLoading && <li className="menu-subheading">Loading…</li>}
+              {filteredSets.map((s, i) => (
+                <li key={s.code}>
+                  <button
+                    className="menu-dropdown-item"
+                    aria-selected={i === highlightedIndex}
+                    onClick={() => openSet(s.code, s.name)}
+                  >
+                    {s.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="menu">
+          <button
+            className={`menu-label${openMenu === 'view' ? ' menu-label--open' : ''}`}
+            onClick={() => toggle('view')}
+          >
+            View
+          </button>
+          {openMenu === 'view' && (
+            <ul className="menu-dropdown">
+              <li className="menu-subheading">Mode</li>
+              <li>
+                <button className="menu-dropdown-item" onClick={() => selectTheme('light')}>
+                  {theme === 'light' && <span aria-hidden="true">✓ </span>}Light Mode
                 </button>
               </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="menu">
-        <button
-          className={`menu-label${openMenu === 'view' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('view')}
-        >
-          View
-        </button>
-        {openMenu === 'view' && (
-          <ul className="menu-dropdown">
-            <li className="menu-subheading">Mode</li>
-            <li>
-              <button className="menu-dropdown-item" onClick={() => selectTheme('light')}>
-                {theme === 'light' && <span aria-hidden="true">✓ </span>}Light Mode
-              </button>
-            </li>
-            <li>
-              <button className="menu-dropdown-item" onClick={() => selectTheme('dark')}>
-                {theme === 'dark' && <span aria-hidden="true">✓ </span>}Dark Mode
-              </button>
-            </li>
-            <li>
-              <button className="menu-dropdown-item" onClick={() => selectTheme('synthwave')}>
-                {theme === 'synthwave' && <span aria-hidden="true">✓ </span>}Synthwave
-                (experimental)
-              </button>
-            </li>
-            <li className="menu-subheading">Windows</li>
-            <li>
-              <button
-                className="menu-dropdown-item"
-                onClick={() => { setPreviewOpen((o) => !o); setOpenMenu(null); }}
-              >
-                {previewOpen && <span aria-hidden="true">✓ </span>}Move card preview
-              </button>
-            </li>
-            <li className="menu-subheading">Card Kingdom</li>
-            <li>
-              <button
-                className="menu-dropdown-item"
-                onClick={() => { onToggleCKTools?.(); setOpenMenu(null); }}
-              >
-                {showCKTools && <span aria-hidden="true">✓ </span>}Add Card Kingdom sell tools
-              </button>
-            </li>
-          </ul>
-        )}
-      </div>
-      <div className="menu">
-        <button
-          className={`menu-label${openMenu === 'export' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('export')}
-        >
-          Export Collection
-        </button>
-        {openMenu === 'export' && (
-          <ul className="menu-dropdown">
-            <li>
-              <button
-                className="menu-dropdown-item"
-                onClick={() => { onExportCsv?.(); setOpenMenu(null); }}
-              >
-                CSV
-              </button>
-            </li>
-            <li>
-              <button
-                className="menu-dropdown-item"
-                onClick={() => { onExportSellCsv?.(); setOpenMenu(null); }}
-              >
-                Sell to Card Kingdom
-              </button>
-            </li>
-          </ul>
-        )}
-      </div>
-      <div className="menu">
-        <button
-          className={`menu-label${openMenu === 'debug' ? ' menu-label--open' : ''}`}
-          onClick={() => toggle('debug')}
-        >
-          Debug
-        </button>
-        {openMenu === 'debug' && (
-          <ul className="menu-dropdown">
-            {activeSet && (
+              <li>
+                <button className="menu-dropdown-item" onClick={() => selectTheme('dark')}>
+                  {theme === 'dark' && <span aria-hidden="true">✓ </span>}Dark Mode
+                </button>
+              </li>
+              <li>
+                <button className="menu-dropdown-item" onClick={() => selectTheme('synthwave')}>
+                  {theme === 'synthwave' && <span aria-hidden="true">✓ </span>}Synthwave
+                  (experimental)
+                </button>
+              </li>
+              <li className="menu-subheading">Windows</li>
               <li>
                 <button
                   className="menu-dropdown-item"
                   onClick={() => {
-                    onRefreshSet?.();
+                    setPreviewOpen((o) => !o);
                     setOpenMenu(null);
                   }}
                 >
-                  Refresh current set
+                  {previewOpen && <span aria-hidden="true">✓ </span>}Move card preview
                 </button>
               </li>
-            )}
-            {!activeSet && <li className="menu-subheading">No active set</li>}
-          </ul>
-        )}
-      </div>
-      <div className="menu-card-search">
-        {backgroundSyncing && <span className="menu-syncing-text">Syncing…</span>}
-        {(cardSearchLoading || setsLoading) && (
-          <span className="menu-loading-spinner" aria-label="Loading" />
-        )}
-        <input
-          className="menu-card-search-input"
-          type="search"
-          placeholder="Search for a card"
-          value={cardSearch}
-          onChange={handleCardSearchChange}
-          onKeyDown={handleCardSearchKeyDown}
-        />
-        {(cardResults.length > 0 || (cardSearch.trim() && cardSearchLoading)) && (
-          <ul className="menu-dropdown menu-card-search-dropdown">
-            {cardSearchLoading && <li className="menu-subheading">Loading…</li>}
-            {cardResults.map((result, i) => (
-              <li key={`${result.setCode}-${result.card.id}`}>
+              <li className="menu-subheading">Card Kingdom</li>
+              <li>
                 <button
-                  className="menu-dropdown-item menu-card-result"
-                  aria-selected={i === cardHighlight}
-                  onClick={() => handleAddFromSearch(result.setCode, result.card.id)}
+                  className="menu-dropdown-item"
+                  onClick={() => {
+                    onToggleCKTools?.();
+                    setOpenMenu(null);
+                  }}
                 >
-                  <span className="menu-card-result-name">{result.card.name}</span>
-                  <span className="menu-card-result-meta">
-                    {result.setCode.toUpperCase()} {result.card.number}{result.qty > 0 ? ` · ${result.qty}` : ''}
-                  </span>
+                  {showCKTools && <span aria-hidden="true">✓ </span>}Add Card Kingdom sell tools
                 </button>
               </li>
-            ))}
-          </ul>
-        )}
+            </ul>
+          )}
+        </div>
+        <div className="menu">
+          <button
+            className={`menu-label${openMenu === 'export' ? ' menu-label--open' : ''}`}
+            onClick={() => toggle('export')}
+          >
+            Export Collection
+          </button>
+          {openMenu === 'export' && (
+            <ul className="menu-dropdown">
+              <li>
+                <button
+                  className="menu-dropdown-item"
+                  onClick={() => {
+                    onExportCsv?.();
+                    setOpenMenu(null);
+                  }}
+                >
+                  CSV
+                </button>
+              </li>
+              <li>
+                <button
+                  className="menu-dropdown-item"
+                  onClick={() => {
+                    onExportSellCsv?.();
+                    setOpenMenu(null);
+                  }}
+                >
+                  Sell to Card Kingdom
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+        <div className="menu">
+          <button
+            className={`menu-label${openMenu === 'debug' ? ' menu-label--open' : ''}`}
+            onClick={() => toggle('debug')}
+          >
+            Debug
+          </button>
+          {openMenu === 'debug' && (
+            <ul className="menu-dropdown">
+              {activeSet && (
+                <li>
+                  <button
+                    className="menu-dropdown-item"
+                    onClick={() => {
+                      onRefreshSet?.();
+                      setOpenMenu(null);
+                    }}
+                  >
+                    Refresh current set
+                  </button>
+                </li>
+              )}
+              {!activeSet && <li className="menu-subheading">No active set</li>}
+            </ul>
+          )}
+        </div>
+        <div className="menu-card-search">
+          {backgroundSyncing && <span className="menu-syncing-text">Syncing…</span>}
+          {(cardSearchLoading || setsLoading) && (
+            <span className="menu-loading-spinner" aria-label="Loading" />
+          )}
+          <input
+            className="menu-card-search-input"
+            type="search"
+            placeholder="Search for a card"
+            value={cardSearch}
+            onChange={handleCardSearchChange}
+            onKeyDown={handleCardSearchKeyDown}
+          />
+          {(cardResults.length > 0 || (cardSearch.trim() && cardSearchLoading)) && (
+            <ul className="menu-dropdown menu-card-search-dropdown">
+              {cardSearchLoading && <li className="menu-subheading">Loading…</li>}
+              {cardResults.map((result, i) => (
+                <li key={`${result.setCode}-${result.card.id}`}>
+                  <button
+                    className="menu-dropdown-item menu-card-result"
+                    aria-selected={i === cardHighlight}
+                    onClick={() => handleAddFromSearch(result.setCode, result.card.id)}
+                  >
+                    <span className="menu-card-result-name">{result.card.name}</span>
+                    <span className="menu-card-result-meta">
+                      {result.setCode.toUpperCase()} {result.card.number}
+                      {result.qty > 0 ? ` · ${result.qty}` : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
-    {previewOpen && <DraggableCardPreview onClose={() => setPreviewOpen(false)} initialPos={cardPreviewPos} onSavePos={onSaveCardPreviewPos} initialImageSize={cardImageSize ?? 'small'} onSaveSize={onSaveCardImageSize} />}
+      {previewOpen && (
+        <DraggableCardPreview
+          onClose={() => setPreviewOpen(false)}
+          initialPos={cardPreviewPos}
+          onSavePos={onSaveCardPreviewPos}
+          initialImageSize={cardImageSize ?? 'small'}
+          onSaveSize={onSaveCardImageSize}
+        />
+      )}
     </>
   );
 }

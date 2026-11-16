@@ -9,7 +9,13 @@ function imageUrl(size) {
   return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(CARD_NAME)}&set=sld&format=image&version=${size}`;
 }
 
-export default function DraggableCardPreview({ onClose, initialPos = null, onSavePos, initialImageSize = 'small', onSaveSize }) {
+export default function DraggableCardPreview({
+  onClose,
+  initialPos = null,
+  onSavePos,
+  initialImageSize = 'small',
+  onSaveSize,
+}) {
   const [loading, setLoading] = useState(true);
   const [imageSize, setImageSize] = useState(initialImageSize);
 
@@ -30,7 +36,11 @@ export default function DraggableCardPreview({ onClose, initialPos = null, onSav
       controls={<SizeControls imageSize={imageSize} onSizeChange={handleSizeChange} />}
     >
       <div className="card-preview-body">
-        {loading && <div role="status" className="card-preview-loading">⌛</div>}
+        {loading && (
+          <div role="status" className="card-preview-loading">
+            ⌛
+          </div>
+        )}
         <img
           key={imageSize}
           src={imageUrl(imageSize)}

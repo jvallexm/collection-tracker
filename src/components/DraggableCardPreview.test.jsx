@@ -46,18 +46,26 @@ test('Move here button and size buttons are in the footer', () => {
 
 test('Resize preview heading appears in the footer', () => {
   renderPreview();
-  expect(document.querySelector('.draggable-preview-resize-label').textContent).toBe('Resize preview');
+  expect(document.querySelector('.draggable-preview-resize-label').textContent).toBe(
+    'Resize preview',
+  );
 });
 
 test('small size button is selected by default', () => {
   renderPreview();
-  expect(screen.getByRole('button', { name: 'small size' }).getAttribute('aria-pressed')).toBe('true');
-  expect(screen.getByRole('button', { name: 'normal size' }).getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByRole('button', { name: 'small size' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'normal size' }).getAttribute('aria-pressed')).toBe(
+    'false',
+  );
 });
 
 test('uses initialImageSize when provided', () => {
   renderPreview({ initialImageSize: 'large' });
-  expect(screen.getByRole('button', { name: 'large size' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'large size' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
 });
 
 test('clicking a size button calls onSaveSize with the new size', () => {

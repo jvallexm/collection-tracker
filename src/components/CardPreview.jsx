@@ -5,7 +5,9 @@ import { CARD_IMAGE_WIDTHS } from '../lib/constants.js';
 export default function CardPreview({ card, pos = null, imageSize = 'small', isFoil = false }) {
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setLoading(true); }, [imageSize]);
+  useEffect(() => {
+    setLoading(true);
+  }, [imageSize]);
 
   if (!card) return null;
 

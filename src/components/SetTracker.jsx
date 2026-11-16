@@ -14,7 +14,13 @@ import {
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
-import { loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from '../lib/storage.js';
+import {
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveCollection,
+  saveConfig,
+} from '../lib/storage.js';
 
 /**
  * Builds the status bar text shown below the toolbar.
@@ -114,7 +120,9 @@ export default function SetTracker({
     loadCollection(setCode).then((saved) => {
       if (!cancelled) setCollection((current) => current ?? saved);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [setCode]);
 
   // Persist every change to IDB, but skip the initial render before the load completes.
@@ -150,7 +158,9 @@ export default function SetTracker({
     loadConfig(`sort:${setCode}`).then((saved) => {
       if (!cancelled) setSort(saved ?? DEFAULT_SORT);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [setCode]);
 
   useEffect(() => {
@@ -181,10 +191,7 @@ export default function SetTracker({
     setSort((current) => {
       const c = current ?? DEFAULT_SORT;
       if (key === 'have') {
-        const secondary =
-          c.key === 'have'
-            ? c.secondary
-            : { key: c.key, direction: c.direction };
+        const secondary = c.key === 'have' ? c.secondary : { key: c.key, direction: c.direction };
         const direction = c.key === 'have' ? -c.direction : 1;
         return { key: 'have', direction, secondary };
       }
@@ -299,16 +306,31 @@ export default function SetTracker({
           onQuantityChange={handleQuantityChange}
           onFoilQuantityChange={handleFoilQuantityChange}
           onSort={handleSort}
-          onInputFocus={(card, isFoil) => { setFocusedCard(card); setFocusedCardIsFoil(isFoil); }}
-          onTableBlur={() => { setFocusedCard(null); setFocusedCardIsFoil(false); }}
-          onEscapeTop={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
+          onInputFocus={(card, isFoil) => {
+            setFocusedCard(card);
+            setFocusedCardIsFoil(isFoil);
+          }}
+          onTableBlur={() => {
+            setFocusedCard(null);
+            setFocusedCardIsFoil(false);
+          }}
+          onEscapeTop={() => {
+            searchRef.current?.focus();
+            searchRef.current?.select();
+          }}
           ckPrices={ckPrices}
           sellIds={sellIds}
           onSellToggle={onSellToggle}
           showCKTools={showCKTools}
         />
       )}
-      <CardPreview key={focusedCard?.id} card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} isFoil={focusedCardIsFoil} />
+      <CardPreview
+        key={focusedCard?.id}
+        card={focusedCard}
+        pos={cardPreviewPos}
+        imageSize={cardImageSize ?? 'small'}
+        isFoil={focusedCardIsFoil}
+      />
       <div className="statusbar">
         {describeStatus({ loadError, cards, collection: safeCollection })}
       </div>

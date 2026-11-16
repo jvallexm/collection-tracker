@@ -5,7 +5,15 @@ import { withQuantity } from './lib/collection.js';
 import { buildCKSellCsv, fetchCKPrices } from './lib/cardkingdom.js';
 import { buildMoxfieldCsv } from './lib/moxfield.js';
 import { fetchSetCards } from './lib/scryfall.js';
-import { deleteCards, loadAllCollectionKeys, loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
+import {
+  deleteCards,
+  loadAllCollectionKeys,
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveCollection,
+  saveConfig,
+} from './lib/storage.js';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
@@ -19,7 +27,7 @@ export default function App() {
   const [backgroundSyncing, setBackgroundSyncing] = useState(false);
   const [ckPrices, setCkPrices] = useState(null);
   const [sellSelections, setSellSelections] = useState({});
-  const [showCKTools, setShowCKTools] = useState(true);
+  const [showCKTools, setShowCKTools] = useState(false);
 
   useEffect(() => {
     fetchCKPrices().then((prices) => setCkPrices(prices ?? new Map()));
@@ -126,7 +134,8 @@ export default function App() {
   function handleSellToggle(setCode, cardId) {
     setSellSelections((current) => {
       const setIds = new Set(current[setCode] ?? []);
-      if (setIds.has(cardId)) setIds.delete(cardId); else setIds.add(cardId);
+      if (setIds.has(cardId)) setIds.delete(cardId);
+      else setIds.add(cardId);
       return { ...current, [setCode]: setIds };
     });
   }
@@ -241,7 +250,10 @@ export default function App() {
             setCode={set.code}
             setName={set.name}
             minimized={set.minimized}
-            minimizedIndex={minimizedSets.findIndex((s) => s.code === set.code)}
+            minimizedIndex={
+              minimizedSets.findIndex((s) => s.code === set.code) +
+              (minimizedSets.length > 1 ? 1 : 0)
+            }
             onMinimize={() => handleMinimize(set.code)}
             onRestore={() => handleRestore(set.code)}
             onClose={() => handleClose(set.code)}
@@ -256,7 +268,7 @@ export default function App() {
           />
         ))}
         {minimizedSets.length > 1 && (
-          <div className="window-icon" style={{ bottom: `${8 + minimizedSets.length * 40}px` }}>
+          <div className="window-icon" style={{ bottom: '8px' }}>
             <div className="window-icon-titlebar">
               <span>Close sets</span>
               <div className="titlebar-buttons">
