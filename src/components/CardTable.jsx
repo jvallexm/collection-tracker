@@ -91,6 +91,7 @@ function CardRow({
   sellIds,
   onSellToggle,
   showCKTools,
+  showSetColumn,
 }) {
   const ckEntry = ckPrices?.get(card.id);
   return (
@@ -117,6 +118,7 @@ function CardRow({
         onChange={(e) => onFoilQuantityChange(card.id, e.target.value)}
         disabled={!card.foil}
       />
+      {showSetColumn && <td className="cost-cell">{card.set}</td>}
       <td>
         {card.name}
         {showNumber && <i className="card-number-disambig"> ({card.number})</i>}
@@ -161,6 +163,7 @@ export default function CardTable({
   sellIds = null,
   onSellToggle,
   showCKTools = true,
+  showSetColumn = false,
 }) {
   useEffect(() => {
     const focused = document.activeElement;
@@ -186,6 +189,7 @@ export default function CardTable({
               <SortIndicator active={sort.key === 'have'} direction={sort.direction} />
             </th>
             <th className="qty-heading">Foil</th>
+            {showSetColumn && <th className="cost-cell">Set</th>}
             {COLUMNS.map(({ key, label, className }) => (
               <th key={key} className={className} onClick={() => onSort(key)}>
                 {label}
@@ -216,12 +220,13 @@ export default function CardTable({
               sellIds={sellIds}
               onSellToggle={onSellToggle}
               showCKTools={showCKTools}
+              showSetColumn={showSetColumn}
             />
           ))}
           {tokenCards.length > 0 && (
             <>
               <tr className="token-section-heading">
-                <td colSpan={showCKTools ? 11 : 8}>Tokens</td>
+                <td colSpan={(showCKTools ? 11 : 8) + (showSetColumn ? 1 : 0)}>Tokens</td>
               </tr>
               {tokenCards.map((card) => (
                 <CardRow
@@ -233,6 +238,7 @@ export default function CardTable({
                   onInputFocus={onInputFocus}
                   showNumber={duplicateNames.has(card.name)}
                   ckPrices={ckPrices}
+                  showSetColumn={showSetColumn}
                 />
               ))}
             </>

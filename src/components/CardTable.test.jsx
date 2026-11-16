@@ -986,3 +986,67 @@ describe('CardTable showCKTools visibility', () => {
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
   });
 });
+
+describe('CardTable showSetColumn', () => {
+  const CARD_WITH_SET = makeCard({
+    id: 'a',
+    name: 'Arrow',
+    rarity: 'rare',
+    number: '1',
+    set: 'KTK',
+  });
+
+  function renderWithSet(showSetColumn) {
+    render(
+      <CardTable
+        cards={[CARD_WITH_SET]}
+        collection={{}}
+        sort={{ key: '', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        showSetColumn={showSetColumn}
+      />,
+    );
+  }
+
+  test('hides Set column by default', () => {
+    renderWithSet(undefined);
+    expect(screen.queryByRole('columnheader', { name: 'Set' })).toBeNull();
+  });
+
+  test('shows Set column header when showSetColumn is true', () => {
+    renderWithSet(true);
+    expect(screen.getByRole('columnheader', { name: 'Set' })).not.toBeNull();
+  });
+
+  test('shows set code in each row when showSetColumn is true', () => {
+    renderWithSet(true);
+    expect(screen.getByText('KTK')).not.toBeNull();
+  });
+
+  test('Set column header has cost-cell class', () => {
+    renderWithSet(true);
+    const th = screen.getByRole('columnheader', { name: 'Set' });
+    expect(th.className).toContain('cost-cell');
+  });
+
+  test('token heading colSpan increments by 1 when showSetColumn is true', () => {
+    const TOKEN = makeCard({ id: 'tok', name: 'Token', rarity: 'common', number: 'T1' });
+    render(
+      <CardTable
+        cards={[CARD_WITH_SET]}
+        tokenCards={[TOKEN]}
+        collection={{}}
+        sort={{ key: '', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        showSetColumn={true}
+        showCKTools={false}
+      />,
+    );
+    const heading = screen.getByText('Tokens').closest('td');
+    expect(heading.colSpan).toBe(9);
+  });
+});

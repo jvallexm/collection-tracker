@@ -8,6 +8,7 @@ export default function MenuBar({
   onThemeChange,
   recentSets = [],
   onOpenSet,
+  onViewAllCards,
   activeSet = null,
   onRefreshSet,
   onExportCsv,
@@ -284,6 +285,17 @@ export default function MenuBar({
                     )}
                   </div>
                 )}
+              </li>
+              <li>
+                <button
+                  className="menu-dropdown-item"
+                  onClick={() => {
+                    onViewAllCards?.();
+                    setOpenMenu(null);
+                  }}
+                >
+                  View all cards
+                </button>
               </li>
             </ul>
           )}

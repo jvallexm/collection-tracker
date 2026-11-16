@@ -99,6 +99,26 @@ test('saves open sets to config when a set is opened', async () => {
   );
 });
 
+describe('App View all cards', () => {
+  test('clicking View all cards shows the All Cards window', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(screen.getByText('All Cards')).not.toBeNull();
+  });
+
+  test('All Cards window can be closed', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    expect(screen.queryByText('All Cards')).toBeNull();
+  });
+});
+
 describe('App recent sets', () => {
   test('shows KTK as a default recent set before config loads', async () => {
     await renderApp();

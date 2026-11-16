@@ -611,6 +611,21 @@ describe('MenuBar My Collection menu', () => {
     await act(async () => {});
     expect(screen.getByText('No sets catalogued yet')).not.toBeNull();
   });
+
+  test('shows View all cards button in My Collection dropdown', () => {
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    expect(screen.getByRole('button', { name: 'View all cards' })).not.toBeNull();
+  });
+
+  test('clicking View all cards calls onViewAllCards and closes the dropdown', () => {
+    const onViewAllCards = vi.fn();
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} onViewAllCards={onViewAllCards} />);
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    expect(onViewAllCards).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'View all cards' })).toBeNull();
+  });
 });
 
 describe('MenuBar Export Collection menu', () => {

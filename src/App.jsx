@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
+import AllCardsView from './components/AllCardsView.jsx';
 import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
 import { buildCKSellCsv, fetchCKPrices } from './lib/cardkingdom.js';
@@ -28,6 +29,7 @@ export default function App() {
   const [ckPrices, setCkPrices] = useState(null);
   const [sellSelections, setSellSelections] = useState({});
   const [showCKTools, setShowCKTools] = useState(false);
+  const [showAllCards, setShowAllCards] = useState(false);
 
   useEffect(() => {
     fetchCKPrices().then((prices) => setCkPrices(prices ?? new Map()));
@@ -233,6 +235,7 @@ export default function App() {
         onRefreshSet={handleRefreshSet}
         onExportCsv={handleExportCsv}
         onExportSellCsv={handleExportSellCsv}
+        onViewAllCards={() => setShowAllCards(true)}
         showCKTools={showCKTools}
         onToggleCKTools={handleToggleCKTools}
         openSets={openSets ?? []}
@@ -282,6 +285,14 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+        {showAllCards && (
+          <AllCardsView
+            onClose={() => setShowAllCards(false)}
+            ckPrices={ckPrices}
+            showCKTools={showCKTools}
+            openSets={openSets}
+          />
         )}
       </div>
     </div>
