@@ -562,6 +562,43 @@ describe('CardTable keyboard navigation', () => {
     expect(document.activeElement).toBe(foil('Bolt'));
   });
 
+  test('down from last main card jumps over token section heading to first token', () => {
+    const token = makeCard({ id: 't1', name: 'Soldier', nonfoil: true, foil: false });
+    render(
+      <CardTable
+        cards={[makeCard({ id: 'a', name: 'Arrow' })]}
+        tokenCards={[token]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    have('Arrow').focus();
+    fireEvent.keyDown(have('Arrow'), { key: 's' });
+    expect(document.activeElement).toBe(have('Soldier'));
+  });
+
+  test('left from last foil-only card stays put when no have inputs follow', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Arrow' }),
+          makeCard({ id: 'b', name: 'Bolt', nonfoil: false, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Bolt').focus();
+    fireEvent.keyDown(foil('Bolt'), { key: 'a' });
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
+
   test('ignores other keys so digits can still be typed', () => {
     renderTable();
     const wasNotPrevented = fireEvent.keyDown(have('Arrow'), { key: '5' });
