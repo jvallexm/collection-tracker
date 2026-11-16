@@ -77,7 +77,7 @@ export async function fetchSet(code) {
   if (!response.ok) return null;
   const data = await response.json();
   if (data.set_type === 'alchemy' || data.set_type === 'token' || data.set_type === 'art_series') return null;
-  return { code: data.code, name: data.name };
+  return { code: data.code, name: data.name, set_type: data.set_type };
 }
 
 export async function fetchSets() {
@@ -86,7 +86,7 @@ export async function fetchSets() {
   const json = await response.json();
   return json.data
     .filter(({ set_type }) => set_type !== 'alchemy' && set_type !== 'token' && set_type !== 'art_series')
-    .map(({ code, name }) => ({ code, name }));
+    .map(({ code, name, set_type }) => ({ code, name, set_type }));
 }
 
 async function fetchCardsFromScryfall(setCode) {

@@ -118,16 +118,16 @@ describe('fetchSets', () => {
         ok: true,
         json: async () => ({
           data: [
-            { code: 'ktk', name: 'Khans of Tarkir' },
-            { code: 'eld', name: 'Throne of Eldraine' },
+            { code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' },
+            { code: 'eld', name: 'Throne of Eldraine', set_type: 'expansion' },
           ],
         }),
       }),
     );
     const sets = await fetchSets();
     expect(sets).toEqual([
-      { code: 'ktk', name: 'Khans of Tarkir' },
-      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' },
+      { code: 'eld', name: 'Throne of Eldraine', set_type: 'expansion' },
     ]);
   });
 
@@ -145,7 +145,7 @@ describe('fetchSets', () => {
       }),
     );
     const sets = await fetchSets();
-    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' }]);
   });
 
   test('excludes token-only sets from results', async () => {
@@ -162,7 +162,7 @@ describe('fetchSets', () => {
       }),
     );
     const sets = await fetchSets();
-    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' }]);
   });
 
   test('excludes art series sets from results', async () => {
@@ -179,7 +179,7 @@ describe('fetchSets', () => {
       }),
     );
     const sets = await fetchSets();
-    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' }]);
   });
 
   test('throws a readable error when Scryfall responds with a failure', async () => {
@@ -189,7 +189,7 @@ describe('fetchSets', () => {
 });
 
 describe('fetchSet', () => {
-  test('returns code and name for a valid set code', async () => {
+  test('returns code, name, and set_type for a valid set code', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -198,7 +198,7 @@ describe('fetchSet', () => {
       }),
     );
     const result = await fetchSet('ktk');
-    expect(result).toEqual({ code: 'ktk', name: 'Khans of Tarkir' });
+    expect(result).toEqual({ code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' });
   });
 
   test('returns null for a 404 response', async () => {

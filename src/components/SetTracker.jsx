@@ -75,6 +75,10 @@ export default function SetTracker({
   cardFocus = null,
   cardPreviewPos = null,
   cardImageSize = null,
+  ckPrices = null,
+  sellIds = new Set(),
+  onSellToggle,
+  showCKTools = true,
 }) {
   const windowRef = useRef(null);
   const searchRef = useRef(null);
@@ -298,6 +302,10 @@ export default function SetTracker({
           onInputFocus={(card, isFoil) => { setFocusedCard(card); setFocusedCardIsFoil(isFoil); }}
           onTableBlur={() => { setFocusedCard(null); setFocusedCardIsFoil(false); }}
           onEscapeTop={() => { searchRef.current?.focus(); searchRef.current?.select(); }}
+          ckPrices={ckPrices}
+          sellIds={sellIds}
+          onSellToggle={onSellToggle}
+          showCKTools={showCKTools}
         />
       )}
       <CardPreview key={focusedCard?.id} card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} isFoil={focusedCardIsFoil} />

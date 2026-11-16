@@ -186,6 +186,41 @@ test('clicking Synthwave calls onThemeChange with synthwave and closes dropdown'
   expect(screen.queryByText('Synthwave (experimental)')).toBeNull();
 });
 
+describe('MenuBar View > Card Kingdom toggle', () => {
+  function renderWithCK(props = {}) {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} {...props} />);
+    fireEvent.click(screen.getByText('View'));
+  }
+
+  test('shows a Card Kingdom subheading in the View menu', () => {
+    renderWithCK();
+    expect(screen.getByText('Card Kingdom')).not.toBeNull();
+  });
+
+  test('shows an Add Card Kingdom sell tools button', () => {
+    renderWithCK();
+    expect(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' })).not.toBeNull();
+  });
+
+  test('shows a checkmark when showCKTools is true', () => {
+    renderWithCK({ showCKTools: true });
+    expect(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent).toContain('✓');
+  });
+
+  test('shows no checkmark when showCKTools is false', () => {
+    renderWithCK({ showCKTools: false });
+    expect(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }).textContent).not.toContain('✓');
+  });
+
+  test('clicking calls onToggleCKTools and closes the menu', () => {
+    const onToggleCKTools = vi.fn();
+    renderWithCK({ onToggleCKTools });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Card Kingdom sell tools' }));
+    expect(onToggleCKTools).toHaveBeenCalled();
+    expect(screen.queryByText('Card Kingdom')).toBeNull();
+  });
+});
+
 describe('MenuBar Add Set menu', () => {
   const SETS = [
     { code: 'ktk', name: 'Khans of Tarkir' },
@@ -614,6 +649,15 @@ describe('MenuBar Export Collection menu', () => {
     expect(onExportCsv).toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'CSV' })).toBeNull();
   });
+
+  test('clicking Sell to Card Kingdom calls onExportSellCsv and closes the dropdown', () => {
+    const onExportSellCsv = vi.fn();
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} onExportSellCsv={onExportSellCsv} />);
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
+    expect(onExportSellCsv).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Sell to Card Kingdom' })).toBeNull();
+  });
 });
 
 describe('MenuBar card search', () => {
@@ -914,6 +958,21 @@ describe('MenuBar Add Set direct code lookup', () => {
     await act(async () => {});
     expect(screen.queryByRole('button', { name: /xyz/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Khans/i })).toBeNull();
+  });
+
+  test('promo sets appear after non-promo sets in search results', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'p5dn', name: 'Fifth Dawn Promos', set_type: 'promo' },
+      { code: '5dn', name: 'Fifth Dawn', set_type: 'expansion' },
+    ]);
+    fetchSet.mockResolvedValue(null);
+    renderAddSet();
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: '5dn' } });
+    await act(async () => {});
+    const buttons = screen.getAllByRole('button', { name: /fifth dawn/i });
+    expect(buttons[0].textContent).toBe('Fifth Dawn');
+    expect(buttons[1].textContent).toBe('Fifth Dawn Promos');
   });
 });
 

@@ -11,6 +11,9 @@ export default function MenuBar({
   activeSet = null,
   onRefreshSet,
   onExportCsv,
+  onExportSellCsv,
+  showCKTools = true,
+  onToggleCKTools,
   openSets = [],
   onAddCard,
   cardPreviewPos = null,
@@ -165,10 +168,11 @@ export default function MenuBar({
           })
           .slice(0, 8)
       : [];
-  const filteredSets =
+  const filteredSets = (
     directSetResult && !baseFilteredSets.some((s) => s.code === directSetResult.code)
       ? [directSetResult, ...baseFilteredSets].slice(0, 8)
-      : baseFilteredSets;
+      : baseFilteredSets
+  ).sort((a, b) => (a.set_type === 'promo') - (b.set_type === 'promo'));
 
   function handleSearchChange(e) {
     setSetSearch(e.target.value);
@@ -323,6 +327,15 @@ export default function MenuBar({
                 {previewOpen && <span aria-hidden="true">✓ </span>}Move card preview
               </button>
             </li>
+            <li className="menu-subheading">Card Kingdom</li>
+            <li>
+              <button
+                className="menu-dropdown-item"
+                onClick={() => { onToggleCKTools?.(); setOpenMenu(null); }}
+              >
+                {showCKTools && <span aria-hidden="true">✓ </span>}Add Card Kingdom sell tools
+              </button>
+            </li>
           </ul>
         )}
       </div>
@@ -341,6 +354,14 @@ export default function MenuBar({
                 onClick={() => { onExportCsv?.(); setOpenMenu(null); }}
               >
                 CSV
+              </button>
+            </li>
+            <li>
+              <button
+                className="menu-dropdown-item"
+                onClick={() => { onExportSellCsv?.(); setOpenMenu(null); }}
+              >
+                Sell to Card Kingdom
               </button>
             </li>
           </ul>

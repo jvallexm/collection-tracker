@@ -18,6 +18,11 @@ function formatPrice(p) {
   return num < 10 ? `$${p}` : `$${Math.floor(num)}`;
 }
 
+function formatCKPrice(p) {
+  if (p == null || p <= 0) return '';
+  return `$${Number(p).toFixed(2)}`;
+}
+
 const VERTICAL_STEP = { w: -1, arrowup: -1, s: 1, arrowdown: 1, enter: 1 };
 const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
 
@@ -55,7 +60,7 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
       onEscapeTop?.();
     }
   } else {
-    const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input'));
+    const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input[data-col]'));
     const neighbor = rowInputs[rowInputs.indexOf(event.target) + hStep];
     if (!neighbor) return;
     if (!neighbor.disabled) {
@@ -76,7 +81,8 @@ function selectInputText(event) {
   event.target.select();
 }
 
-function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus, showNumber }) {
+function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputFocus, showNumber, ckPrices, sellIds, onSellToggle, showCKTools }) {
+  const ckEntry = ckPrices?.get(card.id);
   return (
     <tr data-card-id={card.id}>
       <QuantityCell
@@ -105,6 +111,19 @@ function CardRow({ card, entry, onQuantityChange, onFoilQuantityChange, onInputF
       <td className="number-cell">{card.number}</td>
       <td className="price-cell">{formatPrice(card.price)}</td>
       <td className="price-cell">{formatPrice(card.priceFoil)}</td>
+      {showCKTools && <td className="price-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
+      {showCKTools && <td className="price-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
+      {showCKTools && (
+        <td className="sell-cell">
+          <input
+            type="checkbox"
+            aria-label={`Sell ${card.name}`}
+            checked={sellIds?.has(card.id) ?? false}
+            disabled={!entry?.qty && !entry?.foil}
+            onChange={() => onSellToggle?.(card.id)}
+          />
+        </td>
+      )}
     </tr>
   );
 }
@@ -120,6 +139,10 @@ export default function CardTable({
   onInputFocus,
   onTableBlur,
   onEscapeTop,
+  ckPrices = null,
+  sellIds = null,
+  onSellToggle,
+  showCKTools = true,
 }) {
   useEffect(() => {
     const focused = document.activeElement;
@@ -150,6 +173,9 @@ export default function CardTable({
                 <SortIndicator active={sort.key === key} direction={sort.direction} />
               </th>
             ))}
+            {showCKTools && <th className="price-cell">CK</th>}
+            {showCKTools && <th className="price-cell">CKF</th>}
+            {showCKTools && <th className="sell-cell">Sell</th>}
           </tr>
         </thead>
         <tbody
@@ -167,12 +193,16 @@ export default function CardTable({
               onFoilQuantityChange={onFoilQuantityChange}
               onInputFocus={onInputFocus}
               showNumber={duplicateNames.has(card.name)}
+              ckPrices={ckPrices}
+              sellIds={sellIds}
+              onSellToggle={onSellToggle}
+              showCKTools={showCKTools}
             />
           ))}
           {tokenCards.length > 0 && (
             <>
               <tr className="token-section-heading">
-                <td colSpan={8}>Tokens</td>
+                <td colSpan={showCKTools ? 11 : 8}>Tokens</td>
               </tr>
               {tokenCards.map((card) => (
                 <CardRow
@@ -183,6 +213,7 @@ export default function CardTable({
                   onFoilQuantityChange={onFoilQuantityChange}
                   onInputFocus={onInputFocus}
                   showNumber={duplicateNames.has(card.name)}
+                  ckPrices={ckPrices}
                 />
               ))}
             </>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
 import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
+import { buildCKSellCsv, fetchCKPrices } from './lib/cardkingdom.js';
 import { buildMoxfieldCsv } from './lib/moxfield.js';
 import { fetchSetCards } from './lib/scryfall.js';
 import { deleteCards, loadAllCollectionKeys, loadCards, loadCollection, loadConfig, saveCollection, saveConfig } from './lib/storage.js';
@@ -16,6 +17,13 @@ export default function App() {
   const [cardImageSize, setCardImageSize] = useState(null);
   const hasBackgroundRefreshed = useRef(false);
   const [backgroundSyncing, setBackgroundSyncing] = useState(false);
+  const [ckPrices, setCkPrices] = useState(null);
+  const [sellSelections, setSellSelections] = useState({});
+  const [showCKTools, setShowCKTools] = useState(true);
+
+  useEffect(() => {
+    fetchCKPrices().then((prices) => setCkPrices(prices ?? new Map()));
+  }, []);
 
   useEffect(() => {
     loadConfig('theme').then((saved) => {
@@ -34,6 +42,9 @@ export default function App() {
     });
     loadConfig('cardImageSize').then((saved) => {
       if (saved) setCardImageSize(saved);
+    });
+    loadConfig('showCKTools').then((saved) => {
+      if (saved !== null) setShowCKTools(saved);
     });
   }, []);
 
@@ -112,6 +123,33 @@ export default function App() {
     });
   }
 
+  function handleSellToggle(setCode, cardId) {
+    setSellSelections((current) => {
+      const setIds = new Set(current[setCode] ?? []);
+      if (setIds.has(cardId)) setIds.delete(cardId); else setIds.add(cardId);
+      return { ...current, [setCode]: setIds };
+    });
+  }
+
+  async function handleExportSellCsv() {
+    const allSetsData = await Promise.all(
+      (openSets ?? []).map(async (set) => ({
+        setName: set.name,
+        cards: (await loadCards(set.code)) ?? [],
+        collection: await loadCollection(set.code),
+        sellIds: sellSelections[set.code] ?? new Set(),
+      })),
+    );
+    const csv = buildCKSellCsv(allSetsData);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sell-to-cardkingdom.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleExportCsv() {
     const allSetsData = await Promise.all(
       (openSets ?? []).map(async (set) => ({
@@ -148,6 +186,20 @@ export default function App() {
     setFocusTarget({ setCode, cardId });
   }
 
+  function handleCloseAllMinimized() {
+    const minimizedCodes = openSets.filter((s) => s.minimized).map((s) => s.code);
+    for (const code of minimizedCodes) deleteCards(code);
+    setOpenSets((current) => current.filter((s) => !s.minimized));
+  }
+
+  function handleToggleCKTools() {
+    setShowCKTools((current) => {
+      const next = !current;
+      saveConfig('showCKTools', next);
+      return next;
+    });
+  }
+
   async function handleRefreshSet() {
     const active = openSets.find((s) => !s.minimized);
     await deleteCards(active.code);
@@ -171,6 +223,9 @@ export default function App() {
         activeSet={activeSet}
         onRefreshSet={handleRefreshSet}
         onExportCsv={handleExportCsv}
+        onExportSellCsv={handleExportSellCsv}
+        showCKTools={showCKTools}
+        onToggleCKTools={handleToggleCKTools}
         openSets={openSets ?? []}
         onAddCard={handleAddCard}
         cardPreviewPos={cardPreviewPos}
@@ -194,8 +249,28 @@ export default function App() {
             cardFocus={focusTarget?.setCode === set.code ? focusTarget : null}
             cardPreviewPos={cardPreviewPos}
             cardImageSize={cardImageSize}
+            ckPrices={ckPrices}
+            sellIds={sellSelections[set.code] ?? new Set()}
+            onSellToggle={(cardId) => handleSellToggle(set.code, cardId)}
+            showCKTools={showCKTools}
           />
         ))}
+        {minimizedSets.length > 1 && (
+          <div className="window-icon" style={{ bottom: `${8 + minimizedSets.length * 40}px` }}>
+            <div className="window-icon-titlebar">
+              <span>Close sets</span>
+              <div className="titlebar-buttons">
+                <button
+                  className="titlebar-btn"
+                  aria-label="Close all minimized sets"
+                  onClick={handleCloseAllMinimized}
+                >
+                  <span className="close-icon" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
