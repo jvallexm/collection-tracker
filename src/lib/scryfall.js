@@ -70,12 +70,22 @@ export function normalizeCard(rawCard) {
  * @returns {Promise<{ code: string, name: string }[]>}
  * @throws {Error} If the Scryfall request fails.
  */
+export async function fetchSet(code) {
+  const response = await fetch(`${SETS_ENDPOINT}/${encodeURIComponent(code)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  if (data.set_type === 'alchemy' || data.set_type === 'token' || data.set_type === 'art_series') return null;
+  return { code: data.code, name: data.name };
+}
+
 export async function fetchSets() {
   const response = await fetch(SETS_ENDPOINT, { headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
   const json = await response.json();
   return json.data
-    .filter(({ set_type }) => set_type !== 'alchemy' && set_type !== 'token')
+    .filter(({ set_type }) => set_type !== 'alchemy' && set_type !== 'token' && set_type !== 'art_series')
     .map(({ code, name }) => ({ code, name }));
 }
 

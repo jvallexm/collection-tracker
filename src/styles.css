@@ -204,8 +204,12 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-  columns: 3;
-  column-width: 160px;
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+}
+.menu-submenu-sets .menu-dropdown-item {
+  white-space: nowrap;
+  width: auto;
 }
 .menu-submenu-status {
   display: block;

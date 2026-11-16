@@ -23,14 +23,21 @@ const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
 
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 
-function findCrossColumnInput(table, currentInput, otherCol, vStep) {
-  const otherInputs = Array.from(table.querySelectorAll(`input[data-col="${otherCol}"]`)).filter((i) => !i.disabled);
+function findNextRowInput(table, currentInput, vStep) {
+  const col = currentInput.dataset.col;
+  const otherCol = col === 'have' ? 'foil' : 'have';
   const allRows = Array.from(table.querySelectorAll('tr'));
   const currentRowIdx = allRows.indexOf(currentInput.closest('tr'));
-  if (vStep > 0) {
-    return otherInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx) ?? null;
+  const candidateRows = vStep > 0
+    ? allRows.slice(currentRowIdx + 1)
+    : allRows.slice(0, currentRowIdx).reverse();
+  for (const row of candidateRows) {
+    const sameColInput = row.querySelector(`input[data-col="${col}"]`);
+    if (sameColInput && !sameColInput.disabled) return sameColInput;
+    const otherColInput = row.querySelector(`input[data-col="${otherCol}"]`);
+    if (otherColInput && !otherColInput.disabled) return otherColInput;
   }
-  return [...otherInputs].reverse().find((i) => allRows.indexOf(i.closest('tr')) < currentRowIdx) ?? null;
+  return null;
 }
 
 function moveFocusBetweenInputs(event, onEscapeTop) {
@@ -41,27 +48,27 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
 
   event.preventDefault();
   if (vStep !== undefined) {
-    const col = event.target.dataset.col;
-    const otherCol = col === 'have' ? 'foil' : 'have';
-    const colInputs = Array.from(event.currentTarget.querySelectorAll(`input[data-col="${col}"]`)).filter((i) => !i.disabled);
-    const idx = colInputs.indexOf(event.target);
-    if (idx + vStep < 0) {
-      const crossInput = findCrossColumnInput(event.currentTarget, event.target, otherCol, vStep);
-      if (crossInput) { crossInput.focus(); return; }
+    const nextInput = findNextRowInput(event.currentTarget, event.target, vStep);
+    if (nextInput) {
+      nextInput.focus();
+    } else if (vStep < 0) {
       onEscapeTop?.();
-      return;
-    }
-    const neighbor = colInputs[idx + vStep];
-    if (neighbor) {
-      neighbor.focus();
-    } else {
-      const crossInput = findCrossColumnInput(event.currentTarget, event.target, otherCol, vStep);
-      if (crossInput) crossInput.focus();
     }
   } else {
     const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input'));
     const neighbor = rowInputs[rowInputs.indexOf(event.target) + hStep];
-    if (neighbor) neighbor.focus();
+    if (!neighbor) return;
+    if (!neighbor.disabled) {
+      neighbor.focus();
+    } else {
+      const allRows = Array.from(event.currentTarget.querySelectorAll('tr'));
+      const currentRowIdx = allRows.indexOf(event.target.closest('tr'));
+      const targetInputs = Array.from(
+        event.currentTarget.querySelectorAll(`input[data-col="${neighbor.dataset.col}"]`)
+      ).filter((i) => !i.disabled);
+      const next = targetInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx);
+      if (next) next.focus();
+    }
   }
 }
 

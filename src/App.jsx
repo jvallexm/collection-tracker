@@ -97,7 +97,19 @@ export default function App() {
 
   function handleClose(code) {
     deleteCards(code);
-    setOpenSets((current) => current.filter((s) => s.code !== code));
+    setOpenSets((current) => {
+      const closing = current.find((s) => s.code === code);
+      const remaining = current.filter((s) => s.code !== code);
+      if (!closing?.minimized) {
+        const firstMinimized = remaining.find((s) => s.minimized);
+        if (firstMinimized) {
+          return remaining.map((s) =>
+            s.code === firstMinimized.code ? { ...s, minimized: false } : s,
+          );
+        }
+      }
+      return remaining;
+    });
   }
 
   async function handleExportCsv() {

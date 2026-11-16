@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { fetchSets } from '../lib/scryfall.js';
+import { fetchSet, fetchSets } from '../lib/scryfall.js';
 import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import MenuBar from './MenuBar.jsx';
 
-vi.mock('../lib/scryfall.js', () => ({ fetchSets: vi.fn() }));
+vi.mock('../lib/scryfall.js', () => ({ fetchSets: vi.fn(), fetchSet: vi.fn().mockResolvedValue(null) }));
 vi.mock('../lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCards: vi.fn().mockResolvedValue([]),
@@ -877,6 +877,43 @@ describe('MenuBar Debug menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh current set' }));
     expect(onRefreshSet).toHaveBeenCalled();
     expect(screen.queryByText('Refresh current set')).toBeNull();
+  });
+});
+
+describe('MenuBar Add Set direct code lookup', () => {
+  function renderAddSet({ onOpenSet = vi.fn() } = {}) {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} onOpenSet={onOpenSet} />);
+    fireEvent.click(screen.getByText('Add Set'));
+    return { onOpenSet };
+  }
+
+  test('shows direct result when allSets has not loaded', async () => {
+    fetchSets.mockReturnValue(new Promise(() => {})); // never resolves
+    fetchSet.mockResolvedValue({ code: 'ktk', name: 'Khans of Tarkir' });
+    renderAddSet();
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'ktk' } });
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
+  });
+
+  test('deduplicates when direct result is already in allSets list', async () => {
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    fetchSet.mockResolvedValue({ code: 'ktk', name: 'Khans of Tarkir' });
+    renderAddSet();
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'ktk' } });
+    await act(async () => {});
+    expect(screen.getAllByRole('button', { name: 'Khans of Tarkir' })).toHaveLength(1);
+  });
+
+  test('shows nothing when fetchSet returns null', async () => {
+    fetchSets.mockReturnValue(new Promise(() => {}));
+    fetchSet.mockResolvedValue(null);
+    renderAddSet();
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'xyz' } });
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: /xyz/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Khans/i })).toBeNull();
   });
 });
 

@@ -15,6 +15,7 @@ import App from './App.jsx';
 vi.mock('./lib/scryfall.js', () => ({
   fetchSetCards: vi.fn().mockResolvedValue([]),
   fetchSets: vi.fn().mockResolvedValue([]),
+  fetchSet: vi.fn().mockResolvedValue(null),
 }));
 vi.mock('./lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
@@ -314,6 +315,29 @@ describe('App close window', () => {
     await renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(deleteCards).toHaveBeenCalledWith('ktk');
+  });
+
+  test('closing the active window restores the first minimized window (FIFO)', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ]);
+    await renderApp();
+    // Open ELD: KTK minimizes → [KTK(min), ELD(active)]
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    // Open ZNR: ELD minimizes → [KTK(min), ELD(min), ZNR(active)]
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'znr' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zendikar Rising' }));
+    // Close ZNR (active) — KTK should restore (FIFO), ELD stays minimized
+    // Render order: KTK(0), ELD(1), ZNR(2)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[2]);
+    expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(1); // ELD still minimized
+    expect(screen.getAllByRole('button', { name: 'Minimize' })).toHaveLength(1); // KTK now active
   });
 
   test('closing a minimized window removes it', async () => {

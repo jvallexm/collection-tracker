@@ -1,5 +1,5 @@
 import { loadCards, saveCards } from './storage.js';
-import { buildSearchUrl, fetchSetCards, fetchSets, normalizeCard } from './scryfall.js';
+import { buildSearchUrl, fetchSet, fetchSetCards, fetchSets, normalizeCard } from './scryfall.js';
 
 const rawCard = (overrides) => ({
   id: 'abc',
@@ -165,9 +165,78 @@ describe('fetchSets', () => {
     expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
   });
 
+  test('excludes art series sets from results', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            { code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' },
+            { code: 'sld', name: 'Secret Lair Drop', set_type: 'art_series' },
+          ],
+        }),
+      }),
+    );
+    const sets = await fetchSets();
+    expect(sets).toEqual([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+  });
+
   test('throws a readable error when Scryfall responds with a failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
     await expect(fetchSets()).rejects.toThrow('Scryfall request failed (HTTP 503)');
+  });
+});
+
+describe('fetchSet', () => {
+  test('returns code and name for a valid set code', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ code: 'ktk', name: 'Khans of Tarkir', set_type: 'expansion' }),
+      }),
+    );
+    const result = await fetchSet('ktk');
+    expect(result).toEqual({ code: 'ktk', name: 'Khans of Tarkir' });
+  });
+
+  test('returns null for a 404 response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    expect(await fetchSet('xyz')).toBeNull();
+  });
+
+  test('returns null for alchemy set type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ code: 'yna', name: 'Alchemy: Innistrad', set_type: 'alchemy' }),
+      }),
+    );
+    expect(await fetchSet('yna')).toBeNull();
+  });
+
+  test('returns null for token set type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ code: 'tktk', name: 'Tokens', set_type: 'token' }),
+      }),
+    );
+    expect(await fetchSet('tktk')).toBeNull();
+  });
+
+  test('returns null for art_series set type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ code: 'sld', name: 'Secret Lair Drop', set_type: 'art_series' }),
+      }),
+    );
+    expect(await fetchSet('sld')).toBeNull();
   });
 });
 

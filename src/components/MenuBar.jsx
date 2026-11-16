@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchSets } from '../lib/scryfall.js';
+import { fetchSet, fetchSets } from '../lib/scryfall.js';
 import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import DraggableCardPreview from './DraggableCardPreview.jsx';
 
@@ -72,8 +72,17 @@ export default function MenuBar({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [allSets, setAllSets] = useState(null);
   const [setsLoading, setSetsLoading] = useState(false);
+  const [directSetResult, setDirectSetResult] = useState(null);
   const [collectedSetCodes, setCollectedSetCodes] = useState(null);
   const [allSetsSubmenuOpen, setAllSetsSubmenuOpen] = useState(false);
+
+  useEffect(() => {
+    const q = setSearch.trim();
+    if (!q) { setDirectSetResult(null); return; }
+    let cancelled = false;
+    fetchSet(q).then((result) => { if (!cancelled) setDirectSetResult(result); });
+    return () => { cancelled = true; };
+  }, [setSearch]);
 
   function toggle(name) {
     const isOpening = openMenu !== name;
@@ -147,7 +156,7 @@ export default function MenuBar({
     setCardHighlight(-1);
   }
 
-  const filteredSets =
+  const baseFilteredSets =
     setSearch.trim() && allSets
       ? allSets
           .filter((s) => {
@@ -156,6 +165,10 @@ export default function MenuBar({
           })
           .slice(0, 8)
       : [];
+  const filteredSets =
+    directSetResult && !baseFilteredSets.some((s) => s.code === directSetResult.code)
+      ? [directSetResult, ...baseFilteredSets].slice(0, 8)
+      : baseFilteredSets;
 
   function handleSearchChange(e) {
     setSetSearch(e.target.value);

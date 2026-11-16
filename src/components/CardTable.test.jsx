@@ -371,8 +371,7 @@ describe('CardTable keyboard navigation', () => {
     expect(document.activeElement).toBe(foil('Charm'));
   });
 
-  test('down arrow skips disabled inputs in the same column', () => {
-    const handlers = { onQuantityChange: vi.fn(), onFoilQuantityChange: vi.fn(), onSort: vi.fn() };
+  test('down goes to other column in next row when that row has no input in current column', () => {
     render(
       <CardTable
         cards={[
@@ -382,12 +381,77 @@ describe('CardTable keyboard navigation', () => {
         ]}
         collection={{}}
         sort={{ key: 'name', direction: 1 }}
-        {...handlers}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
       />,
     );
     have('Arrow').focus();
     fireEvent.keyDown(have('Arrow'), { key: 's' });
-    expect(document.activeElement).toBe(have('Charm'));
+    expect(document.activeElement).toBe(foil('Bolt'));
+  });
+
+  test('navigates through alternating foil-only and nonfoil-only rows going down', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Maro', nonfoil: false, foil: true }),
+          makeCard({ id: 'b', name: 'Greensleeves', nonfoil: true, foil: false }),
+          makeCard({ id: 'c', name: 'Fumarole', nonfoil: false, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Maro').focus();
+    fireEvent.keyDown(foil('Maro'), { key: 's' });
+    expect(document.activeElement).toBe(have('Greensleeves'));
+    fireEvent.keyDown(have('Greensleeves'), { key: 's' });
+    expect(document.activeElement).toBe(foil('Fumarole'));
+  });
+
+  test('navigates through alternating foil-only and nonfoil-only rows going up', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Maro', nonfoil: false, foil: true }),
+          makeCard({ id: 'b', name: 'Greensleeves', nonfoil: true, foil: false }),
+          makeCard({ id: 'c', name: 'Fumarole', nonfoil: false, foil: true }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Fumarole').focus();
+    fireEvent.keyDown(foil('Fumarole'), { key: 'w' });
+    expect(document.activeElement).toBe(have('Greensleeves'));
+    fireEvent.keyDown(have('Greensleeves'), { key: 'w' });
+    expect(document.activeElement).toBe(foil('Maro'));
+  });
+
+  test('left on a foil-only row goes to next row with enabled have', () => {
+    render(
+      <CardTable
+        cards={[
+          makeCard({ id: 'a', name: 'Maro', nonfoil: false, foil: true }),
+          makeCard({ id: 'b', name: 'Greensleeves', nonfoil: true, foil: false }),
+        ]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+      />,
+    );
+    foil('Maro').focus();
+    fireEvent.keyDown(foil('Maro'), { key: 'a' });
+    expect(document.activeElement).toBe(have('Greensleeves'));
   });
 
   test('down crosses to foil column when no more enabled have inputs below', () => {
