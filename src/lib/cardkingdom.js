@@ -6,20 +6,19 @@ function csvField(value) {
 }
 
 /**
- * Builds a Card Kingdom buylist CSV from sell selections across multiple sets.
- * @param {Array<{ setName: string, cards: Object[], collection: Object, sellIds: Set<string> }>} setsData
+ * Builds a Card Kingdom buylist CSV from sell quantities across multiple sets.
+ * @param {Array<{ setName: string, cards: Object[], sellCollection: Object }>} setsData
+ *   sellCollection maps cardId → { qty?: number, foil?: number } of quantities to sell.
  * @returns {string} CSV text ready to save or download.
  */
 export function buildCKSellCsv(setsData) {
   const rows = ['card name,edition,foil,quantity'];
-  for (const { setName, cards, collection, sellIds } of setsData) {
+  for (const { setName, cards, sellCollection } of setsData) {
     for (const card of cards) {
-      if (!sellIds.has(card.id)) continue;
-      const entry = collection[card.id];
-      const qty = entry?.qty ?? 0;
-      const foil = entry?.foil ?? 0;
-      if (qty > 0) rows.push(`${csvField(card.name)},${csvField(setName)},false,${qty}`);
-      if (foil > 0) rows.push(`${csvField(card.name)},${csvField(setName)},true,${foil}`);
+      const sell = sellCollection[card.id];
+      if (!sell) continue;
+      if (sell.qty > 0) rows.push(`${csvField(card.name)},${csvField(setName)},false,${sell.qty}`);
+      if (sell.foil > 0) rows.push(`${csvField(card.name)},${csvField(setName)},true,${sell.foil}`);
     }
   }
   return rows.join('\n');

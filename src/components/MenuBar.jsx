@@ -21,7 +21,6 @@ export default function MenuBar({
   onSaveCardPreviewPos,
   cardImageSize = null,
   onSaveCardImageSize,
-  backgroundSyncing = false,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -90,6 +89,7 @@ export default function MenuBar({
   const [directSetResult, setDirectSetResult] = useState(null);
   const [collectedSetCodes, setCollectedSetCodes] = useState(null);
   const [allSetsSubmenuOpen, setAllSetsSubmenuOpen] = useState(false);
+  const [collectedSetSearch, setCollectedSetSearch] = useState('');
 
   useEffect(() => {
     const q = setSearch.trim();
@@ -213,6 +213,11 @@ export default function MenuBar({
     setHighlightedIndex(-1);
   }
 
+  function handleAllSetsLeave() {
+    setAllSetsSubmenuOpen(false);
+    setCollectedSetSearch('');
+  }
+
   function handleAllSetsEnter() {
     setAllSetsSubmenuOpen(true);
     if (collectedSetCodes === null) {
@@ -237,6 +242,15 @@ export default function MenuBar({
       .map((code) => ({ code, name: nameMap.get(code) ?? code.toUpperCase() }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [collectedSetCodes, allSets, setsLoading]);
+
+  const displayedCollectedSets = useMemo(() => {
+    if (!collectedSets) return null;
+    const q = collectedSetSearch.trim().toLowerCase();
+    if (!q) return collectedSets;
+    return collectedSets.filter(
+      (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
+    );
+  }, [collectedSets, collectedSetSearch]);
 
   return (
     <>
@@ -270,20 +284,36 @@ export default function MenuBar({
               <li
                 className="menu-item-has-submenu"
                 onMouseEnter={handleAllSetsEnter}
-                onMouseLeave={() => setAllSetsSubmenuOpen(false)}
+                onMouseLeave={handleAllSetsLeave}
               >
                 <span className="menu-dropdown-item menu-dropdown-item--submenu-trigger">
                   All sets…
                 </span>
                 {allSetsSubmenuOpen && (
                   <div className="menu-submenu-panel">
-                    {collectedSets === null ? (
+                    <div className="menu-submenu-search">
+                      <input
+                        className="menu-sets-search-input"
+                        type="search"
+                        placeholder="Filter sets…"
+                        value={collectedSetSearch}
+                        onChange={(e) => setCollectedSetSearch(e.target.value)}
+                      />
+                    </div>
+                    {displayedCollectedSets === null ? (
                       <span className="menu-submenu-status">Loading…</span>
-                    ) : collectedSets.length === 0 ? (
-                      <span className="menu-submenu-status">No sets catalogued yet</span>
+                    ) : displayedCollectedSets.length === 0 ? (
+                      <span className="menu-submenu-status">
+                        {collectedSets.length === 0 ? 'No sets catalogued yet' : 'No matches'}
+                      </span>
                     ) : (
-                      <ul className="menu-submenu-sets">
-                        {collectedSets.map((s) => (
+                      <ul
+                        className="menu-submenu-sets"
+                        style={{
+                          gridTemplateRows: `repeat(${Math.ceil(displayedCollectedSets.length / 3)}, auto)`,
+                        }}
+                      >
+                        {displayedCollectedSets.map((s) => (
                           <li key={s.code}>
                             <button
                               className="menu-dropdown-item"
@@ -462,7 +492,6 @@ export default function MenuBar({
           )}
         </div>
         <div className="menu-card-search">
-          {backgroundSyncing && <span className="menu-syncing-text">Syncing…</span>}
           {(cardSearchLoading || setsLoading) && (
             <span className="menu-loading-spinner" aria-label="Loading" />
           )}

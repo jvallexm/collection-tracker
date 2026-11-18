@@ -672,6 +672,75 @@ describe('MenuBar My Collection menu', () => {
     expect(screen.getByText('No sets catalogued yet')).not.toBeNull();
   });
 
+  test('All sets submenu has a search input', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    expect(screen.getByPlaceholderText('Filter sets…')).not.toBeNull();
+  });
+
+  test('typing in All sets search filters by name', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    fetchSets.mockResolvedValue([
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+    ]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Filter sets…'), { target: { value: 'khans' } });
+    expect(screen.getByRole('button', { name: 'Khans of Tarkir' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Throne of Eldraine' })).toBeNull();
+  });
+
+  test('typing in All sets search filters by code', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    fetchSets.mockResolvedValue([
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+    ]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Filter sets…'), { target: { value: 'eld' } });
+    expect(screen.queryByRole('button', { name: 'Khans of Tarkir' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Throne of Eldraine' })).not.toBeNull();
+  });
+
+  test('shows No matches when All sets search has no results', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Filter sets…'), { target: { value: 'zzzzz' } });
+    expect(screen.getByText('No matches')).not.toBeNull();
+  });
+
+  test('All sets search resets when submenu closes', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    fetchSets.mockResolvedValue([
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+    ]);
+    renderWithRecent();
+    fireEvent.click(screen.getByText('My Collection'));
+    const li = screen.getByText(/All sets/).closest('li');
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Filter sets…'), { target: { value: 'khans' } });
+    fireEvent.mouseLeave(li);
+    fireEvent.mouseEnter(li);
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Throne of Eldraine' })).not.toBeNull();
+  });
+
   test('shows View all cards button in My Collection dropdown', () => {
     renderWithRecent();
     fireEvent.click(screen.getByText('My Collection'));
@@ -1152,22 +1221,5 @@ describe('MenuBar Add Set direct code lookup', () => {
     await act(async () => {});
     const buttons = screen.getAllByRole('button', { name: /zendikar/i });
     expect(buttons[0].textContent).toBe('Zendikar');
-  });
-});
-
-describe('MenuBar background syncing indicator', () => {
-  test('shows Syncing text when backgroundSyncing is true', () => {
-    render(<MenuBar theme="light" onThemeChange={vi.fn()} backgroundSyncing={true} />);
-    expect(screen.getByText('Syncing…')).not.toBeNull();
-  });
-
-  test('hides Syncing text when backgroundSyncing is false', () => {
-    render(<MenuBar theme="light" onThemeChange={vi.fn()} backgroundSyncing={false} />);
-    expect(screen.queryByText('Syncing…')).toBeNull();
-  });
-
-  test('hides Syncing text by default', () => {
-    render(<MenuBar theme="light" onThemeChange={vi.fn()} />);
-    expect(screen.queryByText('Syncing…')).toBeNull();
   });
 });

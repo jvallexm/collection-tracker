@@ -119,8 +119,7 @@ describe('buildCKSellCsv', () => {
       {
         setName: 'Limited Edition Beta',
         cards: [BOLT],
-        collection: { b: { qty: 3 } },
-        sellIds: new Set(['b']),
+        sellCollection: { b: { qty: 3 } },
       },
     ]);
     expect(csv).toBe(
@@ -128,25 +127,23 @@ describe('buildCKSellCsv', () => {
     );
   });
 
-  test('generates a foil row when foil qty > 0', () => {
+  test('generates a foil row when foil sell qty > 0', () => {
     const csv = buildCKSellCsv([
       {
         setName: 'Limited Edition Beta',
         cards: [BOLT],
-        collection: { b: { foil: 2 } },
-        sellIds: new Set(['b']),
+        sellCollection: { b: { foil: 2 } },
       },
     ]);
     expect(csv).toBe('card name,edition,foil,quantity\nLightning Bolt,Limited Edition Beta,true,2');
   });
 
-  test('generates both nonfoil and foil rows when both have qty', () => {
+  test('generates both nonfoil and foil rows when both have sell qty', () => {
     const csv = buildCKSellCsv([
       {
         setName: 'Limited Edition Beta',
         cards: [BOLT],
-        collection: { b: { qty: 1, foil: 1 } },
-        sellIds: new Set(['b']),
+        sellCollection: { b: { qty: 1, foil: 1 } },
       },
     ]);
     const lines = csv.split('\n');
@@ -155,25 +152,23 @@ describe('buildCKSellCsv', () => {
     expect(lines[2]).toContain('true,1');
   });
 
-  test('skips cards not in sellIds', () => {
+  test('skips cards not in sellCollection', () => {
     const csv = buildCKSellCsv([
       {
         setName: 'Limited Edition Beta',
         cards: [BOLT, WRATH],
-        collection: { b: { qty: 2 }, w: { qty: 1 } },
-        sellIds: new Set(['b']),
+        sellCollection: { b: { qty: 2 } },
       },
     ]);
     expect(csv).not.toContain('Wrath of God');
   });
 
-  test('skips rows where qty is 0 or missing', () => {
+  test('skips rows where sell qty is 0 or missing', () => {
     const csv = buildCKSellCsv([
       {
         setName: 'Limited Edition Beta',
         cards: [BOLT],
-        collection: { b: { qty: 0 } },
-        sellIds: new Set(['b']),
+        sellCollection: { b: { qty: 0 } },
       },
     ]);
     expect(csv).toBe('card name,edition,foil,quantity');
@@ -185,8 +180,7 @@ describe('buildCKSellCsv', () => {
       {
         setName: 'Test',
         cards: [comma],
-        collection: { c: { qty: 1 } },
-        sellIds: new Set(['c']),
+        sellCollection: { c: { qty: 1 } },
       },
     ]);
     expect(csv).toContain('"Who, What, When"');
@@ -194,8 +188,8 @@ describe('buildCKSellCsv', () => {
 
   test('combines rows from multiple sets', () => {
     const csv = buildCKSellCsv([
-      { setName: 'Alpha', cards: [BOLT], collection: { b: { qty: 1 } }, sellIds: new Set(['b']) },
-      { setName: 'Beta', cards: [WRATH], collection: { w: { qty: 2 } }, sellIds: new Set(['w']) },
+      { setName: 'Alpha', cards: [BOLT], sellCollection: { b: { qty: 1 } } },
+      { setName: 'Beta', cards: [WRATH], sellCollection: { w: { qty: 2 } } },
     ]);
     expect(csv).toContain('Alpha');
     expect(csv).toContain('Beta');

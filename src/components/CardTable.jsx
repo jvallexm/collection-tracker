@@ -55,7 +55,7 @@ function moveFocusBetweenInputs(event, onEscapeTop) {
     const nextInput = findNextRowInput(event.currentTarget, event.target, vStep);
     if (nextInput) {
       nextInput.focus();
-    } else if (vStep < 0) {
+    } else {
       onEscapeTop?.();
     }
   } else {
@@ -226,7 +226,9 @@ export default function CardTable({
           {tokenCards.length > 0 && (
             <>
               <tr className="token-section-heading">
-                <td colSpan={(showCKTools ? 11 : 8) + (showSetColumn ? 1 : 0)}>Tokens</td>
+                <td colSpan={2 + COLUMNS.length + (showCKTools ? 3 : 0) + (showSetColumn ? 1 : 0)}>
+                  Tokens
+                </td>
               </tr>
               {tokenCards.map((card) => (
                 <CardRow

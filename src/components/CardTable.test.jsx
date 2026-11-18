@@ -360,15 +360,27 @@ describe('CardTable keyboard navigation', () => {
     expect(onEscapeTop).not.toHaveBeenCalled();
   });
 
-  test('stays put at the bottom of each column', () => {
-    renderTable();
+  test.each(['s', 'S', 'ArrowDown', 'Enter'])('"%s" on the last row calls onEscapeTop', (key) => {
+    const onEscapeTop = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        onEscapeTop={onEscapeTop}
+      />,
+    );
     have('Charm').focus();
-    fireEvent.keyDown(have('Charm'), { key: 's' });
-    expect(document.activeElement).toBe(have('Charm'));
+    fireEvent.keyDown(have('Charm'), { key });
+    expect(onEscapeTop).toHaveBeenCalled();
 
+    onEscapeTop.mockClear();
     foil('Charm').focus();
-    fireEvent.keyDown(foil('Charm'), { key: 's' });
-    expect(document.activeElement).toBe(foil('Charm'));
+    fireEvent.keyDown(foil('Charm'), { key });
+    expect(onEscapeTop).toHaveBeenCalled();
   });
 
   test('down goes to other column in next row when that row has no input in current column', () => {

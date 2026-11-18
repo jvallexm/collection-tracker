@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
 import AllCardsView from './components/AllCardsView.jsx';
+import SellModal from './components/SellModal.jsx';
 import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
-import { buildCKSellCsv, fetchCKPrices } from './lib/cardkingdom.js';
+import { usePersistedConfig } from './lib/hooks.js';
+import { fetchCKPrices } from './lib/cardkingdom.js';
 import { buildMoxfieldCsv } from './lib/moxfield.js';
-import { fetchSetCards } from './lib/scryfall.js';
+import {
+  closeSet as closeSetState,
+  minimizeSet,
+  openSet as openSetState,
+  refreshSet,
+  restoreSet,
+} from './lib/windowState.js';
 import {
   deleteCards,
-  loadAllCollectionKeys,
   loadCards,
   loadCollection,
   loadConfig,
@@ -17,28 +24,24 @@ import {
 } from './lib/storage.js';
 
 export default function App() {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = usePersistedConfig('theme', 'light');
   const [openSets, setOpenSets] = useState(null);
   const [recentSets, setRecentSets] = useState([{ code: 'ktk', name: 'Khans of Tarkir' }]);
   const [collectionVersions, setCollectionVersions] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
-  const [cardPreviewPos, setCardPreviewPos] = useState(null);
-  const [cardImageSize, setCardImageSize] = useState(null);
-  const hasBackgroundRefreshed = useRef(false);
-  const [backgroundSyncing, setBackgroundSyncing] = useState(false);
+  const [cardPreviewPos, setCardPreviewPos] = usePersistedConfig('cardPreviewPos', null);
+  const [cardImageSize, setCardImageSize] = usePersistedConfig('cardImageSize', null);
   const [ckPrices, setCkPrices] = useState(null);
   const [sellSelections, setSellSelections] = useState({});
-  const [showCKTools, setShowCKTools] = useState(false);
+  const [showCKTools, setShowCKTools] = usePersistedConfig('showCKTools', false);
   const [showAllCards, setShowAllCards] = useState(false);
+  const [showSellModal, setShowSellModal] = useState(false);
 
   useEffect(() => {
     fetchCKPrices().then((prices) => setCkPrices(prices ?? new Map()));
   }, []);
 
   useEffect(() => {
-    loadConfig('theme').then((saved) => {
-      if (saved) setTheme(saved);
-    });
     loadConfig('recentSets').then((saved) => {
       if (saved) setRecentSets(saved);
     });
@@ -47,15 +50,6 @@ export default function App() {
         Array.isArray(saved) ? saved : [{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }],
       );
     });
-    loadConfig('cardPreviewPos').then((saved) => {
-      if (saved) setCardPreviewPos(saved);
-    });
-    loadConfig('cardImageSize').then((saved) => {
-      if (saved) setCardImageSize(saved);
-    });
-    loadConfig('showCKTools').then((saved) => {
-      if (saved !== null) setShowCKTools(saved);
-    });
   }, []);
 
   useEffect(() => {
@@ -63,74 +57,30 @@ export default function App() {
     saveConfig('openSets', openSets);
   }, [openSets]);
 
-  useEffect(() => {
-    if (openSets === null || hasBackgroundRefreshed.current) return;
-    hasBackgroundRefreshed.current = true;
-    setBackgroundSyncing(true);
-    const openCodes = new Set(openSets.map((s) => s.code));
-    (async () => {
-      const allKeys = await loadAllCollectionKeys();
-      const nonOpenKeys = allKeys.filter((code) => !openCodes.has(code));
-      for (const code of nonOpenKeys) {
-        await deleteCards(code);
-        await fetchSetCards(code);
-      }
-      setBackgroundSyncing(false);
-    })();
-  }, [openSets]);
-
   function handleThemeChange(newTheme) {
     setTheme(newTheme);
-    saveConfig('theme', newTheme);
   }
 
   function handleOpenSet(code, name) {
-    setOpenSets((current) => {
-      const alreadyOpen = current.some((s) => s.code === code);
-      const base = alreadyOpen ? current : [...current, { code, name, minimized: true }];
-      return base.map((s) => {
-        if (s.code === code) return { ...s, minimized: false };
-        if (!s.minimized) return { ...s, minimized: true };
-        return s;
-      });
-    });
+    setOpenSets((current) => openSetState(current, code, name));
     setRecentSets((current) => {
-      const without = current.filter((s) => s.code !== code);
-      const updated = [{ code, name }, ...without].slice(0, 5);
+      const updated = [{ code, name }, ...current.filter((s) => s.code !== code)].slice(0, 5);
       saveConfig('recentSets', updated);
       return updated;
     });
   }
 
   function handleMinimize(code) {
-    setOpenSets((current) => current.map((s) => (s.code === code ? { ...s, minimized: true } : s)));
+    setOpenSets((current) => minimizeSet(current, code));
   }
 
   function handleRestore(code) {
-    setOpenSets((current) =>
-      current.map((s) => {
-        if (s.code === code) return { ...s, minimized: false };
-        if (!s.minimized) return { ...s, minimized: true };
-        return s;
-      }),
-    );
+    setOpenSets((current) => restoreSet(current, code));
   }
 
   function handleClose(code) {
     deleteCards(code);
-    setOpenSets((current) => {
-      const closing = current.find((s) => s.code === code);
-      const remaining = current.filter((s) => s.code !== code);
-      if (!closing?.minimized) {
-        const firstMinimized = remaining.find((s) => s.minimized);
-        if (firstMinimized) {
-          return remaining.map((s) =>
-            s.code === firstMinimized.code ? { ...s, minimized: false } : s,
-          );
-        }
-      }
-      return remaining;
-    });
+    setOpenSets((current) => closeSetState(current, code));
   }
 
   function handleSellToggle(setCode, cardId) {
@@ -142,23 +92,8 @@ export default function App() {
     });
   }
 
-  async function handleExportSellCsv() {
-    const allSetsData = await Promise.all(
-      (openSets ?? []).map(async (set) => ({
-        setName: set.name,
-        cards: (await loadCards(set.code)) ?? [],
-        collection: await loadCollection(set.code),
-        sellIds: sellSelections[set.code] ?? new Set(),
-      })),
-    );
-    const csv = buildCKSellCsv(allSetsData);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sell-to-cardkingdom.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  function handleExportSellCsv() {
+    setShowSellModal(true);
   }
 
   async function handleExportCsv() {
@@ -180,12 +115,10 @@ export default function App() {
 
   function handleSaveCardPreviewPos(pos) {
     setCardPreviewPos(pos);
-    saveConfig('cardPreviewPos', pos);
   }
 
   function handleSaveCardImageSize(size) {
     setCardImageSize(size);
-    saveConfig('cardImageSize', size);
   }
 
   async function handleAddCard(setCode, cardId) {
@@ -204,21 +137,13 @@ export default function App() {
   }
 
   function handleToggleCKTools() {
-    setShowCKTools((current) => {
-      const next = !current;
-      saveConfig('showCKTools', next);
-      return next;
-    });
+    setShowCKTools((current) => !current);
   }
 
   async function handleRefreshSet() {
     const active = openSets.find((s) => !s.minimized);
     await deleteCards(active.code);
-    setOpenSets((current) =>
-      current.map((s) =>
-        s.code === active.code ? { ...s, refreshKey: (s.refreshKey ?? 0) + 1 } : s,
-      ),
-    );
+    setOpenSets((current) => refreshSet(current, active.code));
   }
 
   const minimizedSets = (openSets ?? []).filter((s) => s.minimized);
@@ -244,7 +169,6 @@ export default function App() {
         onSaveCardPreviewPos={handleSaveCardPreviewPos}
         cardImageSize={cardImageSize}
         onSaveCardImageSize={handleSaveCardImageSize}
-        backgroundSyncing={backgroundSyncing}
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => (
@@ -292,6 +216,13 @@ export default function App() {
             ckPrices={ckPrices}
             showCKTools={showCKTools}
             openSets={openSets}
+          />
+        )}
+        {showSellModal && (
+          <SellModal
+            onClose={() => setShowSellModal(false)}
+            openSets={openSets ?? []}
+            ckPrices={ckPrices}
           />
         )}
       </div>

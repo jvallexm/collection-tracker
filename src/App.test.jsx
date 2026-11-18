@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from './test/fixtures.js';
 import { fetchCKPrices } from './lib/cardkingdom.js';
 import { fetchSetCards, fetchSets } from './lib/scryfall.js';
@@ -290,51 +290,6 @@ describe('App multi-set windows', () => {
   });
 });
 
-describe('App background refresh', () => {
-  test('skips currently open sets during background refresh', async () => {
-    loadConfig.mockImplementation((key) =>
-      key === 'openSets'
-        ? Promise.resolve([{ code: 'ktk', name: 'Khans of Tarkir', minimized: false }])
-        : Promise.resolve(null),
-    );
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    await renderApp();
-    expect(deleteCards).not.toHaveBeenCalledWith('ktk');
-  });
-
-  test('refreshes non-open cached sets on startup', async () => {
-    loadConfig.mockImplementation((key) =>
-      key === 'openSets'
-        ? Promise.resolve([{ code: 'eld', name: 'Throne of Eldraine', minimized: false }])
-        : Promise.resolve(null),
-    );
-    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
-    await renderApp();
-    expect(deleteCards).toHaveBeenCalledWith('ktk');
-    expect(deleteCards).not.toHaveBeenCalledWith('eld');
-  });
-
-  test('does nothing when all cached sets are currently open', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    await renderApp();
-    expect(deleteCards).not.toHaveBeenCalled();
-  });
-
-  test('does not re-refresh when openSets changes after initial load', async () => {
-    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
-    loadAllCollectionKeys.mockResolvedValue(['znr']);
-    await renderApp();
-    deleteCards.mockClear();
-    fetchSetCards.mockClear();
-    fireEvent.click(screen.getByText('Add Set'));
-    await act(async () => {});
-    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
-    await act(async () => {});
-    expect(deleteCards).not.toHaveBeenCalled();
-  });
-});
-
 describe('App close window', () => {
   test('closing the active window removes it', async () => {
     await renderApp();
@@ -547,44 +502,15 @@ describe('App sell to Card Kingdom', () => {
     });
   });
 
-  test('clicking Sell to Card Kingdom triggers a file download', async () => {
+  test('clicking Sell to Card Kingdom opens the sell modal', async () => {
     await renderApp();
     fireEvent.click(screen.getByText('Export Collection'));
     fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
     await act(async () => {});
-    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+    expect(screen.getByRole('dialog', { name: 'Sell to Card Kingdom' })).not.toBeNull();
   });
 
-  test('toggling a sell checkbox checks it', async () => {
-    fetchSetCards.mockResolvedValue([BOLT]);
-    loadCards.mockResolvedValue(null);
-    loadConfig.mockImplementation((key) =>
-      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
-    );
-    await renderApp();
-    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
-    fireEvent.click(checkbox);
-    expect(checkbox.checked).toBe(true);
-  });
-
-  test('sell export loads cards and passes sellIds to buildCKSellCsv', async () => {
-    fetchSetCards.mockResolvedValue([BOLT]);
-    // loadCards is called for token cards (tktk) — return null to avoid duplicates
-    loadCards.mockImplementation((code) => Promise.resolve(code === 'tktk' ? null : [BOLT]));
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    loadConfig.mockImplementation((key) =>
-      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
-    );
-    await renderApp();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
-    fireEvent.click(screen.getByText('Export Collection'));
-    fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
-    await act(async () => {});
-    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
-  });
-
-  test('sell export before openSets resolves falls back to empty array', async () => {
+  test('sell modal receives empty openSets when openSets not yet loaded', async () => {
     let resolveOpenSets;
     loadConfig.mockImplementation((key) => {
       if (key === 'openSets')
@@ -597,8 +523,30 @@ describe('App sell to Card Kingdom', () => {
     fireEvent.click(screen.getByText('Export Collection'));
     fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
     await act(async () => {});
-    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(screen.getByRole('dialog', { name: 'Sell to Card Kingdom' })).not.toBeNull();
     resolveOpenSets(null);
+  });
+
+  test('sell modal can be closed', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
+    await act(async () => {});
+    const dialog = screen.getByRole('dialog', { name: 'Sell to Card Kingdom' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Sell to Card Kingdom' })).toBeNull();
+  });
+
+  test('toggling a sell checkbox checks it', async () => {
+    fetchSetCards.mockResolvedValue([BOLT]);
+    loadCards.mockResolvedValue(null);
+    loadConfig.mockImplementation((key) =>
+      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
+    );
+    await renderApp();
+    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
   });
 
   test('toggling the same checkbox twice unchecks it', async () => {

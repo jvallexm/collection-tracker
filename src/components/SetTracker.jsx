@@ -11,16 +11,11 @@ import {
   withFoilQuantity,
   withQuantity,
 } from '../lib/collection.js';
+import { useDebouncedSearch, usePersistedConfig } from '../lib/hooks.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { fetchSetCards } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
-import {
-  loadCards,
-  loadCollection,
-  loadConfig,
-  saveCollection,
-  saveConfig,
-} from '../lib/storage.js';
+import { loadCards, loadCollection, saveCollection } from '../lib/storage.js';
 
 /**
  * Builds the status bar text shown below the toolbar.
@@ -92,19 +87,21 @@ export default function SetTracker({
 }) {
   const windowRef = useRef(null);
   const searchRef = useRef(null);
-  const deletePendingRef = useRef(false);
-  const charsAfterDeleteRef = useRef(0);
-  const commitTimerRef = useRef(null);
   const [cards, setCards] = useState([]);
   const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
-  const [collection, setCollection] = useState(null); // null = not yet loaded from IDB
-  const [sort, setSort] = useState(null); // null = not yet loaded from IDB
+  const [collection, setCollection] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [focusedCard, setFocusedCard] = useState(null);
   const [focusedCardIsFoil, setFocusedCardIsFoil] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [search, setSearch] = useState('');
+  const {
+    displayValue: searchText,
+    onChange: onSearchChange,
+    committedValue: search,
+    commit: commitSearch,
+  } = useDebouncedSearch();
+  const DEFAULT_SORT = { key: 'name', direction: 1, secondary: null };
+  const [sort, setSort] = usePersistedConfig(`sort:${setCode}`, DEFAULT_SORT);
 
   useEffect(() => {
     fetchSetCards(setCode)
@@ -152,28 +149,8 @@ export default function SetTracker({
     if (input) input.focus();
   }, [cardFocus]);
 
-  useEffect(() => () => clearTimeout(commitTimerRef.current), []);
-
-  const DEFAULT_SORT = { key: 'name', direction: 1, secondary: null };
-
-  useEffect(() => {
-    let cancelled = false;
-    setSort(null);
-    loadConfig(`sort:${setCode}`).then((saved) => {
-      if (!cancelled) setSort(saved ?? DEFAULT_SORT);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [setCode]);
-
-  useEffect(() => {
-    if (sort === null) return;
-    saveConfig(`sort:${setCode}`, sort);
-  }, [sort, setCode]);
-
   const safeCollection = collection ?? {};
-  const safeSort = sort ?? DEFAULT_SORT;
+  const safeSort = sort;
 
   const visibleCards = useMemo(
     () => computeVisibleCards(cards, safeSort, safeCollection, search),
@@ -193,7 +170,7 @@ export default function SetTracker({
    */
   function handleSort(key) {
     setSort((current) => {
-      const c = current ?? DEFAULT_SORT;
+      const c = current;
       if (key === 'have') {
         const secondary = c.key === 'have' ? c.secondary : { key: c.key, direction: c.direction };
         const direction = c.key === 'have' ? -c.direction : 1;
@@ -267,40 +244,15 @@ export default function SetTracker({
           placeholder="Search…"
           autoFocus
           value={searchText}
-          onChange={(e) => {
-            const newText = e.target.value;
-            const isAddition = newText.length > searchText.length;
-            if (!isAddition) {
-              deletePendingRef.current = true;
-              charsAfterDeleteRef.current = 0;
-            } else if (deletePendingRef.current) {
-              charsAfterDeleteRef.current += 1;
-            }
-            setSearchText(newText);
-            clearTimeout(commitTimerRef.current);
-            if (deletePendingRef.current && charsAfterDeleteRef.current >= 2) {
-              deletePendingRef.current = false;
-              charsAfterDeleteRef.current = 0;
-              setSearch(newText);
-            } else {
-              commitTimerRef.current = setTimeout(() => {
-                deletePendingRef.current = false;
-                setSearch(newText);
-              }, 150);
-            }
-          }}
+          onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              clearTimeout(commitTimerRef.current);
-              deletePendingRef.current = false;
-              setSearch(searchText);
+              commitSearch();
               return;
             }
             if (e.key !== 'ArrowDown') return;
             e.preventDefault();
-            clearTimeout(commitTimerRef.current);
-            deletePendingRef.current = false;
-            flushSync(() => setSearch(searchText));
+            flushSync(() => commitSearch());
             const first = windowRef.current?.querySelector('table input:not(:disabled)');
             if (first) first.focus();
           }}
