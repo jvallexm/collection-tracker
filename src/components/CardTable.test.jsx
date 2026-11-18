@@ -1050,3 +1050,41 @@ describe('CardTable showSetColumn', () => {
     expect(heading.colSpan).toBe(9);
   });
 });
+
+describe('CardTable CK column tint', () => {
+  function renderWithCK() {
+    render(
+      <CardTable
+        cards={[makeCard({ id: 'a', name: 'Alpha' })]}
+        collection={{ a: { qty: 1 } }}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        showCKTools={true}
+        ckPrices={new Map([['a', { nonfoilBuy: 1.0, foilBuy: 2.0 }]])}
+      />,
+    );
+  }
+
+  test('CK column header has ck-cell class', () => {
+    renderWithCK();
+    expect(screen.getByRole('columnheader', { name: 'CK' }).className).toContain('ck-cell');
+  });
+
+  test('CKF column header has ck-cell class', () => {
+    renderWithCK();
+    expect(screen.getByRole('columnheader', { name: 'CKF' }).className).toContain('ck-cell');
+  });
+
+  test('Sell column header has ck-cell class', () => {
+    renderWithCK();
+    expect(screen.getByRole('columnheader', { name: 'Sell' }).className).toContain('ck-cell');
+  });
+
+  test('CK price cells have ck-cell class', () => {
+    renderWithCK();
+    const ckCells = document.querySelectorAll('td.ck-cell');
+    expect(ckCells.length).toBeGreaterThan(0);
+  });
+});

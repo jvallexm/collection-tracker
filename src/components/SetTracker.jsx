@@ -37,7 +37,11 @@ function describeStatus({ loadError, cards, collection }) {
 }
 
 function normalizeSearchText(s) {
-  return s.replace(/[,']/g, '').toLowerCase();
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[,']/g, '')
+    .toLowerCase();
 }
 
 function matchesSearch(card, query) {
@@ -232,7 +236,15 @@ export default function SetTracker({
   }
 
   return (
-    <div className="window" ref={windowRef}>
+    <div
+      className="window"
+      ref={windowRef}
+      onClick={(e) => {
+        if (!e.target.closest('input, button, select, textarea, a')) {
+          searchRef.current?.focus();
+        }
+      }}
+    >
       <Titlebar>
         <span>{setName}</span>
         <div className="titlebar-buttons">
@@ -253,6 +265,7 @@ export default function SetTracker({
           className="search-input"
           type="search"
           placeholder="Search…"
+          autoFocus
           value={searchText}
           onChange={(e) => {
             const newText = e.target.value;

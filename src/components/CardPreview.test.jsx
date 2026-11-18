@@ -23,6 +23,11 @@ test('shows the card image with the card id in the src', () => {
   expect(screen.getByAltText('Arrow').getAttribute('src')).toContain('abc-123');
 });
 
+test('image src includes face=front for double-faced token support', () => {
+  render(<CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} />);
+  expect(screen.getByAltText('Arrow').getAttribute('src')).toContain('face=front');
+});
+
 test('uses the card name as alt text', () => {
   render(<CardPreview card={makeCard({ id: 'abc-123', name: 'Arrow' })} />);
   expect(screen.getByAltText('Arrow')).not.toBeNull();

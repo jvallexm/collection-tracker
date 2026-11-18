@@ -108,6 +108,30 @@ describe('normalizeCard', () => {
   test('falls back to an empty cost when there is no cost information', () => {
     expect(normalizeCard(rawCard({ mana_cost: undefined })).cost).toBe('');
   });
+
+  test('normalizes a double-faced token with card_faces', () => {
+    const dfcToken = {
+      id: 'dfc-uuid',
+      name: 'Eldrazi // Cat',
+      rarity: 'token',
+      collector_number: '11',
+      set: 'tcmm',
+      layout: 'double_faced_token',
+      finishes: ['nonfoil'],
+      card_faces: [
+        { name: 'Eldrazi', mana_cost: '', type_line: 'Token Creature — Eldrazi' },
+        { name: 'Cat', mana_cost: '', type_line: 'Token Creature — Cat' },
+      ],
+      prices: { usd: null, usd_foil: null },
+    };
+    const card = normalizeCard(dfcToken);
+    expect(card.id).toBe('dfc-uuid');
+    expect(card.name).toBe('Eldrazi // Cat');
+    expect(card.cost).toBe('');
+    expect(card.set).toBe('TCMM');
+    expect(card.nonfoil).toBe(true);
+    expect(card.foil).toBe(false);
+  });
 });
 
 describe('fetchSets', () => {
@@ -359,6 +383,34 @@ describe('fetchSetCards', () => {
 
     expect(await loadCards('tktk')).toHaveLength(1);
     expect((await loadCards('tktk'))[0].name).toBe('Soldier Token');
+  });
+
+  test('fetches and saves double-faced tokens from the token set', async () => {
+    const dfcToken = rawCard({
+      id: 'dfc1',
+      name: 'Snake // Zombie',
+      set: 'tktk',
+      layout: 'double_faced_token',
+      mana_cost: undefined,
+      card_faces: [
+        { name: 'Snake', mana_cost: '' },
+        { name: 'Zombie', mana_cost: '' },
+      ],
+    });
+    const fetchMock = vi.fn().mockImplementation((url) => {
+      if (url === buildSearchUrl('ktk'))
+        return Promise.resolve(jsonResponse({ data: [rawCard()], has_more: false }));
+      if (url === buildSearchUrl('tktk'))
+        return Promise.resolve(jsonResponse({ data: [dfcToken], has_more: false }));
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchSetCards('ktk');
+
+    const tokens = await loadCards('tktk');
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].name).toBe('Snake // Zombie');
   });
 
   test('excludes digital-only cards from results', async () => {

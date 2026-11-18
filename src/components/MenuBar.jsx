@@ -192,8 +192,20 @@ export default function MenuBar({
       ? [directSetResult, ...baseFilteredSets].slice(0, 8)
       : baseFilteredSets
   ).sort((a, b) => {
-    const SECONDARY = new Set(['promo', 'masterpiece', 'memorabilia', 'treasure_chest']);
-    return SECONDARY.has(a.set_type) - SECONDARY.has(b.set_type);
+    const q = setSearch.toLowerCase();
+    const matchRank = (s) => {
+      if (s.code.toLowerCase() === q) return 0;
+      if (s.name.toLowerCase().startsWith(q)) return 1;
+      return 2;
+    };
+    const SECONDARY = new Set([
+      'promo',
+      'masterpiece',
+      'memorabilia',
+      'treasure_chest',
+      'minigame',
+    ]);
+    return matchRank(a) - matchRank(b) || SECONDARY.has(a.set_type) - SECONDARY.has(b.set_type);
   });
 
   function handleSearchChange(e) {

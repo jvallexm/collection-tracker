@@ -539,6 +539,9 @@ th {
   width: 32px;
   text-align: center;
 }
+.ck-cell {
+  background-image: linear-gradient(rgba(60, 140, 60, 0.1), rgba(60, 140, 60, 0.1));
+}
 .mana-cost {
   display: inline-flex;
   align-items: baseline;
@@ -650,7 +653,7 @@ th {
   position: fixed;
   top: 60px;
   left: 16px;
-  z-index: 150;
+  z-index: 210;
   width: 160px;
 }
 .size-box {

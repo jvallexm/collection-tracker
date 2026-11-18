@@ -27,7 +27,7 @@ export default function CardPreview({ card, pos = null, imageSize = 'small', isF
         )}
         <img
           key={imageSize}
-          src={`https://api.scryfall.com/cards/${card.id}?format=image&version=${imageSize}`}
+          src={`https://api.scryfall.com/cards/${card.id}?format=image&face=front&version=${imageSize}`}
           alt={card.name}
           style={loading ? { display: 'none' } : undefined}
           onLoad={() => setLoading(false)}

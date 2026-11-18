@@ -83,6 +83,19 @@ describe('SetTracker loading', () => {
     expect(await screen.findByText('Could not load cards: boom')).not.toBeNull();
     await act(async () => {});
   });
+
+  test('focuses the search input on mount', async () => {
+    await renderLoadedTracker();
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
+  });
+
+  test('refocuses the search input when clicking on a non-interactive area of the window', async () => {
+    await renderLoadedTracker();
+    screen.getByLabelText('Copies of Bolt').focus();
+    expect(document.activeElement).toBe(screen.getByLabelText('Copies of Bolt'));
+    fireEvent.click(screen.getByText('3 cards | 0 in Collection'));
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
+  });
 });
 
 describe('SetTracker collection tracking', () => {
@@ -300,6 +313,22 @@ describe('SetTracker search', () => {
     fireEvent.change(box, { target: { value: 'urzas mine' } });
     fireEvent.keyDown(box, { key: 'Enter' });
     expect(rowNames()).toContain("Urza's Mine");
+    expect(rowNames()).not.toContain('Arrow');
+  });
+
+  test('matches accented characters with their unaccented equivalents', async () => {
+    fetchSetCards.mockResolvedValue([
+      ...CARDS,
+      makeCard({ id: 'd', name: 'Lórien Revealed', rarity: 'uncommon', number: '4' }),
+    ]);
+    render(<SetTracker setCode="ltr" setName="Lord of the Rings" />);
+    await screen.findByLabelText('Copies of Lórien Revealed');
+    await act(async () => {});
+
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'lo' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(rowNames()).toContain('Lórien Revealed');
     expect(rowNames()).not.toContain('Arrow');
   });
 
@@ -611,7 +640,7 @@ describe('SetTracker cardFocus', () => {
 
   test('does nothing when cardFocus is null', async () => {
     await renderAndLoad({ cardFocus: null });
-    expect(document.activeElement).toBe(document.body);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
   });
 
   test('does nothing when card id is not found in the table', async () => {
@@ -624,7 +653,7 @@ describe('SetTracker cardFocus', () => {
       />,
     );
     await act(async () => {});
-    expect(document.activeElement).toBe(document.body);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
   });
 
   test('does nothing when window is minimized', async () => {
@@ -658,7 +687,7 @@ describe('SetTracker cardFocus', () => {
       />,
     );
     await act(async () => {});
-    expect(document.activeElement).toBe(document.body);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Search…'));
   });
 
   test('refocuses when cardFocus changes to a new object for the same card', async () => {

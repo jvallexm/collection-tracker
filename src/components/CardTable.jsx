@@ -131,10 +131,10 @@ function CardRow({
       <td className="number-cell">{card.number}</td>
       <td className="price-cell">{formatPrice(card.price)}</td>
       <td className="price-cell">{formatPrice(card.priceFoil)}</td>
-      {showCKTools && <td className="price-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
-      {showCKTools && <td className="price-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
+      {showCKTools && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
+      {showCKTools && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
       {showCKTools && (
-        <td className="sell-cell">
+        <td className="sell-cell ck-cell">
           <input
             type="checkbox"
             aria-label={`Sell ${card.name}`}
@@ -196,9 +196,9 @@ export default function CardTable({
                 <SortIndicator active={sort.key === key} direction={sort.direction} />
               </th>
             ))}
-            {showCKTools && <th className="price-cell">CK</th>}
-            {showCKTools && <th className="price-cell">CKF</th>}
-            {showCKTools && <th className="sell-cell">Sell</th>}
+            {showCKTools && <th className="price-cell ck-cell">CK</th>}
+            {showCKTools && <th className="price-cell ck-cell">CKF</th>}
+            {showCKTools && <th className="sell-cell ck-cell">Sell</th>}
           </tr>
         </thead>
         <tbody

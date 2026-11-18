@@ -424,6 +424,66 @@ describe('MenuBar Add Set menu', () => {
     fireEvent.click(screen.getByText('Add Set'));
     expect(fetchSets).toHaveBeenCalledTimes(1);
   });
+
+  test('exact code match sorts before name-only match', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'woe', name: 'Wilds of Eldraine', set_type: 'expansion' },
+      { code: 'eld', name: 'Throne of Eldraine', set_type: 'expansion' },
+    ]);
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    const buttons = screen.getAllByRole('button', { name: /Eldraine/ });
+    expect(buttons[0].textContent).toContain('Throne of Eldraine');
+    expect(buttons[1].textContent).toContain('Wilds of Eldraine');
+  });
+
+  test('exact code match sorts before name-only match when name contains the code as a substring', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'dsk', name: 'Duskmourn: House of Horror', set_type: 'expansion' },
+      { code: 'hou', name: 'Hour of Devastation', set_type: 'expansion' },
+    ]);
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'hou' } });
+    const buttons = screen.getAllByRole('button', { name: /House|Hour/ });
+    expect(buttons[0].textContent).toContain('Hour of Devastation');
+    expect(buttons[1].textContent).toContain('House of Horror');
+  });
+
+  test('name-starts-with match sorts before name-contains-only match', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'xyz', name: 'Beyond the Throne', set_type: 'expansion' },
+      { code: 'eld', name: 'Throne of Eldraine', set_type: 'expansion' },
+    ]);
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'throne' } });
+    const buttons = screen.getAllByRole('button', { name: /Throne/ });
+    expect(buttons[0].textContent).toBe('Throne of Eldraine');
+    expect(buttons[1].textContent).toBe('Beyond the Throne');
+  });
+
+  test('minigame sets sort after the main set', async () => {
+    fetchSets.mockResolvedValue([
+      { code: 'mclb', name: 'CLB Minigames', set_type: 'minigame' },
+      {
+        code: 'clb',
+        name: 'Commander Legends: Battle for Baldurs Gate',
+        set_type: 'draft_innovation',
+      },
+    ]);
+    renderWithSets();
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'clb' } });
+    const buttons = screen.getAllByRole('button', { name: /CLB|Commander Legends/ });
+    expect(buttons[0].textContent).toContain('Commander Legends');
+    expect(buttons[1].textContent).toContain('CLB Minigames');
+  });
 });
 
 describe('MenuBar My Collection menu', () => {
