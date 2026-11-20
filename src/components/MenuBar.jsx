@@ -51,14 +51,18 @@ export default function MenuBar({
   useEffect(() => {
     if (!cardSearch.trim() || cardSearchSets !== null || cardSearchLoading) return;
     setCardSearchLoading(true);
-    Promise.all(
-      openSets.map(async (set) => ({
-        setCode: set.code,
-        cards: (await loadCards(set.code)) ?? [],
-        collection: await loadCollection(set.code),
-      })),
-    )
-      .then((data) => {
+    loadAllCollectionKeys()
+      .then(async (allCodes) => {
+        const mainCodes = allCodes.filter(
+          (code) => !(code.startsWith('t') && allCodes.includes(code.slice(1))),
+        );
+        const data = await Promise.all(
+          mainCodes.map(async (code) => ({
+            setCode: code,
+            cards: (await loadCards(code)) ?? [],
+            collection: await loadCollection(code),
+          })),
+        );
         setCardSearchSets(data);
         setCardSearchLoading(false);
       })
@@ -66,7 +70,7 @@ export default function MenuBar({
         setCardSearchSets([]);
         setCardSearchLoading(false);
       });
-  }, [cardSearch, cardSearchSets, cardSearchLoading, openSets]);
+  }, [cardSearch, cardSearchSets, cardSearchLoading]);
 
   const cardResults =
     cardSearch.trim() && cardSearchSets
@@ -90,6 +94,7 @@ export default function MenuBar({
   const [collectedSetCodes, setCollectedSetCodes] = useState(null);
   const [allSetsSubmenuOpen, setAllSetsSubmenuOpen] = useState(false);
   const [collectedSetSearch, setCollectedSetSearch] = useState('');
+  const [collectedSetHighlight, setCollectedSetHighlight] = useState(-1);
 
   useEffect(() => {
     const q = setSearch.trim();
@@ -173,6 +178,12 @@ export default function MenuBar({
   }
 
   function handleAddFromSearch(setCode, cardId) {
+    const isVisible = openSets.some((s) => s.code === setCode && !s.minimized);
+    if (!isVisible) {
+      const setMeta = allSets?.find((s) => s.code === setCode);
+      const setName = setMeta?.name ?? setCode.toUpperCase();
+      onOpenSet?.(setCode, setName);
+    }
     onAddCard?.(setCode, cardId);
     setCardSearch('');
     setCardHighlight(-1);
@@ -216,6 +227,7 @@ export default function MenuBar({
   function handleAllSetsLeave() {
     setAllSetsSubmenuOpen(false);
     setCollectedSetSearch('');
+    setCollectedSetHighlight(-1);
   }
 
   function handleAllSetsEnter() {
@@ -297,7 +309,28 @@ export default function MenuBar({
                         type="search"
                         placeholder="Filter sets…"
                         value={collectedSetSearch}
-                        onChange={(e) => setCollectedSetSearch(e.target.value)}
+                        onChange={(e) => {
+                          setCollectedSetSearch(e.target.value);
+                          setCollectedSetHighlight(-1);
+                        }}
+                        onKeyDown={(e) => {
+                          if (!displayedCollectedSets) return;
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setCollectedSetHighlight((i) =>
+                              Math.min(i + 1, displayedCollectedSets.length - 1),
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setCollectedSetHighlight((i) => Math.max(i - 1, -1));
+                          } else if (e.key === 'Enter' && collectedSetHighlight >= 0) {
+                            e.preventDefault();
+                            openSet(
+                              displayedCollectedSets[collectedSetHighlight].code,
+                              displayedCollectedSets[collectedSetHighlight].name,
+                            );
+                          }
+                        }}
                       />
                     </div>
                     {displayedCollectedSets === null ? (
@@ -313,10 +346,11 @@ export default function MenuBar({
                           gridTemplateRows: `repeat(${Math.ceil(displayedCollectedSets.length / 3)}, auto)`,
                         }}
                       >
-                        {displayedCollectedSets.map((s) => (
+                        {displayedCollectedSets.map((s, i) => (
                           <li key={s.code}>
                             <button
                               className="menu-dropdown-item"
+                              aria-selected={i === collectedSetHighlight}
                               onClick={() => openSet(s.code, s.name)}
                             >
                               {s.name}

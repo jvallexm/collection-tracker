@@ -573,6 +573,10 @@ describe('App handleAddCard', () => {
     cost: '{R}',
   };
 
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+  });
+
   test('adds a first copy when card has no prior entry', async () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({});

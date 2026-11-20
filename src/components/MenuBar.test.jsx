@@ -755,6 +755,114 @@ describe('MenuBar My Collection menu', () => {
     expect(onViewAllCards).toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'View all cards' })).toBeNull();
   });
+
+  describe('All sets submenu keyboard navigation', () => {
+    const NAV_SETS = [
+      { code: 'ktk', name: 'Khans of Tarkir' },
+      { code: 'eld', name: 'Throne of Eldraine' },
+      { code: 'znr', name: 'Zendikar Rising' },
+    ];
+
+    async function openAllSetsSubmenu({ sets = NAV_SETS } = {}) {
+      loadAllCollectionKeys.mockResolvedValue(sets.map((s) => s.code));
+      fetchSets.mockResolvedValue(sets);
+      const { onOpenSet } = renderWithRecent();
+      fireEvent.click(screen.getByText('My Collection'));
+      fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+      await act(async () => {});
+      return { input: screen.getByPlaceholderText('Filter sets…'), onOpenSet };
+    }
+
+    test('ArrowDown highlights the first result', async () => {
+      const { input } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
+
+    test('ArrowDown again moves highlight to next result', async () => {
+      const { input } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('false');
+      expect(
+        screen.getByRole('button', { name: 'Throne of Eldraine' }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
+
+    test('ArrowDown at last result stays at last result', async () => {
+      const { input } = await openAllSetsSubmenu({
+        sets: [{ code: 'ktk', name: 'Khans of Tarkir' }],
+      });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
+
+    test('ArrowUp from first result clears highlight', async () => {
+      const { input } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowUp' });
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('false');
+    });
+
+    test('Enter on highlighted result calls onOpenSet and closes the menu', async () => {
+      const { input, onOpenSet } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(onOpenSet).toHaveBeenCalledWith('ktk', 'Khans of Tarkir');
+    });
+
+    test('Enter without highlight does nothing', async () => {
+      const { input, onOpenSet } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(onOpenSet).not.toHaveBeenCalled();
+    });
+
+    test('highlight resets when search text changes', async () => {
+      const { input } = await openAllSetsSubmenu();
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.change(input, { target: { value: 'khans' } });
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('false');
+    });
+
+    test('highlight resets when submenu closes and reopens', async () => {
+      loadAllCollectionKeys.mockResolvedValue(['ktk']);
+      fetchSets.mockResolvedValue([{ code: 'ktk', name: 'Khans of Tarkir' }]);
+      renderWithRecent();
+      fireEvent.click(screen.getByText('My Collection'));
+      const li = screen.getByText(/All sets/).closest('li');
+      fireEvent.mouseEnter(li);
+      await act(async () => {});
+      const input = screen.getByPlaceholderText('Filter sets…');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.mouseLeave(li);
+      fireEvent.mouseEnter(li);
+      await act(async () => {});
+      expect(
+        screen.getByRole('button', { name: 'Khans of Tarkir' }).getAttribute('aria-selected'),
+      ).toBe('false');
+    });
+
+    test('keyDown does nothing while sets are loading', () => {
+      loadAllCollectionKeys.mockReturnValue(new Promise(() => {}));
+      renderWithRecent();
+      fireEvent.click(screen.getByText('My Collection'));
+      fireEvent.mouseEnter(screen.getByText(/All sets/).closest('li'));
+      const input = screen.getByPlaceholderText('Filter sets…');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      expect(screen.getByText('Loading…')).not.toBeNull();
+    });
+  });
 });
 
 describe('MenuBar Export Collection menu', () => {
@@ -817,15 +925,26 @@ describe('MenuBar card search', () => {
   };
 
   beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue([BOLT, BEAR]);
     loadCollection.mockResolvedValue({ bolt: { qty: 2 } });
   });
 
-  function renderWithSearch({ onAddCard = vi.fn(), openSets = OPEN_SETS } = {}) {
+  function renderWithSearch({
+    onAddCard = vi.fn(),
+    onOpenSet = vi.fn(),
+    openSets = OPEN_SETS,
+  } = {}) {
     render(
-      <MenuBar theme="light" onThemeChange={vi.fn()} openSets={openSets} onAddCard={onAddCard} />,
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        openSets={openSets}
+        onAddCard={onAddCard}
+        onOpenSet={onOpenSet}
+      />,
     );
-    return { onAddCard };
+    return { onAddCard, onOpenSet };
   }
 
   test('renders a card search input', () => {
@@ -1040,7 +1159,7 @@ describe('MenuBar card search', () => {
     });
     await act(async () => {});
     expect(loadCards).toHaveBeenCalledTimes(1);
-    // Change openSets — cache resets, next search re-loads
+    // Change openSets — cache resets, next search re-loads from loadAllCollectionKeys
     const newSets = [...OPEN_SETS, { code: 'eld', name: 'Throne of Eldraine', minimized: false }];
     rerender(
       <MenuBar theme="light" onThemeChange={vi.fn()} openSets={newSets} onAddCard={vi.fn()} />,
@@ -1049,7 +1168,168 @@ describe('MenuBar card search', () => {
       target: { value: 'Bolt' },
     });
     await act(async () => {});
-    expect(loadCards).toHaveBeenCalledTimes(1 + newSets.length);
+    // loadAllCollectionKeys still returns ['ktk'], so loadCards is called once more
+    expect(loadCards).toHaveBeenCalledTimes(2);
+  });
+
+  test('searches all catalogued sets, not just open ones', async () => {
+    const ELD_CARD = {
+      id: 'elk',
+      name: 'Oko Elk',
+      number: '1',
+      set: 'ELD',
+      rarity: 'rare',
+      cost: '{3}{G}',
+    };
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    loadCards.mockImplementation((code) =>
+      Promise.resolve(code === 'ktk' ? [BOLT, BEAR] : [ELD_CARD]),
+    );
+    renderWithSearch({ openSets: OPEN_SETS }); // only ktk is open
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Elk' },
+    });
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: /Oko Elk/ })).not.toBeNull();
+  });
+
+  test('shows separate entries for the same card name in different sets', async () => {
+    const BOLT_ELD = {
+      id: 'bolt-eld',
+      name: 'Lightning Bolt',
+      number: '1',
+      set: 'ELD',
+      rarity: 'common',
+      cost: '{R}',
+    };
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'ktk' ? [BOLT] : [BOLT_ELD]));
+    loadCollection.mockResolvedValue({});
+    renderWithSearch({ openSets: OPEN_SETS });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning Bolt' },
+    });
+    await act(async () => {});
+    expect(screen.getAllByRole('button', { name: /Lightning Bolt/ })).toHaveLength(2);
+  });
+
+  test('excludes token set codes from card search', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'tktk']);
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledWith('ktk');
+    expect(loadCards).not.toHaveBeenCalledWith('tktk');
+  });
+
+  test('keeps non-token codes that start with t', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['tra']); // 'ra' not in list → not a token code
+    loadCards.mockResolvedValue([BOLT]);
+    renderWithSearch({ openSets: [{ code: 'tra', name: 'Test', minimized: false }] });
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
+    await act(async () => {});
+    expect(loadCards).toHaveBeenCalledWith('tra');
+  });
+
+  test('clicking result for open set does not call onOpenSet', async () => {
+    const { onAddCard, onOpenSet } = renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    expect(onAddCard).toHaveBeenCalledWith('ktk', 'bolt');
+    expect(onOpenSet).not.toHaveBeenCalled();
+  });
+
+  test('clicking result for non-open set calls onOpenSet with uppercase code', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['eld']);
+    const ELD_CARD = {
+      id: 'elk',
+      name: 'Oko Elk',
+      number: '1',
+      set: 'ELD',
+      rarity: 'rare',
+      cost: '{3}{G}',
+    };
+    loadCards.mockResolvedValue([ELD_CARD]);
+    loadCollection.mockResolvedValue({});
+    const onOpenSet = vi.fn();
+    render(
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        openSets={[]}
+        onAddCard={vi.fn()}
+        onOpenSet={onOpenSet}
+      />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Elk' },
+    });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Oko Elk/ }));
+    expect(onOpenSet).toHaveBeenCalledWith('eld', 'ELD');
+  });
+
+  test('clicking result for minimized set calls onOpenSet', async () => {
+    const MINIMIZED_SETS = [{ code: 'ktk', name: 'Khans of Tarkir', minimized: true }];
+    const onOpenSet = vi.fn();
+    render(
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        openSets={MINIMIZED_SETS}
+        onAddCard={vi.fn()}
+        onOpenSet={onOpenSet}
+      />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Lightning' },
+    });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt/ }));
+    expect(onOpenSet).toHaveBeenCalledWith('ktk', 'KTK');
+  });
+
+  test('uses set name from allSets when clicking result for non-open set', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['eld']);
+    const ELD_CARD = {
+      id: 'elk',
+      name: 'Oko Elk',
+      number: '1',
+      set: 'ELD',
+      rarity: 'rare',
+      cost: '{3}{G}',
+    };
+    loadCards.mockResolvedValue([ELD_CARD]);
+    loadCollection.mockResolvedValue({});
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    const onOpenSet = vi.fn();
+    render(
+      <MenuBar
+        theme="light"
+        onThemeChange={vi.fn()}
+        openSets={[]}
+        onAddCard={vi.fn()}
+        onOpenSet={onOpenSet}
+      />,
+    );
+    // Open Add Set to trigger allSets load
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.click(screen.getByText('Add Set')); // close
+    // Now search and click
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'Elk' },
+    });
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Oko Elk/ }));
+    expect(onOpenSet).toHaveBeenCalledWith('eld', 'Throne of Eldraine');
   });
 
   test('does not reload card data when already loaded', async () => {

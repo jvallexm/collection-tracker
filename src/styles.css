@@ -119,7 +119,7 @@ body {
   border: 1px solid var(--border);
   min-width: 140px;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
-  z-index: 100;
+  z-index: 300;
 }
 .menu-dropdown-item {
   display: block;
@@ -197,7 +197,7 @@ body {
   background: var(--face);
   border: 1px solid var(--border);
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
-  z-index: 101;
+  z-index: 301;
   padding: 2px;
 }
 .menu-submenu-search {
