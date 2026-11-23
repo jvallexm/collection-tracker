@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { matchesSearch } from '../lib/search.js';
 import { fetchSet, fetchSets } from '../lib/scryfall.js';
 import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import DraggableCardPreview from './DraggableCardPreview.jsx';
@@ -77,7 +78,7 @@ export default function MenuBar({
       ? cardSearchSets
           .flatMap(({ setCode, cards, collection }) =>
             cards
-              .filter((c) => c.name.toLowerCase().includes(cardSearch.toLowerCase()))
+              .filter((c) => matchesSearch(c.name, cardSearch))
               .map((c) => ({
                 setCode,
                 card: c,

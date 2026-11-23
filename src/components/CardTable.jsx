@@ -189,7 +189,12 @@ export default function CardTable({
               <SortIndicator active={sort.key === 'have'} direction={sort.direction} />
             </th>
             <th className="qty-heading">Foil</th>
-            {showSetColumn && <th className="cost-cell">Set</th>}
+            {showSetColumn && (
+              <th className="cost-cell" onClick={() => onSort('set')}>
+                Set
+                <SortIndicator active={sort.key === 'set'} direction={sort.direction} />
+              </th>
+            )}
             {COLUMNS.map(({ key, label, className }) => (
               <th key={key} className={className} onClick={() => onSort(key)}>
                 {label}

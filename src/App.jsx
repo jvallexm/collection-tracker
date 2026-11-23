@@ -38,7 +38,11 @@ export default function App() {
   const [showSellModal, setShowSellModal] = useState(false);
 
   useEffect(() => {
-    fetchCKPrices().then((prices) => setCkPrices(prices ?? new Map()));
+    fetchCKPrices()
+      .then((prices) => {
+        if (prices) setCkPrices(prices);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -68,6 +72,11 @@ export default function App() {
       saveConfig('recentSets', updated);
       return updated;
     });
+    fetchCKPrices()
+      .then((prices) => {
+        if (prices) setCkPrices(prices);
+      })
+      .catch(() => {});
   }
 
   function handleMinimize(code) {
@@ -171,29 +180,32 @@ export default function App() {
         onSaveCardImageSize={handleSaveCardImageSize}
       />
       <div className="page-content">
-        {(openSets ?? []).map((set) => (
-          <SetTracker
-            key={`${set.code}-${set.refreshKey ?? 0}`}
-            setCode={set.code}
-            setName={set.name}
-            minimized={set.minimized}
-            minimizedIndex={
-              minimizedSets.findIndex((s) => s.code === set.code) +
-              (minimizedSets.length > 1 ? 1 : 0)
-            }
-            onMinimize={() => handleMinimize(set.code)}
-            onRestore={() => handleRestore(set.code)}
-            onClose={() => handleClose(set.code)}
-            collectionVersion={collectionVersions[set.code] ?? 0}
-            cardFocus={focusTarget?.setCode === set.code ? focusTarget : null}
-            cardPreviewPos={cardPreviewPos}
-            cardImageSize={cardImageSize}
-            ckPrices={ckPrices}
-            sellIds={sellSelections[set.code] ?? new Set()}
-            onSellToggle={(cardId) => handleSellToggle(set.code, cardId)}
-            showCKTools={showCKTools}
-          />
-        ))}
+        {(openSets ?? []).map((set) => {
+          if (!set.minimized && showAllCards) return null;
+          return (
+            <SetTracker
+              key={`${set.code}-${set.refreshKey ?? 0}`}
+              setCode={set.code}
+              setName={set.name}
+              minimized={set.minimized}
+              minimizedIndex={
+                minimizedSets.findIndex((s) => s.code === set.code) +
+                (minimizedSets.length > 1 ? 1 : 0)
+              }
+              onMinimize={() => handleMinimize(set.code)}
+              onRestore={() => handleRestore(set.code)}
+              onClose={() => handleClose(set.code)}
+              collectionVersion={collectionVersions[set.code] ?? 0}
+              cardFocus={focusTarget?.setCode === set.code ? focusTarget : null}
+              cardPreviewPos={cardPreviewPos}
+              cardImageSize={cardImageSize}
+              ckPrices={ckPrices}
+              sellIds={sellSelections[set.code] ?? new Set()}
+              onSellToggle={(cardId) => handleSellToggle(set.code, cardId)}
+              showCKTools={showCKTools}
+            />
+          );
+        })}
         {minimizedSets.length > 1 && (
           <div className="window-icon" style={{ bottom: '8px' }}>
             <div className="window-icon-titlebar">

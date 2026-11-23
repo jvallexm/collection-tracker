@@ -231,13 +231,71 @@ describe('AllCardsView quantity editing', () => {
     expect(document.querySelectorAll('tbody tr')).toHaveLength(1);
   });
 
-  test('clicking sort headers does nothing (sort is fixed)', async () => {
+  test('clicking Name header still shows all cards', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
     expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+  });
+});
+
+describe('AllCardsView interactive sort', () => {
+  const rowNames = () =>
+    screen
+      .getAllByRole('textbox')
+      .filter((el) => el.getAttribute('aria-label')?.startsWith('Copies of '))
+      .map((el) => el.getAttribute('aria-label').replace('Copies of ', ''));
+
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['eld', 'ktk']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'eld' ? [ARROW] : [BOLT]));
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, arrow: { qty: 1 } });
+  });
+
+  test('default sort is by set code ascending', async () => {
+    await renderView();
+    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+  });
+
+  test('clicking Name header sorts by name ascending', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
+    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+  });
+
+  test('clicking Name again reverses to descending', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
+    expect(rowNames()).toEqual(['Lightning Bolt', 'Arrow']);
+  });
+
+  test('clicking Set header reverses to descending (already the active sort)', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
+    expect(rowNames()).toEqual(['Lightning Bolt', 'Arrow']);
+  });
+
+  test('clicking Set again reverts to ascending', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
+    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+  });
+
+  test('clicking Qty header applies have sort (uses set as secondary)', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
+    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+  });
+
+  test('clicking Qty again retains have sort with reversed secondary', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
+    fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
+    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
   });
 });
 

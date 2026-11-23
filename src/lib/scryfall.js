@@ -108,6 +108,36 @@ async function fetchCardsFromScryfall(setCode) {
   return cards;
 }
 
+export async function refreshSetCardPrices(setCode) {
+  const [cached, freshCards] = await Promise.all([
+    loadCards(setCode),
+    fetchCardsFromScryfall(setCode),
+  ]);
+  if (!cached) return { main: freshCards, tokens: null };
+
+  const priceMap = new Map(
+    freshCards.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
+  );
+  const updated = cached.map((card) => ({ ...card, ...(priceMap.get(card.id) ?? {}) }));
+  await saveCards(setCode, updated);
+
+  const tokenCode = `t${setCode}`;
+  const cachedTokens = await loadCards(tokenCode);
+  let updatedTokens = null;
+  if (cachedTokens) {
+    const freshTokens = await fetchCardsFromScryfall(tokenCode).catch(() => null);
+    if (freshTokens) {
+      const tPriceMap = new Map(
+        freshTokens.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
+      );
+      updatedTokens = cachedTokens.map((card) => ({ ...card, ...(tPriceMap.get(card.id) ?? {}) }));
+      await saveCards(tokenCode, updatedTokens);
+    }
+  }
+
+  return { main: updated, tokens: updatedTokens };
+}
+
 export async function fetchSetCards(setCode) {
   const cached = await loadCards(setCode);
   if (cached) return cached;

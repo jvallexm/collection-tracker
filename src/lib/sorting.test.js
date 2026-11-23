@@ -70,6 +70,16 @@ describe('sortCards', () => {
     expect(sortCards(cards, 'price', -1).map((c) => c.id)).toEqual(['b', 'd', 'a', 'c']);
   });
 
+  test('sorts by set code alphabetically', () => {
+    const cards = [
+      makeCard({ id: 'a', name: 'B', set: 'ZEN' }),
+      makeCard({ id: 'b', name: 'A', set: 'BFZ' }),
+      makeCard({ id: 'c', name: 'C', set: 'BFZ' }),
+    ];
+    expect(sortCards(cards, 'set', 1).map((c) => c.id)).toEqual(['b', 'c', 'a']);
+    expect(sortCards(cards, 'set', -1).map((c) => c.id)).toEqual(['a', 'b', 'c']);
+  });
+
   test('does not modify the original list', () => {
     sortCards(CARDS, 'name', -1);
     expect(CARDS.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd']);

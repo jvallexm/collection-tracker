@@ -13,7 +13,8 @@ import {
 } from '../lib/collection.js';
 import { useDebouncedSearch, usePersistedConfig } from '../lib/hooks.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
-import { fetchSetCards } from '../lib/scryfall.js';
+import { matchesSearch } from '../lib/search.js';
+import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
 import { loadCards, loadCollection, saveCollection } from '../lib/storage.js';
 
@@ -31,20 +32,8 @@ function describeStatus({ loadError, cards, collection }) {
   return `${cards.length} cards | ${copies} in Collection`;
 }
 
-function normalizeSearchText(s) {
-  return s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[,']/g, '')
-    .toLowerCase();
-}
-
-function matchesSearch(card, query) {
-  return normalizeSearchText(card.name).includes(normalizeSearchText(query));
-}
-
 function computeVisibleCards(cards, sort, collection, search) {
-  const filtered = search.trim() ? cards.filter((card) => matchesSearch(card, search)) : cards;
+  const filtered = search.trim() ? cards.filter((card) => matchesSearch(card.name, search)) : cards;
   if (sort.key === 'have') {
     const bySecondary = sortCards(filtered, sort.secondary.key, sort.secondary.direction);
     return [...bySecondary].sort((a, b) => {
@@ -104,13 +93,30 @@ export default function SetTracker({
   const [sort, setSort] = usePersistedConfig(`sort:${setCode}`, DEFAULT_SORT);
 
   useEffect(() => {
-    fetchSetCards(setCode)
-      .then((main) => {
-        setCards(main);
-        return loadCards(`t${setCode}`);
-      })
-      .then((tokens) => setTokenCards(tokens ?? []))
-      .catch((error) => setLoadError(error.message));
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await loadCards(setCode);
+        const main = await fetchSetCards(setCode);
+        if (!cancelled) setCards(main);
+        const tokens = await loadCards(`t${setCode}`);
+        if (!cancelled) setTokenCards(tokens ?? []);
+        if (cached) {
+          refreshSetCardPrices(setCode)
+            .then(({ main: fresh, tokens: freshTokens }) => {
+              if (cancelled) return;
+              setCards(fresh);
+              if (freshTokens) setTokenCards(freshTokens);
+            })
+            .catch(() => {});
+        }
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [setCode]);
 
   // Load saved quantities from IDB. Uses a functional update so any quantity the user

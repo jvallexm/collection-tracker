@@ -1043,6 +1043,23 @@ describe('CardTable showSetColumn', () => {
     expect(th.className).toContain('cost-cell');
   });
 
+  test('clicking Set column header calls onSort with "set"', () => {
+    const onSort = vi.fn();
+    render(
+      <CardTable
+        cards={[CARD_WITH_SET]}
+        collection={{}}
+        sort={{ key: '', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={onSort}
+        showSetColumn={true}
+      />,
+    );
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Set' }));
+    expect(onSort).toHaveBeenCalledWith('set');
+  });
+
   test('token heading colSpan increments by 1 when showSetColumn is true', () => {
     const TOKEN = makeCard({ id: 'tok', name: 'Token', rarity: 'common', number: 'T1' });
     render(

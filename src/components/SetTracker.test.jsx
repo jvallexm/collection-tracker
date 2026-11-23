@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { fetchSetCards } from '../lib/scryfall.js';
+import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import {
   loadCards,
   loadCollection,
@@ -10,7 +10,10 @@ import {
 import { makeCard } from '../test/fixtures.js';
 import SetTracker from './SetTracker.jsx';
 
-vi.mock('../lib/scryfall.js', () => ({ fetchSetCards: vi.fn() }));
+vi.mock('../lib/scryfall.js', () => ({
+  fetchSetCards: vi.fn(),
+  refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
+}));
 vi.mock('../lib/storage.js', () => ({
   loadCards: vi.fn().mockResolvedValue(null),
   loadCollection: vi.fn().mockResolvedValue({}),
@@ -35,6 +38,7 @@ beforeEach(() => {
   loadCards.mockResolvedValue(null);
   loadCollection.mockResolvedValue({});
   loadConfig.mockResolvedValue(null);
+  refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
 });
 
 async function renderLoadedTracker({
@@ -316,6 +320,22 @@ describe('SetTracker search', () => {
     expect(rowNames()).not.toContain('Arrow');
   });
 
+  test('matches hyphenated names when query omits hyphens', async () => {
+    fetchSetCards.mockResolvedValue([
+      ...CARDS,
+      makeCard({ id: 'd', name: "Man-o'-War", rarity: 'rare', number: '4' }),
+    ]);
+    render(<SetTracker setCode="ltr" setName="Lord of the Rings" />);
+    await screen.findByLabelText("Copies of Man-o'-War");
+    await act(async () => {});
+
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'mano' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(rowNames()).toContain("Man-o'-War");
+    expect(rowNames()).not.toContain('Arrow');
+  });
+
   test('matches accented characters with their unaccented equivalents', async () => {
     fetchSetCards.mockResolvedValue([
       ...CARDS,
@@ -544,7 +564,7 @@ describe('SetTracker token section', () => {
 
   test('filters token cards by search text', async () => {
     const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
-    loadCards.mockResolvedValue([TOKEN, TOKEN2]);
+    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN, TOKEN2]);
     await renderLoadedTracker();
     const box = screen.getByPlaceholderText('Search…');
     fireEvent.change(box, { target: { value: 'Sol' } });
@@ -554,13 +574,13 @@ describe('SetTracker token section', () => {
   });
 
   test('shows a Tokens heading when token cards are available', async () => {
-    loadCards.mockResolvedValue([TOKEN]);
+    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN]);
     await renderLoadedTracker();
     expect(screen.getByText('Tokens')).not.toBeNull();
   });
 
   test('renders token card names under the Tokens heading', async () => {
-    loadCards.mockResolvedValue([TOKEN]);
+    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN]);
     await renderLoadedTracker();
     expect(screen.getByText('Soldier Token')).not.toBeNull();
   });
@@ -569,7 +589,7 @@ describe('SetTracker token section', () => {
     const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
     const TOKEN3 = makeCard({ id: 'tok3', name: 'Zombie Token', rarity: 'common', number: 'T3' });
     const TOKEN4 = makeCard({ id: 'tok4', name: 'Angel Token', rarity: 'common', number: 'T4' });
-    loadCards.mockResolvedValue([TOKEN, TOKEN2, TOKEN3, TOKEN4]);
+    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN, TOKEN2, TOKEN3, TOKEN4]);
     loadCollection.mockResolvedValue({ tok1: { qty: 2 }, tok4: { qty: 1 } });
     await renderLoadedTracker();
     fireEvent.click(screen.getAllByText('Qty')[0]);
@@ -791,5 +811,107 @@ describe('SetTracker onEscapeTop', () => {
     firstInput.focus();
     fireEvent.keyDown(firstInput, { key: 'ArrowUp' });
     expect(searchInput.select).toHaveBeenCalled();
+  });
+});
+
+describe('SetTracker background price refresh', () => {
+  const REFRESHED = CARDS.map((c) => ({ ...c, price: '9.99' }));
+  const TOKEN = {
+    id: 'tok1',
+    name: 'Soldier Token',
+    rarity: 'common',
+    number: '1',
+    set: 'KTK',
+    cost: '',
+    nonfoil: true,
+    foil: false,
+    reserved: false,
+    price: null,
+    priceFoil: null,
+  };
+
+  test('triggers refresh when cache existed', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCards.mockResolvedValueOnce(CARDS); // cache check → hit
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(refreshSetCardPrices).toHaveBeenCalledWith('ktk');
+  });
+
+  test('does not trigger refresh on first open (no cache)', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    // loadCards returns null by default — no cache
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(refreshSetCardPrices).not.toHaveBeenCalled();
+  });
+
+  test('updates displayed cards when refresh resolves', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCards.mockResolvedValueOnce(CARDS);
+    refreshSetCardPrices.mockResolvedValueOnce({ main: [CARDS[1]], tokens: null });
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(rowNames()).toEqual(['Arrow']);
+  });
+
+  test('swallows refresh errors without showing an error message', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCards.mockResolvedValueOnce(CARDS);
+    refreshSetCardPrices.mockRejectedValueOnce(new Error('network error'));
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);
+    expect(screen.queryByText(/Could not load/)).toBeNull();
+  });
+
+  test('updates token cards when refresh resolves with tokens', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCards.mockResolvedValueOnce(CARDS);
+    refreshSetCardPrices.mockResolvedValueOnce({ main: CARDS, tokens: [TOKEN] });
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(screen.getByText('Tokens')).not.toBeNull();
+    expect(screen.getByLabelText('Copies of Soldier Token')).not.toBeNull();
+  });
+
+  test('does not set error state when setCode changes before fetch error resolves', async () => {
+    let rejectCards;
+    fetchSetCards.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectCards = reject;
+      }),
+    );
+    fetchSetCards.mockResolvedValue(CARDS);
+    const { rerender } = render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    rerender(<SetTracker setCode="eld" setName="Eldraine" />);
+    await act(async () => {
+      rejectCards(new Error('network error'));
+    });
+    expect(screen.queryByText(/Could not load/)).toBeNull();
+  });
+
+  test('does not update state after component unmounts', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    loadCards.mockResolvedValueOnce(CARDS);
+    let resolveRefresh;
+    refreshSetCardPrices.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    const { unmount } = render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    unmount();
+    await act(async () => {
+      resolveRefresh({ main: [CARDS[0]], tokens: null });
+    });
+    // No assertion needed beyond "no error thrown"; the cancelled flag prevents state updates
   });
 });

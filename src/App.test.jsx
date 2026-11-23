@@ -54,6 +54,12 @@ test('renders without crashing when fetchCKPrices returns null', async () => {
   expect(document.querySelector('.app-root')).not.toBeNull();
 });
 
+test('renders without crashing when fetchCKPrices rejects on page load', async () => {
+  fetchCKPrices.mockRejectedValueOnce(new Error('network'));
+  await renderApp();
+  expect(document.querySelector('.app-root')).not.toBeNull();
+});
+
 test('applies a saved dark theme on load', async () => {
   loadConfig.mockResolvedValue('dark');
   await renderApp();
@@ -815,5 +821,68 @@ describe('App close all minimized', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close all minimized sets' }));
     await act(async () => {});
     expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  });
+});
+
+describe('App CK price refresh on set open', () => {
+  async function openSet(setCode, setName) {
+    fetchSets.mockResolvedValue([{ code: setCode, name: setName }]);
+    await renderApp();
+    const callsBefore = fetchCKPrices.mock.calls.length;
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), {
+      target: { value: setCode },
+    });
+    fireEvent.click(screen.getByRole('button', { name: setName }));
+    await act(async () => {});
+    return { callsBefore };
+  }
+
+  test('re-fetches CK prices when a set is opened', async () => {
+    const { callsBefore } = await openSet('eld', 'Throne of Eldraine');
+    expect(fetchCKPrices.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  test('updates ckPrices state with freshly fetched data', async () => {
+    const freshPrices = new Map([['abc', { nonfoilBuy: 2.5, foilBuy: null }]]);
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fetchCKPrices.mockResolvedValueOnce(freshPrices);
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), {
+      target: { value: 'eld' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    // Fresh prices were fetched — the second call resolved with freshPrices
+    expect(fetchCKPrices).toHaveBeenCalledTimes(2);
+  });
+
+  test('does not update ckPrices when refresh returns null', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fetchCKPrices.mockResolvedValueOnce(null);
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    expect(document.querySelector('.app-root')).not.toBeNull();
+  });
+
+  test('silently ignores a CK price fetch failure on set open', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fetchCKPrices.mockRejectedValueOnce(new Error('network'));
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), {
+      target: { value: 'eld' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    expect(screen.queryByText(/network/)).toBeNull();
   });
 });

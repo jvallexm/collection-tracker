@@ -980,6 +980,24 @@ describe('MenuBar card search', () => {
     expect(btn.textContent).not.toMatch(/·/);
   });
 
+  test('matches hyphenated card names when query omits hyphens', async () => {
+    const MANOW = {
+      id: 'manow',
+      name: "Man-o'-War",
+      number: '3',
+      set: 'KTK',
+      rarity: 'rare',
+      cost: '{2}{U}',
+    };
+    loadCards.mockResolvedValue([MANOW]);
+    renderWithSearch();
+    fireEvent.change(screen.getByPlaceholderText('Search for a card'), {
+      target: { value: 'mano' },
+    });
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: /Man-o'-War/ })).not.toBeNull();
+  });
+
   test('shows no results when nothing matches', async () => {
     renderWithSearch();
     fireEvent.change(screen.getByPlaceholderText('Search for a card'), {

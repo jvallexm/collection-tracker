@@ -1,5 +1,12 @@
 import { loadCards, saveCards } from './storage.js';
-import { buildSearchUrl, fetchSet, fetchSetCards, fetchSets, normalizeCard } from './scryfall.js';
+import {
+  buildSearchUrl,
+  fetchSet,
+  fetchSetCards,
+  fetchSets,
+  normalizeCard,
+  refreshSetCardPrices,
+} from './scryfall.js';
 
 const rawCard = (overrides) => ({
   id: 'abc',
@@ -446,5 +453,248 @@ describe('fetchSetCards', () => {
     await fetchSetCards('ktk');
 
     expect(await loadCards('tktk')).toBeNull();
+  });
+});
+
+describe('refreshSetCardPrices', () => {
+  const noTokens = { ok: false, status: 404 };
+
+  test('updates price and priceFoil from fresh Scryfall data', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: '1.00' }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '1.50', usd_foil: '3.00' } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.main[0].price).toBe('1.50');
+    expect(result.main[0].priceFoil).toBe('3.00');
+  });
+
+  test('preserves non-price fields', async () => {
+    await saveCards('ktk', [
+      {
+        id: 'abc',
+        name: 'Abzan Guide',
+        rarity: 'rare',
+        cost: '{W}',
+        number: '169',
+        set: 'KTK',
+        price: '0.50',
+        priceFoil: null,
+      },
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(
+                jsonResponse({
+                  data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
+                  has_more: false,
+                }),
+              )
+            : Promise.resolve(noTokens),
+        ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.main[0].name).toBe('Abzan Guide');
+    expect(result.main[0].rarity).toBe('rare');
+    expect(result.main[0].number).toBe('169');
+  });
+
+  test('saves merged cards to IDB', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(
+                jsonResponse({
+                  data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
+                  has_more: false,
+                }),
+              )
+            : Promise.resolve(noTokens),
+        ),
+    );
+
+    await refreshSetCardPrices('ktk');
+
+    expect((await loadCards('ktk'))[0].price).toBe('2.00');
+  });
+
+  test('returns fresh cards when no cache exists', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(
+                jsonResponse({
+                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                  has_more: false,
+                }),
+              )
+            : Promise.resolve(noTokens),
+        ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.main[0].price).toBe('1.00');
+    expect(result.tokens).toBeNull();
+  });
+
+  test('cards absent from fresh data keep their original prices', async () => {
+    await saveCards('ktk', [
+      { id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null },
+      { id: 'xyz', name: 'Other Card', price: '1.00', priceFoil: '2.00' },
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ id: 'abc', prices: { usd: '0.75', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.main.find((c) => c.id === 'xyz').price).toBe('1.00');
+    expect(result.main.find((c) => c.id === 'xyz').priceFoil).toBe('2.00');
+  });
+
+  test('updates token card prices and returns them when token cache exists', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token', price: null, priceFoil: null }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        if (url === buildSearchUrl('ktk'))
+          return Promise.resolve(
+            jsonResponse({
+              data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+              has_more: false,
+            }),
+          );
+        if (url === buildSearchUrl('tktk'))
+          return Promise.resolve(
+            jsonResponse({
+              data: [rawCard({ id: 'tok1', set: 'tktk', prices: { usd: null, usd_foil: '5.00' } })],
+              has_more: false,
+            }),
+          );
+        return Promise.reject(new Error(`unexpected url: ${url}`));
+      }),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens[0].priceFoil).toBe('5.00');
+    expect((await loadCards('tktk'))[0].priceFoil).toBe('5.00');
+  });
+
+  test('returns null tokens when no token cache exists', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(
+                jsonResponse({
+                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                  has_more: false,
+                }),
+              )
+            : Promise.resolve(noTokens),
+        ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens).toBeNull();
+  });
+
+  test('preserves token card prices when token card is absent from fresh data', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCards('tktk', [
+      { id: 'tok1', name: 'Soldier Token', price: '0.10', priceFoil: null },
+      { id: 'tok2', name: 'Other Token', price: '0.20', priceFoil: null },
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        if (url === buildSearchUrl('ktk'))
+          return Promise.resolve(
+            jsonResponse({
+              data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+              has_more: false,
+            }),
+          );
+        if (url === buildSearchUrl('tktk'))
+          return Promise.resolve(
+            jsonResponse({
+              data: [rawCard({ id: 'tok1', set: 'tktk', prices: { usd: '0.50', usd_foil: null } })],
+              has_more: false,
+            }),
+          );
+        return Promise.reject(new Error(`unexpected url: ${url}`));
+      }),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens.find((c) => c.id === 'tok1').price).toBe('0.50');
+    expect(result.tokens.find((c) => c.id === 'tok2').price).toBe('0.20');
+  });
+
+  test('returns null tokens when the token fetch throws', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token', price: null, priceFoil: null }]);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((url) =>
+          url === buildSearchUrl('ktk')
+            ? Promise.resolve(
+                jsonResponse({
+                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                  has_more: false,
+                }),
+              )
+            : Promise.resolve(noTokens),
+        ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens).toBeNull();
   });
 });

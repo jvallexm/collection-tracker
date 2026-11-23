@@ -24,6 +24,7 @@ const COMPARATORS = {
     const nb = b.priceFoil != null ? parseFloat(b.priceFoil) : Infinity;
     return na - nb;
   },
+  set: (a, b) => a.set.localeCompare(b.set),
 };
 
 /**

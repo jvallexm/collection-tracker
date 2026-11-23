@@ -3,6 +3,7 @@ import CardTable from './CardTable.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { sanitizeQuantityText, withFoilQuantity, withQuantity } from '../lib/collection.js';
+import { sortCards } from '../lib/sorting.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -16,6 +17,8 @@ export default function AllCardsView({
   showCKTools = false,
   openSets = [],
 }) {
+  const DEFAULT_SORT = { key: 'set', direction: 1, secondary: null };
+  const [sort, setSort] = useState(DEFAULT_SORT);
   const [allCards, setAllCards] = useState(null);
   const [collections, setCollections] = useState({});
   const [cardSetMap, setCardSetMap] = useState({});
@@ -66,6 +69,30 @@ export default function AllCardsView({
     });
   }, [allCards, mergedCollection]);
 
+  function handleSort(key) {
+    setSort((current) => {
+      if (key === 'have') {
+        const secondary =
+          current.key === 'have'
+            ? current.secondary
+            : { key: current.key, direction: current.direction };
+        const direction = current.key === 'have' ? -current.direction : 1;
+        return { key: 'have', direction, secondary };
+      }
+      return current.key === key
+        ? { key, direction: -current.direction, secondary: null }
+        : { key, direction: 1, secondary: null };
+    });
+  }
+
+  const sortedOwnedCards = useMemo(() => {
+    if (!ownedCards) return null;
+    if (sort.key === 'have') {
+      return sortCards(ownedCards, sort.secondary.key, sort.secondary.direction);
+    }
+    return sortCards(ownedCards, sort.key, sort.direction);
+  }, [ownedCards, sort]);
+
   function handleQuantityChange(cardId, text) {
     const setCode = cardSetMap[cardId];
     const quantity = parseInt(sanitizeQuantityText(text), 10);
@@ -94,18 +121,18 @@ export default function AllCardsView({
           <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />
         </div>
       </Titlebar>
-      {ownedCards === null ? (
+      {sortedOwnedCards === null ? (
         <div className="table-scroll table-loading">
           <span className="loading-spinner" aria-label="Loading" />
         </div>
       ) : (
         <CardTable
-          cards={ownedCards}
+          cards={sortedOwnedCards}
           collection={mergedCollection}
-          sort={{ key: '', direction: 1 }}
+          sort={sort}
           onQuantityChange={handleQuantityChange}
           onFoilQuantityChange={handleFoilQuantityChange}
-          onSort={() => {}}
+          onSort={handleSort}
           showSetColumn={true}
           ckPrices={ckPrices}
           showCKTools={showCKTools}
