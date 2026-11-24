@@ -108,11 +108,6 @@ export async function saveConfig(key, value) {
   }
 }
 
-/**
- * Returns all set codes that have a saved collection entry in IndexedDB.
- * Returns an empty array if the database errors or no collections exist.
- * @returns {Promise<string[]>} Array of set codes, e.g. ["ktk", "eld"].
- */
 export async function loadAllCollectionKeys() {
   try {
     const db = await openDatabase();
@@ -120,4 +115,20 @@ export async function loadAllCollectionKeys() {
   } catch {
     return [];
   }
+}
+
+export async function loadTokenCards(setCode) {
+  try {
+    const db = await openDatabase();
+    return (await db.get('tokens', setCode)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveTokenCards(setCode, tokens) {
+  try {
+    const db = await openDatabase();
+    await db.put('tokens', tokens, setCode);
+  } catch {}
 }

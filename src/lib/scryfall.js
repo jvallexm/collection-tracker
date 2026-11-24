@@ -138,6 +138,15 @@ export async function refreshSetCardPrices(setCode) {
   return { main: updated, tokens: updatedTokens };
 }
 
+export async function fetchTokenCards(setCode) {
+  const tokenCode = `t${setCode}`;
+  const cached = await loadCards(tokenCode);
+  if (cached) return cached;
+  const fresh = await fetchCardsFromScryfall(tokenCode).catch(() => null);
+  if (fresh) await saveCards(tokenCode, fresh);
+  return fresh ?? [];
+}
+
 export async function fetchSetCards(setCode) {
   const cached = await loadCards(setCode);
   if (cached) return cached;

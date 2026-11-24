@@ -3,6 +3,7 @@ import CardTable from './CardTable.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { sanitizeQuantityText, withFoilQuantity, withQuantity } from '../lib/collection.js';
+import { refreshSetCardPrices } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
 import {
   loadAllCollectionKeys,
@@ -16,6 +17,7 @@ export default function AllCardsView({
   ckPrices = null,
   showCKTools = false,
   openSets = [],
+  onPricesReady = null,
 }) {
   const DEFAULT_SORT = { key: 'set', direction: 1, secondary: null };
   const [sort, setSort] = useState(DEFAULT_SORT);
@@ -24,6 +26,7 @@ export default function AllCardsView({
   const [cardSetMap, setCardSetMap] = useState({});
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const storedKeys = await loadAllCollectionKeys();
       const openCodes = openSets.map((s) => s.code);
@@ -49,10 +52,24 @@ export default function AllCardsView({
         (a, b) => indexAccum[a.id].localeCompare(indexAccum[b.id]) || a.name.localeCompare(b.name),
       );
 
+      if (cancelled) return;
       setAllCards(cardAccum);
       setCollections(collectionAccum);
       setCardSetMap(indexAccum);
+
+      for (const code of allCodes) {
+        const { main } = await refreshSetCardPrices(code);
+        if (cancelled) return;
+        setAllCards((prev) => {
+          const priceMap = new Map(main.map((c) => [c.id, c]));
+          return prev.map((c) => priceMap.get(c.id) ?? c);
+        });
+      }
+      onPricesReady?.();
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const mergedCollection = useMemo(() => {

@@ -14,6 +14,8 @@ import {
 import { useDebouncedSearch, usePersistedConfig } from '../lib/hooks.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { matchesSearch } from '../lib/search.js';
+import { buildTokenCards } from '../lib/ck-tokens.js';
+import { fetchSetTokenCards } from '../lib/mtgjson.js';
 import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import { sortCards } from '../lib/sorting.js';
 import { loadCards, loadCollection, saveCollection } from '../lib/storage.js';
@@ -70,6 +72,7 @@ export default function SetTracker({
   cardPreviewPos = null,
   cardImageSize = null,
   ckPrices = null,
+  ckTokenItems = [],
   sellIds = new Set(),
   onSellToggle,
   showCKTools = true,
@@ -77,7 +80,6 @@ export default function SetTracker({
   const windowRef = useRef(null);
   const searchRef = useRef(null);
   const [cards, setCards] = useState([]);
-  const [tokenCards, setTokenCards] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -89,6 +91,7 @@ export default function SetTracker({
     committedValue: search,
     commit: commitSearch,
   } = useDebouncedSearch();
+  const [mtgjsonTokenCards, setMtgjsonTokenCards] = useState([]);
   const DEFAULT_SORT = { key: 'name', direction: 1, secondary: null };
   const [sort, setSort] = usePersistedConfig(`sort:${setCode}`, DEFAULT_SORT);
 
@@ -97,16 +100,14 @@ export default function SetTracker({
     (async () => {
       try {
         const cached = await loadCards(setCode);
+        if (cached && !cancelled) setCards(cached);
         const main = await fetchSetCards(setCode);
         if (!cancelled) setCards(main);
-        const tokens = await loadCards(`t${setCode}`);
-        if (!cancelled) setTokenCards(tokens ?? []);
         if (cached) {
           refreshSetCardPrices(setCode)
-            .then(({ main: fresh, tokens: freshTokens }) => {
+            .then(({ main: fresh }) => {
               if (cancelled) return;
               setCards(fresh);
-              if (freshTokens) setTokenCards(freshTokens);
             })
             .catch(() => {});
         }
@@ -157,6 +158,23 @@ export default function SetTracker({
 
   const safeCollection = collection ?? {};
   const safeSort = sort;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSetTokenCards(setCode)
+      .then((cards) => {
+        if (!cancelled) setMtgjsonTokenCards(cards);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [setCode]);
+
+  const tokenCards = useMemo(
+    () => buildTokenCards(mtgjsonTokenCards, ckTokenItems, setCode),
+    [mtgjsonTokenCards, ckTokenItems, setCode],
+  );
 
   const visibleCards = useMemo(
     () => computeVisibleCards(cards, safeSort, safeCollection, search),

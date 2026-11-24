@@ -4,6 +4,7 @@ import {
   fetchSet,
   fetchSetCards,
   fetchSets,
+  fetchTokenCards,
   normalizeCard,
   refreshSetCardPrices,
 } from './scryfall.js';
@@ -496,18 +497,16 @@ describe('refreshSetCardPrices', () => {
     ]);
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation((url) =>
-          url === buildSearchUrl('ktk')
-            ? Promise.resolve(
-                jsonResponse({
-                  data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
-                  has_more: false,
-                }),
-              )
-            : Promise.resolve(noTokens),
-        ),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -521,18 +520,16 @@ describe('refreshSetCardPrices', () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation((url) =>
-          url === buildSearchUrl('ktk')
-            ? Promise.resolve(
-                jsonResponse({
-                  data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
-                  has_more: false,
-                }),
-              )
-            : Promise.resolve(noTokens),
-        ),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
     );
 
     await refreshSetCardPrices('ktk');
@@ -543,18 +540,16 @@ describe('refreshSetCardPrices', () => {
   test('returns fresh cards when no cache exists', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation((url) =>
-          url === buildSearchUrl('ktk')
-            ? Promise.resolve(
-                jsonResponse({
-                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                  has_more: false,
-                }),
-              )
-            : Promise.resolve(noTokens),
-        ),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -622,18 +617,16 @@ describe('refreshSetCardPrices', () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation((url) =>
-          url === buildSearchUrl('ktk')
-            ? Promise.resolve(
-                jsonResponse({
-                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                  has_more: false,
-                }),
-              )
-            : Promise.resolve(noTokens),
-        ),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -679,22 +672,81 @@ describe('refreshSetCardPrices', () => {
     await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token', price: null, priceFoil: null }]);
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation((url) =>
-          url === buildSearchUrl('ktk')
-            ? Promise.resolve(
-                jsonResponse({
-                  data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                  has_more: false,
-                }),
-              )
-            : Promise.resolve(noTokens),
-        ),
+      vi.fn().mockImplementation((url) =>
+        url === buildSearchUrl('ktk')
+          ? Promise.resolve(
+              jsonResponse({
+                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
+                has_more: false,
+              }),
+            )
+          : Promise.resolve(noTokens),
+      ),
     );
 
     const result = await refreshSetCardPrices('ktk');
 
     expect(result.tokens).toBeNull();
+  });
+});
+
+describe('fetchTokenCards', () => {
+  const noTokens = { ok: false, status: 404 };
+  const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
+  const dfcToken = rawCard({
+    id: 'dfc1',
+    name: 'Snake Token // Zombie Token',
+    set: 'tktk',
+    mana_cost: undefined,
+    card_faces: [
+      { name: 'Snake Token', mana_cost: '' },
+      { name: 'Zombie Token', mana_cost: '' },
+    ],
+  });
+
+  test('returns cached tokens without hitting the network', async () => {
+    await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token' }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tokens = await fetchTokenCards('ktk');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].name).toBe('Soldier Token');
+  });
+
+  test('fetches from network when no cache exists and saves them', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ data: [tokenCard], has_more: false })),
+    );
+
+    const tokens = await fetchTokenCards('ktk');
+
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].name).toBe('Soldier Token');
+    expect(await loadCards('tktk')).toHaveLength(1);
+  });
+
+  test('returns empty array when no cache and network returns 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(noTokens));
+
+    const tokens = await fetchTokenCards('ktk');
+
+    expect(tokens).toEqual([]);
+  });
+
+  test('includes double-faced tokens as single trackable rows', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ data: [dfcToken], has_more: false })),
+    );
+
+    const tokens = await fetchTokenCards('ktk');
+
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].name).toBe('Snake Token // Zombie Token');
+    expect(tokens[0].id).toBe('dfc1');
   });
 });

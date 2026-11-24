@@ -1521,3 +1521,17 @@ describe('MenuBar Add Set direct code lookup', () => {
     expect(buttons[0].textContent).toBe('Zendikar');
   });
 });
+
+describe('MenuBar sellDisabled', () => {
+  test('Sell to Card Kingdom button is enabled by default', () => {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'Sell to Card Kingdom' }).disabled).toBe(false);
+  });
+
+  test('Sell to Card Kingdom button is disabled when sellDisabled is true', () => {
+    render(<MenuBar theme="light" onThemeChange={vi.fn()} sellDisabled={true} />);
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'Sell to Card Kingdom' }).disabled).toBe(true);
+  });
+});

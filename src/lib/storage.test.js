@@ -144,3 +144,45 @@ describe('loadAllCollectionKeys', () => {
     expect(await loadAllCollectionKeys()).toEqual([]);
   });
 });
+
+import { loadTokenCards, saveTokenCards } from './storage.js';
+
+describe('loadTokenCards', () => {
+  test('returns null when no token cards cached for the set', async () => {
+    openDatabase.mockResolvedValue(makeDb());
+    expect(await loadTokenCards('blb')).toBeNull();
+  });
+
+  test('returns the cached token cards', async () => {
+    const tokens = [{ id: 'scry-fish', name: 'Fish', number: '7' }];
+    openDatabase.mockResolvedValue(makeDb({ blb: tokens }));
+    expect(await loadTokenCards('blb')).toEqual(tokens);
+  });
+
+  test('returns null when database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    expect(await loadTokenCards('blb')).toBeNull();
+  });
+
+  test('reads from the tokens store', async () => {
+    const db = makeDb();
+    openDatabase.mockResolvedValue(db);
+    await loadTokenCards('blb');
+    expect(db.get).toHaveBeenCalledWith('tokens', 'blb');
+  });
+});
+
+describe('saveTokenCards', () => {
+  test('writes to the tokens store with correct key', async () => {
+    const db = makeDb();
+    openDatabase.mockResolvedValue(db);
+    const tokens = [{ id: 'scry-fish', name: 'Fish', number: '7' }];
+    await saveTokenCards('blb', tokens);
+    expect(db.put).toHaveBeenCalledWith('tokens', tokens, 'blb');
+  });
+
+  test('does not throw when database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    await expect(saveTokenCards('blb', [])).resolves.toBeUndefined();
+  });
+});

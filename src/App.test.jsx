@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from './test/fixtures.js';
 import { fetchCKPrices } from './lib/cardkingdom.js';
-import { fetchSetCards, fetchSets } from './lib/scryfall.js';
+import { fetchSetCards, fetchSets, refreshSetCardPrices } from './lib/scryfall.js';
 import {
   deleteCards,
   loadAllCollectionKeys,
@@ -14,13 +14,14 @@ import {
 import App from './App.jsx';
 
 vi.mock('./lib/cardkingdom.js', () => ({
-  fetchCKPrices: vi.fn().mockResolvedValue(new Map()),
+  fetchCKPrices: vi.fn().mockResolvedValue({ prices: new Map(), tokenItems: [] }),
   buildCKSellCsv: vi.fn().mockReturnValue('card name,edition,foil,quantity'),
 }));
 vi.mock('./lib/scryfall.js', () => ({
   fetchSetCards: vi.fn().mockResolvedValue([]),
   fetchSets: vi.fn().mockResolvedValue([]),
   fetchSet: vi.fn().mockResolvedValue(null),
+  refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
 }));
 vi.mock('./lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
@@ -36,6 +37,7 @@ vi.mock('./lib/storage.js', () => ({
 beforeEach(() => {
   loadConfig.mockResolvedValue(null);
   fetchSets.mockResolvedValue([]);
+  loadCards.mockResolvedValue(null);
 });
 
 async function renderApp() {
@@ -845,7 +847,10 @@ describe('App CK price refresh on set open', () => {
   });
 
   test('updates ckPrices state with freshly fetched data', async () => {
-    const freshPrices = new Map([['abc', { nonfoilBuy: 2.5, foilBuy: null }]]);
+    const freshPrices = {
+      prices: new Map([['abc', { nonfoilBuy: 2.5, foilBuy: null }]]),
+      tokenItems: [],
+    };
     fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
     await renderApp();
     fetchCKPrices.mockResolvedValueOnce(freshPrices);
@@ -882,6 +887,94 @@ describe('App CK price refresh on set open', () => {
       target: { value: 'eld' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    expect(screen.queryByText(/network/)).toBeNull();
+  });
+});
+
+describe('App AllCardsView price gating', () => {
+  beforeEach(() => {
+    refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
+  });
+
+  async function openAllCardsView() {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+  }
+
+  test('sell button is disabled while AllCardsView is refreshing prices', async () => {
+    let resolveRefresh;
+    refreshSetCardPrices.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveRefresh = r;
+      }),
+    );
+    loadAllCollectionKeys.mockResolvedValueOnce(['ktk']);
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'Sell to Card Kingdom' }).disabled).toBe(true);
+    await act(async () => {
+      resolveRefresh({ main: [], tokens: null });
+    });
+  });
+
+  test('sell button is enabled once all prices are refreshed', async () => {
+    loadAllCollectionKeys.mockResolvedValueOnce([]);
+    await openAllCardsView();
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'Sell to Card Kingdom' }).disabled).toBe(false);
+  });
+
+  test('sell button re-enables when AllCardsView is closed before prices finish', async () => {
+    let resolveRefresh;
+    refreshSetCardPrices.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveRefresh = r;
+      }),
+    );
+    loadAllCollectionKeys.mockResolvedValueOnce(['ktk']);
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    fireEvent.click(screen.getByText('Export Collection'));
+    expect(screen.getByRole('button', { name: 'Sell to Card Kingdom' }).disabled).toBe(false);
+    resolveRefresh({ main: [], tokens: null });
+  });
+
+  test('fetches CK prices when AllCardsView opens', async () => {
+    loadAllCollectionKeys.mockResolvedValueOnce([]);
+    await renderApp();
+    const callsBefore = fetchCKPrices.mock.calls.length;
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(fetchCKPrices.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  test('does not update ckPrices when AllCardsView fetch returns null', async () => {
+    loadAllCollectionKeys.mockResolvedValueOnce([]);
+    await renderApp();
+    fetchCKPrices.mockResolvedValueOnce(null);
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(document.querySelector('.app-root')).not.toBeNull();
+  });
+
+  test('silently ignores CK fetch failure when AllCardsView opens', async () => {
+    loadAllCollectionKeys.mockResolvedValueOnce([]);
+    await renderApp();
+    fetchCKPrices.mockRejectedValueOnce(new Error('network'));
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
     await act(async () => {});
     expect(screen.queryByText(/network/)).toBeNull();
   });

@@ -25,10 +25,11 @@ export function buildCKSellCsv(setsData) {
 }
 
 /**
- * Fetches Card Kingdom's price list and returns a Map keyed by Scryfall ID.
- * Each entry has nonfoilBuy and foilBuy (USD as number, or null if not buying).
+ * Fetches Card Kingdom's price list.
+ * Returns { prices, tokenItems } where prices is a Map keyed by Scryfall ID and
+ * tokenItems is an array of raw CK pricelist entries where item.name includes 'Token'.
  * Returns null on network failure.
- * @returns {Promise<Map<string, { nonfoilBuy: number|null, foilBuy: number|null }>|null>}
+ * @returns {Promise<{ prices: Map<string, { nonfoilBuy: number|null, foilBuy: number|null }>, tokenItems: Array }|null>}
  */
 export async function fetchCKPrices() {
   let response;
@@ -39,17 +40,19 @@ export async function fetchCKPrices() {
   }
   if (!response.ok) return null;
   const json = await response.json();
-  const map = new Map();
+  const prices = new Map();
+  const tokenItems = [];
   for (const item of json.data) {
+    if (item.name.includes('Token')) tokenItems.push(item);
     if (!item.scryfall_id) continue;
     const price = parseFloat(item.price_buy);
     const buy = price > 0 ? price : null;
     const isFoil = item.is_foil === true || item.is_foil === 'true';
-    const existing = map.get(item.scryfall_id) ?? {};
-    map.set(
+    const existing = prices.get(item.scryfall_id) ?? {};
+    prices.set(
       item.scryfall_id,
       isFoil ? { ...existing, foilBuy: buy } : { ...existing, nonfoilBuy: buy },
     );
   }
-  return map;
+  return { prices, tokenItems };
 }

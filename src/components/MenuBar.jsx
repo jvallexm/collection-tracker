@@ -22,6 +22,7 @@ export default function MenuBar({
   onSaveCardPreviewPos,
   cardImageSize = null,
   onSaveCardImageSize,
+  sellDisabled = false,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -489,6 +490,7 @@ export default function MenuBar({
               <li>
                 <button
                   className="menu-dropdown-item"
+                  disabled={sellDisabled}
                   onClick={() => {
                     onExportSellCsv?.();
                     setOpenMenu(null);

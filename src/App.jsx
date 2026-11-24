@@ -32,15 +32,20 @@ export default function App() {
   const [cardPreviewPos, setCardPreviewPos] = usePersistedConfig('cardPreviewPos', null);
   const [cardImageSize, setCardImageSize] = usePersistedConfig('cardImageSize', null);
   const [ckPrices, setCkPrices] = useState(null);
+  const [ckTokenItems, setCkTokenItems] = useState([]);
   const [sellSelections, setSellSelections] = useState({});
   const [showCKTools, setShowCKTools] = usePersistedConfig('showCKTools', false);
   const [showAllCards, setShowAllCards] = useState(false);
+  const [pricesLoading, setPricesLoading] = useState(false);
   const [showSellModal, setShowSellModal] = useState(false);
 
   useEffect(() => {
     fetchCKPrices()
-      .then((prices) => {
-        if (prices) setCkPrices(prices);
+      .then((result) => {
+        if (result) {
+          setCkPrices(result.prices);
+          setCkTokenItems(result.tokenItems);
+        }
       })
       .catch(() => {});
   }, []);
@@ -73,8 +78,11 @@ export default function App() {
       return updated;
     });
     fetchCKPrices()
-      .then((prices) => {
-        if (prices) setCkPrices(prices);
+      .then((result) => {
+        if (result) {
+          setCkPrices(result.prices);
+          setCkTokenItems(result.tokenItems);
+        }
       })
       .catch(() => {});
   }
@@ -149,6 +157,24 @@ export default function App() {
     setShowCKTools((current) => !current);
   }
 
+  function handleViewAllCards() {
+    setShowAllCards(true);
+    setPricesLoading(true);
+    fetchCKPrices()
+      .then((result) => {
+        if (result) {
+          setCkPrices(result.prices);
+          setCkTokenItems(result.tokenItems);
+        }
+      })
+      .catch(() => {});
+  }
+
+  function handleCloseAllCards() {
+    setShowAllCards(false);
+    setPricesLoading(false);
+  }
+
   async function handleRefreshSet() {
     const active = openSets.find((s) => !s.minimized);
     await deleteCards(active.code);
@@ -169,7 +195,8 @@ export default function App() {
         onRefreshSet={handleRefreshSet}
         onExportCsv={handleExportCsv}
         onExportSellCsv={handleExportSellCsv}
-        onViewAllCards={() => setShowAllCards(true)}
+        onViewAllCards={handleViewAllCards}
+        sellDisabled={pricesLoading}
         showCKTools={showCKTools}
         onToggleCKTools={handleToggleCKTools}
         openSets={openSets ?? []}
@@ -200,6 +227,7 @@ export default function App() {
               cardPreviewPos={cardPreviewPos}
               cardImageSize={cardImageSize}
               ckPrices={ckPrices}
+              ckTokenItems={ckTokenItems}
               sellIds={sellSelections[set.code] ?? new Set()}
               onSellToggle={(cardId) => handleSellToggle(set.code, cardId)}
               showCKTools={showCKTools}
@@ -224,10 +252,11 @@ export default function App() {
         )}
         {showAllCards && (
           <AllCardsView
-            onClose={() => setShowAllCards(false)}
+            onClose={handleCloseAllCards}
             ckPrices={ckPrices}
             showCKTools={showCKTools}
             openSets={openSets}
+            onPricesReady={() => setPricesLoading(false)}
           />
         )}
         {showSellModal && (

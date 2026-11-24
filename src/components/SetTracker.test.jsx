@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fetchSetTokenCards } from '../lib/mtgjson.js';
 import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import {
   loadCards,
@@ -10,6 +11,9 @@ import {
 import { makeCard } from '../test/fixtures.js';
 import SetTracker from './SetTracker.jsx';
 
+vi.mock('../lib/mtgjson.js', () => ({
+  fetchSetTokenCards: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../lib/scryfall.js', () => ({
   fetchSetCards: vi.fn(),
   refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
@@ -39,6 +43,7 @@ beforeEach(() => {
   loadCollection.mockResolvedValue({});
   loadConfig.mockResolvedValue(null);
   refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
+  fetchSetTokenCards.mockResolvedValue([]);
 });
 
 async function renderLoadedTracker({
@@ -72,6 +77,14 @@ describe('SetTracker loading', () => {
     expect(screen.getByText('Export…').disabled).toBe(true);
     expect(screen.getByLabelText('Loading')).not.toBeNull();
     await act(async () => {});
+  });
+
+  test('shows cached cards immediately without waiting for fetchSetCards', async () => {
+    loadCards.mockResolvedValueOnce(CARDS);
+    fetchSetCards.mockReturnValue(new Promise(() => {}));
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByLabelText('Copies of Arrow');
+    expect(screen.queryByLabelText('Loading')).toBeNull();
   });
 
   test('lists the cards alphabetically once loaded', async () => {
@@ -554,18 +567,44 @@ describe('SetTracker export', () => {
   });
 });
 
-describe('SetTracker token section', () => {
-  const TOKEN = makeCard({ id: 'tok1', name: 'Soldier Token', rarity: 'common', number: 'T1' });
+function makeCKTokenItem(overrides = {}) {
+  return {
+    sku: 'TKTK-0001',
+    scryfall_id: 'tok1',
+    name: 'Soldier Token',
+    variation: 'T1',
+    is_foil: 'false',
+    price_retail: '0.35',
+    price_buy: '0.01',
+    ...overrides,
+  };
+}
 
+describe('SetTracker token section', () => {
   test('shows no Tokens heading when there are no token cards', async () => {
     await renderLoadedTracker();
     expect(screen.queryByText('Tokens')).toBeNull();
   });
 
   test('filters token cards by search text', async () => {
-    const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
-    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN, TOKEN2]);
-    await renderLoadedTracker();
+    const items = [
+      makeCKTokenItem({
+        sku: 'TKTK-0001',
+        scryfall_id: 'tok1',
+        name: 'Soldier Token',
+        variation: 'T1',
+      }),
+      makeCKTokenItem({
+        sku: 'TKTK-0002',
+        scryfall_id: 'tok2',
+        name: 'Goblin Token',
+        variation: 'T2',
+      }),
+    ];
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={items} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
     const box = screen.getByPlaceholderText('Search…');
     fireEvent.change(box, { target: { value: 'Sol' } });
     fireEvent.keyDown(box, { key: 'Enter' });
@@ -574,24 +613,72 @@ describe('SetTracker token section', () => {
   });
 
   test('shows a Tokens heading when token cards are available', async () => {
-    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN]);
-    await renderLoadedTracker();
+    const items = [makeCKTokenItem()];
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={items} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
     expect(screen.getByText('Tokens')).not.toBeNull();
   });
 
   test('renders token card names under the Tokens heading', async () => {
-    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN]);
-    await renderLoadedTracker();
+    const items = [makeCKTokenItem()];
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={items} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
     expect(screen.getByText('Soldier Token')).not.toBeNull();
   });
 
+  test('renders a double-faced token as a single trackable row', async () => {
+    const items = [
+      makeCKTokenItem({
+        sku: 'TKTK-0005',
+        scryfall_id: 'dfc1',
+        name: 'Snake Token // Zombie Token',
+        variation: 'T5',
+      }),
+    ];
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={items} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(screen.getByText('Snake Token // Zombie Token')).not.toBeNull();
+    expect(screen.getByLabelText('Copies of Snake Token // Zombie Token')).not.toBeNull();
+  });
+
   test('sorts token cards by have when sorting by have column', async () => {
-    const TOKEN2 = makeCard({ id: 'tok2', name: 'Goblin Token', rarity: 'common', number: 'T2' });
-    const TOKEN3 = makeCard({ id: 'tok3', name: 'Zombie Token', rarity: 'common', number: 'T3' });
-    const TOKEN4 = makeCard({ id: 'tok4', name: 'Angel Token', rarity: 'common', number: 'T4' });
-    loadCards.mockResolvedValueOnce(null).mockResolvedValueOnce([TOKEN, TOKEN2, TOKEN3, TOKEN4]);
+    const items = [
+      makeCKTokenItem({
+        sku: 'TKTK-0001',
+        scryfall_id: 'tok1',
+        name: 'Soldier Token',
+        variation: 'T1',
+      }),
+      makeCKTokenItem({
+        sku: 'TKTK-0002',
+        scryfall_id: 'tok2',
+        name: 'Goblin Token',
+        variation: 'T2',
+      }),
+      makeCKTokenItem({
+        sku: 'TKTK-0003',
+        scryfall_id: 'tok3',
+        name: 'Zombie Token',
+        variation: 'T3',
+      }),
+      makeCKTokenItem({
+        sku: 'TKTK-0004',
+        scryfall_id: 'tok4',
+        name: 'Angel Token',
+        variation: 'T4',
+      }),
+    ];
+    fetchSetCards.mockResolvedValue(CARDS);
     loadCollection.mockResolvedValue({ tok1: { qty: 2 }, tok4: { qty: 1 } });
-    await renderLoadedTracker();
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={items} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
     fireEvent.click(screen.getAllByText('Qty')[0]);
     expect(screen.getByText('Soldier Token')).not.toBeNull();
     expect(screen.getByText('Goblin Token')).not.toBeNull();
@@ -869,11 +956,22 @@ describe('SetTracker background price refresh', () => {
     expect(screen.queryByText(/Could not load/)).toBeNull();
   });
 
-  test('updates token cards when refresh resolves with tokens', async () => {
+  test('token cards come from ckTokenItems prop, not from refresh', async () => {
     fetchSetCards.mockResolvedValue(CARDS);
     loadCards.mockResolvedValueOnce(CARDS);
-    refreshSetCardPrices.mockResolvedValueOnce({ main: CARDS, tokens: [TOKEN] });
-    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    refreshSetCardPrices.mockResolvedValueOnce({ main: CARDS, tokens: null });
+    const ckTokenItems = [
+      {
+        sku: 'TKTK-0001',
+        scryfall_id: 'tok1',
+        name: 'Soldier Token',
+        variation: 'T1',
+        is_foil: 'false',
+        price_retail: '0.35',
+        price_buy: '0.01',
+      },
+    ];
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={ckTokenItems} />);
     await screen.findByLabelText('Copies of Arrow');
     await act(async () => {});
     expect(screen.getByText('Tokens')).not.toBeNull();
@@ -913,5 +1011,89 @@ describe('SetTracker background price refresh', () => {
       resolveRefresh({ main: [CARDS[0]], tokens: null });
     });
     // No assertion needed beyond "no error thrown"; the cancelled flag prevents state updates
+  });
+});
+
+describe('SetTracker MTGJSON integration', () => {
+  const fishCard = { id: 'scry-fish', name: 'Fish', number: '7' };
+  const vineCard = { id: 'scry-vine', name: 'Iridescent Vinelasher', number: '8' };
+  const dfcCard = { id: 'scry-fish', name: 'Fish // Iridescent Vinelasher', number: '7' };
+
+  const fishItem = {
+    sku: 'TKTK-0007',
+    scryfall_id: 'scry-fish',
+    name: 'Fish Token',
+    variation: 'T7',
+    is_foil: 'false',
+    price_retail: '0.25',
+    price_buy: '0.01',
+  };
+  const vineItem = {
+    sku: 'TKTK-0008',
+    scryfall_id: 'scry-vine',
+    name: 'Iridescent Vinelasher Token',
+    variation: 'T8',
+    is_foil: 'false',
+    price_retail: '0.30',
+    price_buy: '0.01',
+  };
+
+  async function renderWithTokens(ckTokenItems, mtgjsonCards = []) {
+    fetchSetCards.mockResolvedValue(CARDS);
+    fetchSetTokenCards.mockResolvedValue(mtgjsonCards);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={ckTokenItems} />);
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+  }
+
+  test('calls fetchSetTokenCards with the set code on mount', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    expect(fetchSetTokenCards).toHaveBeenCalledWith('ktk');
+  });
+
+  test('shows token cards returned by fetchSetTokenCards', async () => {
+    await renderWithTokens([], [fishCard]);
+    expect(screen.getByText('Fish')).not.toBeNull();
+  });
+
+  test('DFC token shows as combined "A // B" row', async () => {
+    await renderWithTokens([], [dfcCard]);
+    expect(screen.getByText('Fish // Iridescent Vinelasher')).not.toBeNull();
+  });
+
+  test('CK items used as fallback when fetchSetTokenCards returns []', async () => {
+    fetchSetTokenCards.mockResolvedValue([]);
+    await renderWithTokens([fishItem, vineItem], []);
+    expect(screen.getByText('Fish Token')).not.toBeNull();
+    expect(screen.getByText('Iridescent Vinelasher Token')).not.toBeNull();
+  });
+
+  test('swallows fetchSetTokenCards errors, falls back to CK items', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    fetchSetTokenCards.mockRejectedValue(new Error('network error'));
+    render(
+      <SetTracker setCode="ktk" setName="Khans of Tarkir" ckTokenItems={[fishItem, vineItem]} />,
+    );
+    await screen.findByLabelText('Copies of Arrow');
+    await act(async () => {});
+    expect(screen.getByText('Fish Token')).not.toBeNull();
+  });
+
+  test('does not update state after unmount', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    let resolveTokenCards;
+    fetchSetTokenCards.mockReturnValue(
+      new Promise((resolve) => {
+        resolveTokenCards = resolve;
+      }),
+    );
+    const { unmount } = render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    unmount();
+    await act(async () => {
+      resolveTokenCards([fishCard]);
+    });
   });
 });

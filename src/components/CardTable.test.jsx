@@ -817,6 +817,62 @@ describe('CardTable token section', () => {
     expect(screen.getByText('RL')).not.toBeNull();
   });
 
+  test('shows CK buy price columns for token cards when showCKTools is true', () => {
+    const ckPrices = new Map([['tok1', { nonfoilBuy: 0.5, foilBuy: null }]]);
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{}}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        ckPrices={ckPrices}
+        showCKTools={true}
+      />,
+    );
+    expect(screen.getByText('$0.50')).not.toBeNull();
+  });
+
+  test('shows sell checkbox for token cards when showCKTools is true', () => {
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{ tok1: { qty: 1 } }}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        showCKTools={true}
+        sellIds={new Set(['tok1'])}
+        onSellToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Sell Soldier Token').checked).toBe(true);
+  });
+
+  test('calls onSellToggle for token cards', () => {
+    const onSellToggle = vi.fn();
+    render(
+      <CardTable
+        cards={CARDS}
+        tokenCards={[TOKEN]}
+        collection={{ tok1: { qty: 1 } }}
+        sort={{ key: 'name', direction: 1 }}
+        onQuantityChange={vi.fn()}
+        onFoilQuantityChange={vi.fn()}
+        onSort={vi.fn()}
+        showCKTools={true}
+        sellIds={new Set()}
+        onSellToggle={onSellToggle}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Sell Soldier Token'));
+    expect(onSellToggle).toHaveBeenCalledWith('tok1');
+  });
+
   test('calls onQuantityChange and onFoilQuantityChange for token card inputs', () => {
     const onQuantityChange = vi.fn();
     const onFoilQuantityChange = vi.fn();

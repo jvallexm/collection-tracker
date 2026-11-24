@@ -245,6 +245,9 @@ export default function CardTable({
                   onInputFocus={onInputFocus}
                   showNumber={duplicateNames.has(card.name)}
                   ckPrices={ckPrices}
+                  sellIds={sellIds}
+                  onSellToggle={onSellToggle}
+                  showCKTools={showCKTools}
                   showSetColumn={showSetColumn}
                 />
               ))}

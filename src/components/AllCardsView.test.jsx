@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { makeCard } from '../test/fixtures.js';
+import { refreshSetCardPrices } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -8,12 +9,19 @@ import {
 } from '../lib/storage.js';
 import AllCardsView from './AllCardsView.jsx';
 
+vi.mock('../lib/scryfall.js', () => ({
+  refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
+}));
 vi.mock('../lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCards: vi.fn().mockResolvedValue([]),
   loadCollection: vi.fn().mockResolvedValue({}),
   saveCollection: vi.fn().mockResolvedValue(undefined),
 }));
+
+beforeEach(() => {
+  refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
+});
 
 const BOLT = makeCard({
   id: 'bolt',
@@ -307,5 +315,79 @@ describe('AllCardsView close', () => {
     await act(async () => {});
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('AllCardsView price refresh', () => {
+  test('calls refreshSetCardPrices for each loaded set code', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    loadCards.mockResolvedValue([]);
+    loadCollection.mockResolvedValue({});
+    await renderView();
+    expect(refreshSetCardPrices).toHaveBeenCalledWith('ktk');
+    expect(refreshSetCardPrices).toHaveBeenCalledWith('eld');
+  });
+
+  test('updates cards state with refreshed prices', async () => {
+    const FRESH_BOLT = { ...BOLT, price: '5.00' };
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    refreshSetCardPrices.mockResolvedValue({ main: [FRESH_BOLT], tokens: null });
+    await renderView();
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+  });
+
+  test('calls onPricesReady after all sets are refreshed', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([]);
+    loadCollection.mockResolvedValue({});
+    const onPricesReady = vi.fn();
+    await renderView({ onPricesReady });
+    expect(onPricesReady).toHaveBeenCalled();
+  });
+
+  test('calls onPricesReady immediately when there are no sets', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    const onPricesReady = vi.fn();
+    await renderView({ onPricesReady });
+    expect(onPricesReady).toHaveBeenCalled();
+    expect(refreshSetCardPrices).not.toHaveBeenCalled();
+  });
+
+  test('does not update state or call onPricesReady after unmount (initial cancel)', async () => {
+    let resolveKeys;
+    loadAllCollectionKeys.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveKeys = r;
+      }),
+    );
+    const onPricesReady = vi.fn();
+    const { unmount } = render(<AllCardsView onClose={vi.fn()} onPricesReady={onPricesReady} />);
+    unmount();
+    await act(async () => {
+      resolveKeys([]);
+    });
+    expect(onPricesReady).not.toHaveBeenCalled();
+  });
+
+  test('does not update state after unmount during refresh loop', async () => {
+    let resolveRefresh;
+    refreshSetCardPrices.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveRefresh = r;
+      }),
+    );
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([]);
+    loadCollection.mockResolvedValue({});
+    const onPricesReady = vi.fn();
+    const { unmount } = render(<AllCardsView onClose={vi.fn()} onPricesReady={onPricesReady} />);
+    await act(async () => {});
+    unmount();
+    await act(async () => {
+      resolveRefresh({ main: [], tokens: null });
+    });
+    expect(onPricesReady).not.toHaveBeenCalled();
   });
 });
