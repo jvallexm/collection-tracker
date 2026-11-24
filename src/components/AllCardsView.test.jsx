@@ -307,6 +307,43 @@ describe('AllCardsView interactive sort', () => {
   });
 });
 
+describe('AllCardsView sell checkboxes', () => {
+  test('sell checkbox is rendered when showCKTools is true', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderView({ showCKTools: true });
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' })).not.toBeNull();
+  });
+
+  test('sell checkbox starts unchecked', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderView({ showCKTools: true });
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
+  });
+
+  test('clicking sell checkbox marks it as checked', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderView({ showCKTools: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(true);
+  });
+
+  test('clicking sell checkbox again unchecks it', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderView({ showCKTools: true });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
+  });
+});
+
 describe('AllCardsView close', () => {
   test('Close button calls onClose', async () => {
     const onClose = vi.fn();

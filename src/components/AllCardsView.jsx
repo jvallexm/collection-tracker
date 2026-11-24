@@ -24,6 +24,7 @@ export default function AllCardsView({
   const [allCards, setAllCards] = useState(null);
   const [collections, setCollections] = useState({});
   const [cardSetMap, setCardSetMap] = useState({});
+  const [sellIds, setSellIds] = useState(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +121,15 @@ export default function AllCardsView({
     });
   }
 
+  function handleSellToggle(cardId) {
+    setSellIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }
+
   function handleFoilQuantityChange(cardId, text) {
     const setCode = cardSetMap[cardId];
     const quantity = parseInt(sanitizeQuantityText(text), 10);
@@ -153,6 +163,8 @@ export default function AllCardsView({
           showSetColumn={true}
           ckPrices={ckPrices}
           showCKTools={showCKTools}
+          sellIds={sellIds}
+          onSellToggle={handleSellToggle}
         />
       )}
     </div>
