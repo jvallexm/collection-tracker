@@ -95,6 +95,42 @@ describe('buildTokenCards — MTGJSON path', () => {
     expect(result[0].price).toBeNull();
   });
 
+  test('uses first non-foil price when multiple CK items share the same scryfall_id', () => {
+    const first = makeTokenItem({
+      sku: 'TKTK-0007',
+      scryfall_id: 'scry-fish',
+      price_retail: '0.50',
+    });
+    const second = makeTokenItem({
+      sku: 'TKTK-0008',
+      scryfall_id: 'scry-fish',
+      price_retail: '1.00',
+    });
+    const result = buildTokenCards([fishCard], [first, second], 'ktk');
+    expect(result[0].price).toBe('0.50');
+  });
+
+  test('skips CK item with no scryfall_id when building price map', () => {
+    const noId = makeTokenItem({ sku: 'TKTK-0007', scryfall_id: '' });
+    const withId = makeTokenItem({
+      sku: 'TKTK-0008',
+      scryfall_id: 'scry-fish',
+      price_retail: '0.75',
+    });
+    const result = buildTokenCards([fishCard], [noId, withId], 'ktk');
+    expect(result[0].price).toBe('0.75');
+  });
+
+  test('price is null when matching CK item has null price_retail', () => {
+    const ckItem = makeTokenItem({
+      sku: 'TKTK-0007',
+      scryfall_id: 'scry-fish',
+      price_retail: null,
+    });
+    const result = buildTokenCards([fishCard], [ckItem], 'ktk');
+    expect(result[0].price).toBeNull();
+  });
+
   test('returns [] when mtgjsonTokenCards is empty and ckTokenItems is empty', () => {
     const result = buildTokenCards([], [], 'ktk');
     expect(result).toEqual([]);

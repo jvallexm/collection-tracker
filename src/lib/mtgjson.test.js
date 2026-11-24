@@ -292,4 +292,65 @@ describe('fetchSetTokenCards — token processing', () => {
     const result = await fetchSetTokenCards('blb');
     expect(result.find((c) => c.name.includes('//'))).toBeUndefined();
   });
+
+  test('returns [] when response json has no data property', async () => {
+    fetch.mockResolvedValue(jsonResponse({}));
+    expect(await fetchSetTokenCards('blb')).toEqual([]);
+  });
+
+  test('treats token with no tokenProducts key as single-faced', async () => {
+    const token = makeToken();
+    delete token.tokenProducts;
+    fetch.mockResolvedValue(jsonResponse({ data: { tokens: [token] } }));
+    const result = await fetchSetTokenCards('blb');
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Soldier');
+  });
+
+  test('skips DFC tokenProduct when tokenParts key is absent', async () => {
+    const token = makeToken({
+      tokenProducts: [{}],
+    });
+    fetch.mockResolvedValue(jsonResponse({ data: { tokens: [token] } }));
+    const result = await fetchSetTokenCards('blb');
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Soldier');
+  });
+
+  test('merged DFC card number is empty string when front token has no number', async () => {
+    const front = makeToken({
+      uuid: 'uuid-fish',
+      name: 'Fish',
+      identifiers: { scryfallId: 'scry-fish' },
+      tokenProducts: [{ tokenParts: [{ uuid: 'uuid-fish' }, { uuid: 'uuid-vine' }] }],
+    });
+    delete front.number;
+    const back = makeToken({
+      uuid: 'uuid-vine',
+      name: 'Vine',
+      identifiers: { scryfallId: 'scry-vine' },
+      tokenProducts: [{ tokenParts: [{ uuid: 'uuid-fish' }, { uuid: 'uuid-vine' }] }],
+    });
+    fetch.mockResolvedValue(jsonResponse({ data: { tokens: [front, back] } }));
+    const result = await fetchSetTokenCards('blb');
+    expect(result.find((c) => c.name.includes('//')).number).toBe('');
+  });
+
+  test('skips DFC pair when front token has no scryfallId', async () => {
+    const front = makeToken({
+      uuid: 'uuid-front',
+      name: 'Front',
+      identifiers: {},
+      tokenProducts: [{ tokenParts: [{ uuid: 'uuid-front' }, { uuid: 'uuid-back' }] }],
+    });
+    const back = makeToken({
+      uuid: 'uuid-back',
+      name: 'Back',
+      identifiers: { scryfallId: 'scry-back' },
+      tokenProducts: [{ tokenParts: [{ uuid: 'uuid-front' }, { uuid: 'uuid-back' }] }],
+    });
+    fetch.mockResolvedValue(jsonResponse({ data: { tokens: [front, back] } }));
+    const result = await fetchSetTokenCards('blb');
+    expect(result.find((c) => c.name.includes('//'))).toBeUndefined();
+  });
 });
