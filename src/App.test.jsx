@@ -125,6 +125,108 @@ describe('App View all cards', () => {
     fireEvent.click(closeButtons[closeButtons.length - 1]);
     expect(screen.queryByText('All Cards')).toBeNull();
   });
+
+  test('All Cards window has a Minimize button', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  });
+
+  test('clicking Minimize on All Cards shows the minimized icon', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull();
+    expect(document.querySelector('.window-icon')).not.toBeNull();
+  });
+
+  test('clicking Restore on minimized All Cards shows the full window', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  });
+
+  test('opening a set while All Cards is open minimizes All Cards', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    const icons = document.querySelectorAll('.window-icon');
+    const allCardsIcon = Array.from(icons).find((el) => el.textContent.includes('All Cards'));
+    expect(allCardsIcon).not.toBeUndefined();
+  });
+
+  test('opening a set while All Cards is already minimized keeps it minimized', async () => {
+    fetchSets.mockResolvedValue([{ code: 'eld', name: 'Throne of Eldraine' }]);
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    fireEvent.click(screen.getByText('Add Set'));
+    await act(async () => {});
+    fireEvent.change(screen.getByPlaceholderText('Search sets…'), { target: { value: 'eld' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Throne of Eldraine' }));
+    await act(async () => {});
+    const icons = document.querySelectorAll('.window-icon');
+    const allCardsIcon = Array.from(icons).find((el) => el.textContent.includes('All Cards'));
+    expect(allCardsIcon).not.toBeUndefined();
+  });
+});
+
+describe('App All Cards sell persistence', () => {
+  async function openAllCards() {
+    await renderApp();
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+  }
+
+  beforeEach(() => {
+    loadConfig.mockImplementation((key) => Promise.resolve(key === 'showCKTools' ? true : null));
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([
+      makeCard({ id: 'bolt', name: 'Lightning Bolt', rarity: 'common', number: '1', set: 'KTK' }),
+    ]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
+  });
+
+  test('sell checkboxes persist after closing and reopening All Cards', async () => {
+    await openAllCards();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1));
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(true);
+  });
+
+  test('toggling a sell checkbox off persists the unchecked state', async () => {
+    await openAllCards();
+    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
+    fireEvent.click(checkbox);
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1));
+    fireEvent.click(screen.getByText('My Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
+    await act(async () => {});
+    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
+  });
 });
 
 describe('App recent sets', () => {
@@ -305,10 +407,10 @@ describe('App close window', () => {
     expect(screen.queryByRole('button', { name: 'Minimize' })).toBeNull();
   });
 
-  test('closing a window deletes its card cache', async () => {
+  test('closing a window does not delete its card cache', async () => {
     await renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(deleteCards).toHaveBeenCalledWith('ktk');
+    expect(deleteCards).not.toHaveBeenCalledWith('ktk');
   });
 
   test('closing the active window restores the first minimized window (FIFO)', async () => {

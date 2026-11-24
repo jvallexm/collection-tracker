@@ -36,6 +36,8 @@ export default function App() {
   const [sellSelections, setSellSelections] = useState({});
   const [showCKTools, setShowCKTools] = usePersistedConfig('showCKTools', false);
   const [showAllCards, setShowAllCards] = useState(false);
+  const [allCardsMinimized, setAllCardsMinimized] = useState(false);
+  const [allCardsSellIds, setAllCardsSellIds] = useState(new Set());
   const [pricesLoading, setPricesLoading] = useState(false);
   const [showSellModal, setShowSellModal] = useState(false);
 
@@ -77,6 +79,7 @@ export default function App() {
       saveConfig('recentSets', updated);
       return updated;
     });
+    if (showAllCards && !allCardsMinimized) setAllCardsMinimized(true);
     fetchCKPrices()
       .then((result) => {
         if (result) {
@@ -96,7 +99,6 @@ export default function App() {
   }
 
   function handleClose(code) {
-    deleteCards(code);
     setOpenSets((current) => closeSetState(current, code));
   }
 
@@ -159,6 +161,7 @@ export default function App() {
 
   function handleViewAllCards() {
     setShowAllCards(true);
+    setAllCardsMinimized(false);
     setPricesLoading(true);
     fetchCKPrices()
       .then((result) => {
@@ -172,6 +175,7 @@ export default function App() {
 
   function handleCloseAllCards() {
     setShowAllCards(false);
+    setAllCardsMinimized(false);
     setPricesLoading(false);
   }
 
@@ -208,7 +212,7 @@ export default function App() {
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => {
-          if (!set.minimized && showAllCards) return null;
+          if (!set.minimized && showAllCards && !allCardsMinimized) return null;
           return (
             <SetTracker
               key={`${set.code}-${set.refreshKey ?? 0}`}
@@ -257,6 +261,20 @@ export default function App() {
             showCKTools={showCKTools}
             openSets={openSets}
             onPricesReady={() => setPricesLoading(false)}
+            cardPreviewPos={cardPreviewPos}
+            cardImageSize={cardImageSize}
+            minimized={allCardsMinimized}
+            onMinimize={() => setAllCardsMinimized(true)}
+            onRestore={() => setAllCardsMinimized(false)}
+            sellIds={allCardsSellIds}
+            onSellToggle={(cardId) => {
+              setAllCardsSellIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(cardId)) next.delete(cardId);
+                else next.add(cardId);
+                return next;
+              });
+            }}
           />
         )}
         {showSellModal && (

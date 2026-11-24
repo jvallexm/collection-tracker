@@ -307,40 +307,161 @@ describe('AllCardsView interactive sort', () => {
   });
 });
 
+describe('AllCardsView search', () => {
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT, ARROW]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, arrow: { qty: 1 } });
+  });
+
+  test('renders a search input', async () => {
+    await renderView();
+    expect(screen.getByRole('searchbox')).not.toBeNull();
+  });
+
+  test('shows all owned cards when search is empty', async () => {
+    await renderView();
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Arrow')).not.toBeNull();
+  });
+
+  test('filters cards by name', async () => {
+    await renderView();
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'Arrow' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(screen.queryByText('Lightning Bolt')).toBeNull();
+    expect(screen.getByText('Arrow')).not.toBeNull();
+  });
+
+  test('pressing an unhandled key in search does nothing', async () => {
+    await renderView();
+    const box = screen.getByRole('searchbox');
+    box.focus();
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(document.activeElement).toBe(box);
+  });
+
+  test('pressing ArrowDown from search focuses first table input', async () => {
+    await renderView();
+    const search = screen.getByRole('searchbox');
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(document.activeElement?.tagName).toBe('INPUT');
+    expect(document.activeElement?.getAttribute('aria-label')).toMatch(/Copies of/);
+  });
+
+  test('pressing ArrowUp on first table row refocuses search', async () => {
+    await renderView();
+    const search = screen.getByRole('searchbox');
+    const firstInput = screen
+      .getAllByRole('textbox')
+      .find((el) => el.getAttribute('aria-label')?.startsWith('Copies of'));
+    firstInput.focus();
+    fireEvent.keyDown(firstInput, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(search);
+  });
+});
+
+describe('AllCardsView card preview', () => {
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+  });
+
+  test('no preview shown before any input is focused', async () => {
+    await renderView();
+    expect(screen.queryByRole('img', { name: 'Lightning Bolt' })).toBeNull();
+  });
+
+  test('shows card preview when a quantity input is focused', async () => {
+    await renderView();
+    fireEvent.focus(screen.getByLabelText('Copies of Lightning Bolt'));
+    expect(screen.getByAltText('Lightning Bolt')).not.toBeNull();
+  });
+
+  test('hides card preview when table loses focus', async () => {
+    await renderView();
+    const input = screen.getByLabelText('Copies of Lightning Bolt');
+    fireEvent.focus(input);
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(screen.queryByAltText('Lightning Bolt')).toBeNull();
+  });
+});
+
 describe('AllCardsView sell checkboxes', () => {
   test('sell checkbox is rendered when showCKTools is true', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderView({ showCKTools: true });
+    await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle: vi.fn() });
     expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' })).not.toBeNull();
   });
 
-  test('sell checkbox starts unchecked', async () => {
+  test('sell checkbox reflects sellIds prop', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderView({ showCKTools: true });
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
-  });
-
-  test('clicking sell checkbox marks it as checked', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderView({ showCKTools: true });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
+    await renderView({ showCKTools: true, sellIds: new Set(['bolt']), onSellToggle: vi.fn() });
     expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(true);
   });
 
-  test('clicking sell checkbox again unchecks it', async () => {
+  test('clicking sell checkbox calls onSellToggle with card id', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderView({ showCKTools: true });
+    const onSellToggle = vi.fn();
+    await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
+    expect(onSellToggle).toHaveBeenCalledWith('bolt');
+  });
+});
+
+describe('AllCardsView minimize', () => {
+  test('shows a Minimize button in the titlebar', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    await renderView({ onMinimize: vi.fn() });
+    expect(screen.getByRole('button', { name: 'Minimize' })).not.toBeNull();
+  });
+
+  test('clicking Minimize calls onMinimize', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    const onMinimize = vi.fn();
+    await renderView({ onMinimize });
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    expect(onMinimize).toHaveBeenCalled();
+  });
+
+  test('when minimized renders a small icon instead of full window', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    await renderView({ minimized: true, onRestore: vi.fn() });
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Restore' })).not.toBeNull();
+  });
+
+  test('when minimized clicking Restore calls onRestore', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    const onRestore = vi.fn();
+    await renderView({ minimized: true, onRestore });
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    expect(onRestore).toHaveBeenCalled();
+  });
+
+  test('when minimized clicking Close calls onClose', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    const onClose = vi.fn();
+    await renderView({ minimized: true, onClose, onRestore: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('minimized icon is positioned at bottom-right', async () => {
+    loadAllCollectionKeys.mockResolvedValue([]);
+    await renderView({ minimized: true, onRestore: vi.fn() });
+    const icon = document.querySelector('.window-icon');
+    expect(icon.style.right).toBe('16px');
+    expect(icon.style.left).toBe('auto');
   });
 });
 
