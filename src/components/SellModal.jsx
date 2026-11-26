@@ -4,7 +4,6 @@ import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
-import { createPortal } from 'react-dom';
 import { fetchCardsByIds } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
@@ -351,14 +350,7 @@ export default function SellModal({
           </div>
         </div>
       </div>
-      {createPortal(
-        <CardPreview
-          card={focusedCard}
-          pos={cardPreviewPos}
-          imageSize={cardImageSize ?? 'small'}
-        />,
-        document.body,
-      )}
+      <CardPreview card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} />
     </>
   );
 }
