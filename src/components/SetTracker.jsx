@@ -14,7 +14,7 @@ import {
 import { useDebouncedSearch, usePersistedConfig } from '../lib/hooks.js';
 import { buildMoxfieldList } from '../lib/moxfield.js';
 import { matchesSearch } from '../lib/search.js';
-import { buildTokenCards } from '../lib/ck-tokens.js';
+import { buildTokenCards } from '../lib/cardkingdom.js';
 import { fetchSetTokenCards } from '../lib/mtgjson.js';
 import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import { nextSortState, sortCards } from '../lib/sorting.js';
@@ -96,6 +96,7 @@ export default function SetTracker({
 
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
     (async () => {
       try {
         const cached = await loadCards(setCode);

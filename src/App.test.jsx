@@ -21,6 +21,7 @@ import App from './App.jsx';
 vi.mock('./lib/cardkingdom.js', () => ({
   fetchCKPrices: vi.fn().mockResolvedValue({ prices: new Map(), tokenItems: [] }),
   buildCKSellCsv: vi.fn().mockReturnValue('card name,edition,foil,quantity'),
+  buildTokenCards: vi.fn().mockReturnValue([]),
 }));
 vi.mock('./lib/scryfall.js', () => ({
   fetchSetCards: vi.fn().mockResolvedValue([]),

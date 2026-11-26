@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import ManaCost from './ManaCost.jsx';
 import QuantityCell from './reuse/QuantityCell.jsx';
 import SortIndicator from './reuse/SortIndicator.jsx';
+import { RARITY_LETTER, VERTICAL_STEP, HORIZONTAL_STEP, formatCKPrice } from '../lib/constants.js';
 
 const COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -17,16 +18,6 @@ function formatPrice(p) {
   const num = parseFloat(p);
   return num < 10 ? `$${p}` : `$${Math.floor(num)}`;
 }
-
-function formatCKPrice(p) {
-  if (p == null || p <= 0) return '';
-  return `$${Number(p).toFixed(2)}`;
-}
-
-const VERTICAL_STEP = { w: -1, arrowup: -1, s: 1, arrowdown: 1, enter: 1 };
-const HORIZONTAL_STEP = { a: -1, arrowleft: -1, d: 1, arrowright: 1 };
-
-const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 
 function findNextRowInput(table, currentInput, vStep) {
   const col = currentInput.dataset.col;

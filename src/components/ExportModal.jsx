@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Titlebar from './reuse/Titlebar.jsx';
+import { useEscapeToClose } from '../lib/hooks.js';
 
 /**
  * Modal dialog that displays the Moxfield export list and lets the user copy it.
@@ -19,13 +20,7 @@ export default function ExportModal({ text, onClose }) {
     textareaRef.current.select();
   }, []);
 
-  useEffect(() => {
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [onClose]);
+  useEscapeToClose(onClose);
 
   /**
    * Copies the export text to the clipboard using the Clipboard API.

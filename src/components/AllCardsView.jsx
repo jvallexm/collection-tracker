@@ -4,7 +4,12 @@ import CardPreview from './CardPreview.jsx';
 import CardTable from './CardTable.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
-import { sanitizeQuantityText, withFoilQuantity, withQuantity } from '../lib/collection.js';
+import {
+  mergeCollections,
+  sanitizeQuantityText,
+  withFoilQuantity,
+  withQuantity,
+} from '../lib/collection.js';
 import { useDebouncedSearch } from '../lib/hooks.js';
 import { matchesSearch } from '../lib/search.js';
 import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
@@ -91,11 +96,7 @@ export default function AllCardsView({
     };
   }, []);
 
-  const mergedCollection = useMemo(() => {
-    const merged = {};
-    for (const coll of Object.values(collections)) Object.assign(merged, coll);
-    return merged;
-  }, [collections]);
+  const mergedCollection = useMemo(() => mergeCollections(collections), [collections]);
 
   const ownedCards = useMemo(() => {
     if (allCards === null) return null;

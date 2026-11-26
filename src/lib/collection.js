@@ -37,3 +37,15 @@ export function summarize(collection) {
   }
   return { unique, copies };
 }
+
+export function mergeCollections(collections) {
+  const merged = {};
+  for (const coll of Object.values(collections)) Object.assign(merged, coll);
+  return merged;
+}
+
+export function ownedCardIds(collection) {
+  return Object.entries(collection)
+    .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
+    .map(([id]) => id);
+}

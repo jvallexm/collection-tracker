@@ -1,4 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+
+export function useEscapeToClose(onClose) {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+}
 import { loadConfig, saveConfig } from './storage.js';
 
 export function useDebouncedSearch(delay = 150) {

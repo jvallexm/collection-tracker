@@ -4,6 +4,14 @@ import { fetchSet, fetchSets } from '../lib/scryfall.js';
 import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
 import DraggableCardPreview from './DraggableCardPreview.jsx';
 
+const SECONDARY_SET_TYPES = new Set([
+  'promo',
+  'masterpiece',
+  'memorabilia',
+  'treasure_chest',
+  'minigame',
+]);
+
 export default function MenuBar({
   theme,
   onThemeChange,
@@ -191,13 +199,15 @@ export default function MenuBar({
     setCardHighlight(-1);
   }
 
+  const setSearchLower = setSearch.toLowerCase();
   const baseFilteredSets =
     setSearch.trim() && allSets
       ? allSets
-          .filter((s) => {
-            const q = setSearch.toLowerCase();
-            return s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
-          })
+          .filter(
+            (s) =>
+              s.name.toLowerCase().includes(setSearchLower) ||
+              s.code.toLowerCase().includes(setSearchLower),
+          )
           .slice(0, 8)
       : [];
   const filteredSets = (
@@ -205,20 +215,15 @@ export default function MenuBar({
       ? [directSetResult, ...baseFilteredSets].slice(0, 8)
       : baseFilteredSets
   ).sort((a, b) => {
-    const q = setSearch.toLowerCase();
     const matchRank = (s) => {
-      if (s.code.toLowerCase() === q) return 0;
-      if (s.name.toLowerCase().startsWith(q)) return 1;
+      if (s.code.toLowerCase() === setSearchLower) return 0;
+      if (s.name.toLowerCase().startsWith(setSearchLower)) return 1;
       return 2;
     };
-    const SECONDARY = new Set([
-      'promo',
-      'masterpiece',
-      'memorabilia',
-      'treasure_chest',
-      'minigame',
-    ]);
-    return matchRank(a) - matchRank(b) || SECONDARY.has(a.set_type) - SECONDARY.has(b.set_type);
+    return (
+      matchRank(a) - matchRank(b) ||
+      SECONDARY_SET_TYPES.has(a.set_type) - SECONDARY_SET_TYPES.has(b.set_type)
+    );
   });
 
   function handleSearchChange(e) {

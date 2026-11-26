@@ -15,15 +15,9 @@ import {
   saveConfig,
   savePartialCards,
 } from '../lib/storage.js';
-
-const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
-const VERTICAL_STEP = { arrowup: -1, w: -1, arrowdown: 1, s: 1, enter: 1 };
-const HORIZONTAL_STEP = { arrowleft: -1, a: -1, arrowright: 1, d: 1 };
-
-function formatCKPrice(p) {
-  if (p == null || p <= 0) return '';
-  return `$${Number(p).toFixed(2)}`;
-}
+import { mergeCollections } from '../lib/collection.js';
+import { useEscapeToClose } from '../lib/hooks.js';
+import { RARITY_LETTER, VERTICAL_STEP, HORIZONTAL_STEP, formatCKPrice } from '../lib/constants.js';
 
 function moveSellFocus(event) {
   const key = event.key.toLowerCase();
@@ -240,19 +234,9 @@ export default function SellModal({
     if (foilSellQtysReady.current) saveConfig('foilSellQtys', foilSellQtys);
   }, [foilSellQtys]);
 
-  useEffect(() => {
-    const closeOnEscape = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [onClose]);
+  useEscapeToClose(onClose);
 
-  const mergedCollection = useMemo(() => {
-    const merged = {};
-    for (const coll of Object.values(collections)) Object.assign(merged, coll);
-    return merged;
-  }, [collections]);
+  const mergedCollection = useMemo(() => mergeCollections(collections), [collections]);
 
   const ownedCards = useMemo(() => {
     if (allCards === null) return null;

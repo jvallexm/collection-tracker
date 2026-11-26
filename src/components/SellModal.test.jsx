@@ -15,6 +15,7 @@ import SellModal from './SellModal.jsx';
 
 vi.mock('../lib/cardkingdom.js', () => ({
   buildCKSellCsv: vi.fn().mockReturnValue('card name,edition,foil,quantity'),
+  buildTokenCards: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../lib/scryfall.js', () => ({

@@ -1,4 +1,4 @@
-import { buildTokenCards } from './ck-tokens.js';
+import { buildTokenCards } from './cardkingdom.js';
 
 function makeTokenItem(overrides = {}) {
   return {

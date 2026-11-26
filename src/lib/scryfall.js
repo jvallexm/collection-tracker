@@ -1,4 +1,6 @@
 import { loadCards, loadCollection, saveCards, loadConfig, saveConfig } from './storage.js';
+import { ownedCardIds } from './collection.js';
+import { EXCLUDED_SET_TYPES } from './constants.js';
 
 const SEARCH_ENDPOINT = 'https://api.scryfall.com/cards/search';
 const SETS_ENDPOINT = 'https://api.scryfall.com/sets';
@@ -12,9 +14,22 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Serialize all Scryfall page fetches to avoid concurrent requests hitting the rate limit.
 let _scryfallQueue = Promise.resolve();
+let _enqueueCount = 0;
+export function _resetQueueForTesting() {
+  _scryfallQueue = Promise.resolve();
+  _enqueueCount = 0;
+}
 function enqueue(fn) {
-  const task = _scryfallQueue.then(fn);
-  _scryfallQueue = task.catch(() => {});
+  const id = ++_enqueueCount;
+  const task = _scryfallQueue.then(() => {
+    console.log(`[Scryfall] task #${id} starting`);
+    return fn();
+  });
+  task.then(
+    () => console.log(`[Scryfall] task #${id} done`),
+    (e) => console.warn(`[Scryfall] task #${id} error:`, e?.message ?? e),
+  );
+  _scryfallQueue = task.catch(() => {}).then(() => delay(DELAY_BETWEEN_PAGES_MS));
   return task;
 }
 
@@ -88,8 +103,7 @@ export async function fetchSet(code) {
   });
   if (!response.ok) return null;
   const data = await response.json();
-  if (data.set_type === 'alchemy' || data.set_type === 'token' || data.set_type === 'art_series')
-    return null;
+  if (EXCLUDED_SET_TYPES.has(data.set_type)) return null;
   return { code: data.code, name: data.name, set_type: data.set_type };
 }
 
@@ -98,9 +112,7 @@ export async function fetchSets() {
   if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
   const json = await response.json();
   return json.data
-    .filter(
-      ({ set_type }) => set_type !== 'alchemy' && set_type !== 'token' && set_type !== 'art_series',
-    )
+    .filter(({ set_type }) => !EXCLUDED_SET_TYPES.has(set_type))
     .map(({ code, name, set_type }) => ({ code, name, set_type }));
 }
 
@@ -130,16 +142,21 @@ export async function refreshSetCardPrices(setCode) {
     loadCollection(setCode),
     loadConfig('bulkTimestamp'),
   ]);
+  console.log(
+    `[Scryfall] refreshSetCardPrices(${setCode}): cached=${!!cached}, bulkAge=${bulkTimestamp ? Math.round((Date.now() - bulkTimestamp) / 1000) + 's' : 'none'}`,
+  );
   if (!cached) return { main: [], tokens: null };
 
   if (bulkTimestamp && Date.now() - bulkTimestamp < BULK_STALE_MS) {
+    console.log(`[Scryfall] refreshSetCardPrices(${setCode}): bulk fresh, skipping network`);
     const cachedTokens = await loadCards(`t${setCode}`);
     return { main: cached, tokens: cachedTokens ?? null };
   }
 
-  const ownedIds = Object.entries(collection)
-    .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
-    .map(([id]) => id);
+  const ownedIds = ownedCardIds(collection);
+  console.log(
+    `[Scryfall] refreshSetCardPrices(${setCode}): bulk stale, fetching ${ownedIds.length} owned cards`,
+  );
 
   let updated = cached;
   if (ownedIds.length > 0) {
@@ -158,9 +175,7 @@ export async function refreshSetCardPrices(setCode) {
   ]);
   let updatedTokens = null;
   if (cachedTokens) {
-    const ownedTokenIds = Object.entries(tokenCollection)
-      .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
-      .map(([id]) => id);
+    const ownedTokenIds = ownedCardIds(tokenCollection);
     if (ownedTokenIds.length > 0) {
       const freshTokens = await fetchCardsByIds(ownedTokenIds).catch(() => null);
       if (freshTokens) {
@@ -207,6 +222,9 @@ export async function fetchSetCards(setCode, onPage) {
 
 export async function fetchCardsByIds(ids) {
   if (ids.length === 0) return [];
+  console.log(
+    `[Scryfall] fetchCardsByIds: ${ids.length} ids, ${Math.ceil(ids.length / COLLECTION_BATCH_SIZE)} batches`,
+  );
   const cards = [];
   for (let i = 0; i < ids.length; i += COLLECTION_BATCH_SIZE) {
     const batch = ids.slice(i, i + COLLECTION_BATCH_SIZE);
@@ -230,10 +248,15 @@ export async function refreshBulkDataIfStale() {
   const ts = await loadConfig('bulkTimestamp');
   if (ts && Date.now() - ts < BULK_STALE_MS) return;
 
+  console.log('[Scryfall] refreshBulkDataIfStale: fetching bulk data metadata');
   const metaRes = await fetch(BULK_DATA_ENDPOINT, { headers: { Accept: 'application/json' } });
   if (!metaRes.ok) throw new Error(`Scryfall bulk-data request failed (HTTP ${metaRes.status})`);
   const meta = await metaRes.json();
-  const { download_uri } = meta.data.find((d) => d.type === 'default_cards');
+  const bulkEntry = meta.data?.find((d) => d.type === 'default_cards');
+  if (!bulkEntry?.download_uri)
+    throw new Error('Scryfall bulk-data: default_cards entry not found');
+  const { download_uri } = bulkEntry;
+  console.log('[Scryfall] refreshBulkDataIfStale: downloading', download_uri);
 
   const dataRes = await fetch(download_uri, { headers: { Accept: 'application/json' } });
   if (!dataRes.ok) throw new Error(`Scryfall bulk download failed (HTTP ${dataRes.status})`);
@@ -249,4 +272,9 @@ export async function refreshBulkDataIfStale() {
     await saveCards(code, setCards);
   }
   await saveConfig('bulkTimestamp', Date.now());
+  console.log(
+    '[Scryfall] refreshBulkDataIfStale: done, saved',
+    Object.keys(bySet).length,
+    'sets to IDB',
+  );
 }

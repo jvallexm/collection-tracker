@@ -1,5 +1,6 @@
 import { loadCards, loadConfig, saveCards, saveCollection, saveConfig } from './storage.js';
 import {
+  _resetQueueForTesting,
   buildSearchUrl,
   fetchSet,
   fetchSetCards,
@@ -276,6 +277,7 @@ describe('fetchSet', () => {
 describe('fetchSetCards', () => {
   const noTokens = { ok: false, status: 404 };
 
+  beforeEach(_resetQueueForTesting);
   afterEach(() => vi.useRealTimers());
 
   test('returns normalized cards from a single page', async () => {
@@ -508,6 +510,8 @@ describe('fetchSetCards', () => {
 
 describe('refreshSetCardPrices', () => {
   const collectionResponse = (cards) => jsonResponse({ data: cards });
+
+  beforeEach(_resetQueueForTesting);
 
   test('updates price and priceFoil from fresh Scryfall data', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: '1.00' }]);
@@ -828,6 +832,8 @@ describe('refreshSetCardPrices', () => {
 describe('fetchTokenCards', () => {
   const noTokens = { ok: false, status: 404 };
   const tokenCard = rawCard({ id: 'tok1', name: 'Soldier Token', set: 'tktk' });
+
+  beforeEach(_resetQueueForTesting);
   const dfcToken = rawCard({
     id: 'dfc1',
     name: 'Snake Token // Zombie Token',
@@ -887,6 +893,7 @@ describe('fetchTokenCards', () => {
 });
 
 describe('fetchCardsByIds', () => {
+  beforeEach(_resetQueueForTesting);
   afterEach(() => vi.useRealTimers());
 
   test('returns normalized cards for the given IDs', async () => {

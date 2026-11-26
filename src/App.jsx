@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MenuBar from './components/MenuBar.jsx';
 import AllCardsView from './components/AllCardsView.jsx';
 import SellModal from './components/SellModal.jsx';

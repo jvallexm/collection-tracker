@@ -11,7 +11,7 @@ const COMPARATORS = {
   number: (a, b) => {
     const na = parseInt(a.number, 10);
     const nb = parseInt(b.number, 10);
-    if (!isNaN(na) && !isNaN(nb)) return na - nb; // comment
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
     return a.number.localeCompare(b.number);
   },
   price: (a, b) => {
