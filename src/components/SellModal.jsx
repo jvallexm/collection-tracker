@@ -63,6 +63,8 @@ function SellQtyInput({ label, col, value, max, onChange, onFocus }) {
       className="qty-input"
       type="text"
       inputMode="numeric"
+      autoComplete="off"
+      data-lpignore="true"
       aria-label={label}
       data-col={col}
       value={value || ''}

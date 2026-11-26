@@ -17,6 +17,13 @@ let _scryfallQueue = Promise.resolve();
 export function _resetQueueForTesting() {
   _scryfallQueue = Promise.resolve();
 }
+/**
+ * Queues an async function to run after all previously enqueued Scryfall requests finish.
+ * Prevents concurrent fetches from hitting Scryfall's rate limit.
+ * @template T
+ * @param {function(): Promise<T>} fn - Async function to enqueue.
+ * @returns {Promise<T>}
+ */
 function enqueue(fn) {
   const task = _scryfallQueue.then(fn);
   _scryfallQueue = task.catch(() => {}).then(() => delay(DELAY_BETWEEN_PAGES_MS));
@@ -106,6 +113,14 @@ export async function fetchSets() {
     .map(({ code, name, set_type }) => ({ code, name, set_type }));
 }
 
+/**
+ * Fetches all cards for a set from the Scryfall search API, paginating until complete.
+ * Runs through the shared queue to respect Scryfall's rate limit.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @param {function(Object[]): void} [onPage] - Called after each page with the cards collected so far.
+ * @returns {Promise<Object[]>} All normalized cards in the set.
+ * @throws {Error} If any page request returns a non-OK HTTP status.
+ */
 function fetchCardsFromScryfall(setCode, onPage) {
   return enqueue(async () => {
     const cards = [];

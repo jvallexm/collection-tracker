@@ -3,6 +3,14 @@ import { sortCards } from './sorting.js';
 const CSV_HEADER =
   '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
 
+/**
+ * Formats a single Moxfield CSV row for one card entry.
+ * @param {number} count - Quantity owned.
+ * @param {string} name - Card name.
+ * @param {string} edition - Set code, e.g. "KTK".
+ * @param {string} foil - Empty string for nonfoil, "foil" for foil.
+ * @returns {string} CSV row string.
+ */
 function csvRow(count, name, edition, foil) {
   return `"${count}","${count}","${name}","${edition.toLowerCase()}","Near Mint","English","${foil}","","","","False","False",""`;
 }

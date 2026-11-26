@@ -108,6 +108,13 @@ export async function saveConfig(key, value) {
   }
 }
 
+/**
+ * Reads a partially-fetched card list for a set from IndexedDB.
+ * Used by SellModal to avoid re-fetching individual cards that were batch-loaded earlier
+ * but don't have a full set cache yet.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @returns {Promise<Object[]|null>} Partial card array, or null on a cache miss.
+ */
 export async function loadPartialCards(setCode) {
   try {
     const db = await openDatabase();
@@ -117,6 +124,13 @@ export async function loadPartialCards(setCode) {
   }
 }
 
+/**
+ * Writes a partial card list for a set to IndexedDB so future SellModal opens skip re-fetching.
+ * Stored under a "partial:" key prefix to distinguish from full set caches.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @param {Object[]} cards - Normalized card objects to cache.
+ * @returns {Promise<void>}
+ */
 export async function savePartialCards(setCode, cards) {
   try {
     const db = await openDatabase();
@@ -126,6 +140,11 @@ export async function savePartialCards(setCode, cards) {
   }
 }
 
+/**
+ * Returns all set codes that have a saved collection in IndexedDB.
+ * Used to enumerate every set the user has ever tracked cards for.
+ * @returns {Promise<string[]>} Array of set codes, e.g. ["ktk", "eld"].
+ */
 export async function loadAllCollectionKeys() {
   try {
     const db = await openDatabase();

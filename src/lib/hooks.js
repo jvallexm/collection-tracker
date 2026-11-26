@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 
+/**
+ * Closes a modal or overlay when the Escape key is pressed.
+ * Attaches a document-level keydown listener and cleans it up on unmount.
+ * @param {function(): void} onClose - Called when Escape is pressed.
+ */
 export function useEscapeToClose(onClose) {
   useEffect(() => {
     const handler = (e) => {
