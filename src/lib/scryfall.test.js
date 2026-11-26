@@ -1,4 +1,4 @@
-import { loadCards, saveCards, saveCollection } from './storage.js';
+import { loadCards, loadConfig, saveCards, saveCollection, saveConfig } from './storage.js';
 import {
   buildSearchUrl,
   fetchSet,
@@ -6,6 +6,7 @@ import {
   fetchSets,
   fetchTokenCards,
   normalizeCard,
+  refreshBulkDataIfStale,
   refreshSetCardPrices,
 } from './scryfall.js';
 
@@ -573,6 +574,32 @@ describe('refreshSetCardPrices', () => {
     expect((await loadCards('ktk'))[0].price).toBe('2.00');
   });
 
+  test('skips network fetch and returns cached data when bulk timestamp is fresh', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '1.00', priceFoil: null }]);
+    await saveCards('tktk', [
+      { id: 'tok1', name: 'Soldier Token', price: '0.10', priceFoil: null },
+    ]);
+    await saveConfig('bulkTimestamp', Date.now() - 60 * 60 * 1000);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.main[0].price).toBe('1.00');
+    expect(result.tokens[0].price).toBe('0.10');
+  });
+
+  test('returns null tokens when bulk is fresh but no token cache exists', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '1.00', priceFoil: null }]);
+    await saveConfig('bulkTimestamp', Date.now() - 60 * 60 * 1000);
+    vi.stubGlobal('fetch', vi.fn());
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens).toBeNull();
+  });
+
   test('returns empty main when no cache exists', async () => {
     const result = await refreshSetCardPrices('ktk');
     expect(result.main).toEqual([]);
@@ -919,5 +946,106 @@ describe('fetchCardsByIds', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
     const { fetchCardsByIds } = await import('./scryfall.js');
     await expect(fetchCardsByIds(['abc'])).rejects.toThrow('Scryfall request failed (HTTP 429)');
+  });
+});
+
+const BULK_META_URL = 'https://api.scryfall.com/bulk-data';
+const BULK_DOWNLOAD_URL = 'https://downloads.scryfall.com/json/default-cards.json';
+
+const bulkMetaResponse = jsonResponse({
+  data: [{ type: 'default_cards', download_uri: BULK_DOWNLOAD_URL }],
+});
+
+function makeBulkFetch(cards) {
+  return vi.fn().mockImplementation((url) => {
+    if (url === BULK_META_URL) return Promise.resolve(bulkMetaResponse);
+    if (url === BULK_DOWNLOAD_URL) return Promise.resolve(jsonResponse(cards));
+    return Promise.reject(new Error(`unexpected url: ${url}`));
+  });
+}
+
+describe('refreshBulkDataIfStale', () => {
+  test('does nothing when bulk timestamp is under 12 hours old', async () => {
+    await saveConfig('bulkTimestamp', Date.now() - 60 * 60 * 1000);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await refreshBulkDataIfStale();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('downloads when no timestamp exists', async () => {
+    vi.stubGlobal('fetch', makeBulkFetch([rawCard({ id: 'abc', set: 'ktk' })]));
+
+    await refreshBulkDataIfStale();
+
+    expect(await loadCards('ktk')).toHaveLength(1);
+  });
+
+  test('downloads when timestamp is older than 12 hours', async () => {
+    await saveConfig('bulkTimestamp', Date.now() - 13 * 60 * 60 * 1000);
+    vi.stubGlobal('fetch', makeBulkFetch([rawCard({ id: 'abc', set: 'ktk' })]));
+
+    await refreshBulkDataIfStale();
+
+    expect(await loadCards('ktk')).not.toBeNull();
+  });
+
+  test('groups cards by set and writes each set to IDB', async () => {
+    vi.stubGlobal(
+      'fetch',
+      makeBulkFetch([
+        rawCard({ id: '1', set: 'ktk' }),
+        rawCard({ id: '2', set: 'eld' }),
+        rawCard({ id: '3', set: 'ktk' }),
+      ]),
+    );
+
+    await refreshBulkDataIfStale();
+
+    expect(await loadCards('ktk')).toHaveLength(2);
+    expect(await loadCards('eld')).toHaveLength(1);
+  });
+
+  test('filters out digital-only cards', async () => {
+    vi.stubGlobal(
+      'fetch',
+      makeBulkFetch([
+        rawCard({ id: '1', set: 'ktk' }),
+        rawCard({ id: '2', set: 'ktk', digital: true }),
+      ]),
+    );
+
+    await refreshBulkDataIfStale();
+
+    expect(await loadCards('ktk')).toHaveLength(1);
+  });
+
+  test('saves a bulk timestamp after a successful download', async () => {
+    const before = Date.now();
+    vi.stubGlobal('fetch', makeBulkFetch([]));
+
+    await refreshBulkDataIfStale();
+
+    expect(await loadConfig('bulkTimestamp')).toBeGreaterThanOrEqual(before);
+  });
+
+  test('throws when the metadata request fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+
+    await expect(refreshBulkDataIfStale()).rejects.toThrow('HTTP 503');
+  });
+
+  test('throws when the bulk file download fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        if (url === BULK_META_URL) return Promise.resolve(bulkMetaResponse);
+        return Promise.resolve({ ok: false, status: 503 });
+      }),
+    );
+
+    await expect(refreshBulkDataIfStale()).rejects.toThrow('HTTP 503');
   });
 });

@@ -1,7 +1,12 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from './test/fixtures.js';
 import { fetchCKPrices } from './lib/cardkingdom.js';
-import { fetchSetCards, fetchSets, refreshSetCardPrices } from './lib/scryfall.js';
+import {
+  fetchSetCards,
+  fetchSets,
+  refreshBulkDataIfStale,
+  refreshSetCardPrices,
+} from './lib/scryfall.js';
 import {
   deleteCards,
   loadAllCollectionKeys,
@@ -22,6 +27,7 @@ vi.mock('./lib/scryfall.js', () => ({
   fetchSets: vi.fn().mockResolvedValue([]),
   fetchSet: vi.fn().mockResolvedValue(null),
   refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
+  refreshBulkDataIfStale: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
@@ -50,6 +56,17 @@ async function renderApp() {
 test('starts in light mode by default', async () => {
   await renderApp();
   expect(document.querySelector('.app-root').classList.contains('light')).toBe(true);
+});
+
+test('calls refreshBulkDataIfStale on initial render', async () => {
+  await renderApp();
+  expect(refreshBulkDataIfStale).toHaveBeenCalledTimes(1);
+});
+
+test('renders without crashing when refreshBulkDataIfStale rejects', async () => {
+  refreshBulkDataIfStale.mockRejectedValueOnce(new Error('network'));
+  await renderApp();
+  expect(document.querySelector('.app-root')).not.toBeNull();
 });
 
 test('renders without crashing when fetchCKPrices returns null', async () => {

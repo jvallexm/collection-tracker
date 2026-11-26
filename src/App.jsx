@@ -6,6 +6,7 @@ import SetTracker from './components/SetTracker.jsx';
 import { withQuantity } from './lib/collection.js';
 import { usePersistedConfig } from './lib/hooks.js';
 import { fetchCKPrices } from './lib/cardkingdom.js';
+import { refreshBulkDataIfStale } from './lib/scryfall.js';
 import { buildMoxfieldCsv } from './lib/moxfield.js';
 import {
   closeSet as closeSetState,
@@ -52,6 +53,10 @@ export default function App() {
 
   useEffect(() => {
     refreshCKPrices();
+  }, []);
+
+  useEffect(() => {
+    refreshBulkDataIfStale().catch(() => {});
   }, []);
 
   useEffect(() => {

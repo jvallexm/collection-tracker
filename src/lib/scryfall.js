@@ -1,10 +1,12 @@
-import { loadCards, loadCollection, saveCards } from './storage.js';
+import { loadCards, loadCollection, saveCards, loadConfig, saveConfig } from './storage.js';
 
 const SEARCH_ENDPOINT = 'https://api.scryfall.com/cards/search';
 const SETS_ENDPOINT = 'https://api.scryfall.com/sets';
 const COLLECTION_ENDPOINT = 'https://api.scryfall.com/cards/collection';
+const BULK_DATA_ENDPOINT = 'https://api.scryfall.com/bulk-data';
 const COLLECTION_BATCH_SIZE = 75;
-const DELAY_BETWEEN_PAGES_MS = 100; // Scryfall asks clients to pause between requests.
+const DELAY_BETWEEN_PAGES_MS = 200; // Scryfall asks clients to pause between requests.
+const BULK_STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -123,8 +125,17 @@ function fetchCardsFromScryfall(setCode, onPage) {
 }
 
 export async function refreshSetCardPrices(setCode) {
-  const [cached, collection] = await Promise.all([loadCards(setCode), loadCollection(setCode)]);
+  const [cached, collection, bulkTimestamp] = await Promise.all([
+    loadCards(setCode),
+    loadCollection(setCode),
+    loadConfig('bulkTimestamp'),
+  ]);
   if (!cached) return { main: [], tokens: null };
+
+  if (bulkTimestamp && Date.now() - bulkTimestamp < BULK_STALE_MS) {
+    const cachedTokens = await loadCards(`t${setCode}`);
+    return { main: cached, tokens: cachedTokens ?? null };
+  }
 
   const ownedIds = Object.entries(collection)
     .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
@@ -213,4 +224,29 @@ export async function fetchCardsByIds(ids) {
     cards.push(...batchCards);
   }
   return cards;
+}
+
+export async function refreshBulkDataIfStale() {
+  const ts = await loadConfig('bulkTimestamp');
+  if (ts && Date.now() - ts < BULK_STALE_MS) return;
+
+  const metaRes = await fetch(BULK_DATA_ENDPOINT, { headers: { Accept: 'application/json' } });
+  if (!metaRes.ok) throw new Error(`Scryfall bulk-data request failed (HTTP ${metaRes.status})`);
+  const meta = await metaRes.json();
+  const { download_uri } = meta.data.find((d) => d.type === 'default_cards');
+
+  const dataRes = await fetch(download_uri, { headers: { Accept: 'application/json' } });
+  if (!dataRes.ok) throw new Error(`Scryfall bulk download failed (HTTP ${dataRes.status})`);
+  const cards = await dataRes.json();
+
+  const bySet = {};
+  for (const card of cards) {
+    if (card.digital) continue;
+    const normalized = normalizeCard(card);
+    (bySet[normalized.set.toLowerCase()] ??= []).push(normalized);
+  }
+  for (const [code, setCards] of Object.entries(bySet)) {
+    await saveCards(code, setCards);
+  }
+  await saveConfig('bulkTimestamp', Date.now());
 }
