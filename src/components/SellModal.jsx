@@ -85,6 +85,56 @@ function SellQtyInput({ label, col, value, max, onChange, onFocus }) {
   );
 }
 
+const SellTable = memo(function SellTable({
+  ownedCards,
+  mergedCollection,
+  cardSetMap,
+  sellQtys,
+  foilSellQtys,
+  onSellChange,
+  onFoilSellChange,
+  onFocus,
+  ckPrices,
+}) {
+  return (
+    <div className="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th className="qty-heading">Qty</th>
+            <th className="qty-heading">Sell</th>
+            {ckPrices && <th className="price-cell ck-cell">CK</th>}
+            <th className="qty-heading">Foil</th>
+            <th className="qty-heading">Foil Sell</th>
+            {ckPrices && <th className="price-cell ck-cell">CKF</th>}
+            <th className="cost-cell">Set</th>
+            <th>Name</th>
+            <th>R</th>
+            <th className="cost-cell">Cost</th>
+            <th className="number-cell">#</th>
+          </tr>
+        </thead>
+        <tbody onKeyDown={moveSellFocus}>
+          {ownedCards.map((card) => (
+            <SellRow
+              key={card.id}
+              card={card}
+              entry={mergedCollection[card.id]}
+              setName={cardSetMap[card.id]}
+              sellQty={sellQtys[card.id] ?? 0}
+              foilSellQty={foilSellQtys[card.id] ?? 0}
+              onSellChange={onSellChange}
+              onFoilSellChange={onFoilSellChange}
+              onFocus={onFocus}
+              ckPrices={ckPrices}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
 const SellRow = memo(function SellRow({
   card,
   entry,
@@ -336,41 +386,17 @@ export default function SellModal({
                 <span className="loading-spinner" aria-label="Loading" />
               </div>
             ) : (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="qty-heading">Qty</th>
-                      <th className="qty-heading">Sell</th>
-                      {ckPrices && <th className="price-cell ck-cell">CK</th>}
-                      <th className="qty-heading">Foil</th>
-                      <th className="qty-heading">Foil Sell</th>
-                      {ckPrices && <th className="price-cell ck-cell">CKF</th>}
-                      <th className="cost-cell">Set</th>
-                      <th>Name</th>
-                      <th>R</th>
-                      <th className="cost-cell">Cost</th>
-                      <th className="number-cell">#</th>
-                    </tr>
-                  </thead>
-                  <tbody onKeyDown={moveSellFocus}>
-                    {ownedCards.map((card) => (
-                      <SellRow
-                        key={card.id}
-                        card={card}
-                        entry={mergedCollection[card.id]}
-                        setName={cardSetMap[card.id]}
-                        sellQty={sellQtys[card.id] ?? 0}
-                        foilSellQty={foilSellQtys[card.id] ?? 0}
-                        onSellChange={handleSellChange}
-                        onFoilSellChange={handleFoilSellChange}
-                        onFocus={handleFocus}
-                        ckPrices={ckPrices}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SellTable
+                ownedCards={ownedCards}
+                mergedCollection={mergedCollection}
+                cardSetMap={cardSetMap}
+                sellQtys={sellQtys}
+                foilSellQtys={foilSellQtys}
+                onSellChange={handleSellChange}
+                onFoilSellChange={handleFoilSellChange}
+                onFocus={handleFocus}
+                ckPrices={ckPrices}
+              />
             )}
           </div>
         </div>
