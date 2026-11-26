@@ -4,7 +4,8 @@ import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
-import { fetchSetCards } from '../lib/scryfall.js';
+import { createPortal } from 'react-dom';
+import { fetchCardsByIds } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -163,13 +164,43 @@ export default function SellModal({
       const cardAccum = [];
       const collectionAccum = {};
       const indexAccum = {};
+
+      // Load collections first to know which card IDs are owned
       for (const code of allCodes) {
-        const cards = (await loadCards(code)) ?? (await fetchSetCards(code).catch(() => []));
-        const coll = await loadCollection(code);
-        collectionAccum[code] = coll;
-        for (const card of cards) {
+        collectionAccum[code] = await loadCollection(code);
+      }
+      const ownedIds = new Set(
+        Object.values(collectionAccum).flatMap((coll) =>
+          Object.entries(coll)
+            .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
+            .map(([id]) => id),
+        ),
+      );
+
+      // Use per-set IDB cache when available; collect uncached owned IDs for batch fetch
+      const uncachedIds = [];
+      for (const code of allCodes) {
+        const cached = await loadCards(code);
+        if (cached) {
+          for (const card of cached) {
+            if (ownedIds.has(card.id) && !indexAccum[card.id]) {
+              indexAccum[card.id] = code;
+              cardAccum.push(card);
+            }
+          }
+        } else {
+          for (const id of Object.keys(collectionAccum[code])) {
+            if (ownedIds.has(id) && !indexAccum[id]) uncachedIds.push(id);
+          }
+        }
+      }
+
+      // Batch fetch only the owned cards that weren't in IDB
+      if (uncachedIds.length > 0) {
+        const fetched = await fetchCardsByIds(uncachedIds).catch(() => []);
+        for (const card of fetched) {
           if (!indexAccum[card.id]) {
-            indexAccum[card.id] = code;
+            indexAccum[card.id] = card.set.toLowerCase();
             cardAccum.push(card);
           }
         }
@@ -320,12 +351,15 @@ export default function SellModal({
           </div>
         </div>
       </div>
-      <CardPreview
-        key={focusedCard?.id}
-        card={focusedCard}
-        pos={cardPreviewPos}
-        imageSize={cardImageSize ?? 'small'}
-      />
+      {createPortal(
+        <CardPreview
+          key={focusedCard?.id}
+          card={focusedCard}
+          pos={cardPreviewPos}
+          imageSize={cardImageSize ?? 'small'}
+        />,
+        document.body,
+      )}
     </>
   );
 }

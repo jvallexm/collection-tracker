@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from '../test/fixtures.js';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
-import { fetchSetCards } from '../lib/scryfall.js';
+import { fetchCardsByIds } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -16,7 +16,7 @@ vi.mock('../lib/cardkingdom.js', () => ({
 }));
 
 vi.mock('../lib/scryfall.js', () => ({
-  fetchSetCards: vi.fn().mockResolvedValue([]),
+  fetchCardsByIds: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../lib/storage.js', () => ({
@@ -66,20 +66,20 @@ describe('SellModal loading', () => {
     expect(screen.getByText('Lightning Bolt')).not.toBeNull();
   });
 
-  test('falls back to fetchSetCards when loadCards returns null', async () => {
+  test('falls back to fetchCardsByIds when loadCards returns null', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue(null);
-    fetchSetCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchCardsByIds.mockResolvedValue([BOLT]);
     await renderModal();
     expect(screen.getByText('Lightning Bolt')).not.toBeNull();
   });
 
-  test('shows empty list when both loadCards and fetchSetCards fail', async () => {
+  test('shows empty list when both loadCards and fetchCardsByIds fail', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue(null);
-    fetchSetCards.mockRejectedValue(new Error('network'));
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchCardsByIds.mockRejectedValue(new Error('network'));
     await renderModal();
     expect(document.querySelectorAll('tbody tr')).toHaveLength(0);
   });
@@ -593,6 +593,62 @@ describe('SellModal backtick fill', () => {
     input.focus();
     fireEvent.keyDown(input, { key: '`' });
     expect(input.value).toBe('2');
+  });
+});
+
+describe('SellModal branch coverage', () => {
+  test('skips uncachedIds for card already indexed from earlier cached set', async () => {
+    // ktk cached first → bolt indexed; eld uncached second → bolt skipped (line 193 false branch)
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'ktk' ? [BOLT] : null));
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchCardsByIds.mockResolvedValue([]);
+    await renderModal();
+    expect(fetchCardsByIds).not.toHaveBeenCalledWith(expect.arrayContaining(['bolt']));
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+  });
+
+  test('skips fetched card already indexed from a later cached set', async () => {
+    // eld uncached first → bolt pushed to uncachedIds; ktk cached second → bolt indexed
+    // fetchCardsByIds returns bolt but !indexAccum[bolt] is false → skipped (lines 202-205 false branch)
+    loadAllCollectionKeys.mockResolvedValue(['eld', 'ktk']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'ktk' ? [BOLT] : null));
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchCardsByIds.mockResolvedValue([BOLT]);
+    await renderModal();
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(1);
+  });
+
+  test('sorts two cards from the same set alphabetically by name', async () => {
+    const WRATH_KTK = makeCard({
+      id: 'wrath',
+      name: 'Wrath of God',
+      rarity: 'rare',
+      number: '2',
+      set: 'KTK',
+      nonfoil: true,
+      foil: false,
+    });
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([WRATH_KTK, BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, wrath: { qty: 1 } });
+    await renderModal();
+    const rows = document.querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).queryByText('Lightning Bolt')).not.toBeNull();
+    expect(within(rows[1]).queryByText('Wrath of God')).not.toBeNull();
+  });
+
+  test('filters out fetched card whose id is absent from merged collection', async () => {
+    // fetchCardsByIds returns a card with an id not in any collection entry
+    // → mergedCollection[card.id] is undefined → entry?. optional chain fires its null/undefined path
+    const OTHER = { ...BOLT, id: 'other-id' };
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchCardsByIds.mockResolvedValue([OTHER]);
+    await renderModal();
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(0);
   });
 });
 

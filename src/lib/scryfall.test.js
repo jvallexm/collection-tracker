@@ -772,3 +772,61 @@ describe('fetchTokenCards', () => {
     expect(tokens[0].id).toBe('dfc1');
   });
 });
+
+describe('fetchCardsByIds', () => {
+  test('returns normalized cards for the given IDs', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ data: [rawCard({ id: 'abc' }), rawCard({ id: 'def', name: 'Other' })] }),
+        ),
+    );
+
+    const { fetchCardsByIds } = await import('./scryfall.js');
+    const cards = await fetchCardsByIds(['abc', 'def']);
+    expect(cards.map((c) => c.id)).toEqual(['abc', 'def']);
+  });
+
+  test('POSTs identifiers as JSON to the collection endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [rawCard({ id: 'abc' })] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchCardsByIds } = await import('./scryfall.js');
+    await fetchCardsByIds(['abc']);
+
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.scryfall.com/cards/collection');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ identifiers: [{ id: 'abc' }] });
+  });
+
+  test('returns empty array for empty input without fetching', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchCardsByIds } = await import('./scryfall.js');
+    const cards = await fetchCardsByIds([]);
+    expect(cards).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('splits into batches of 75 and makes one request per batch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchCardsByIds } = await import('./scryfall.js');
+    const ids = Array.from({ length: 100 }, (_, i) => `id-${i}`);
+    await fetchCardsByIds(ids);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).identifiers).toHaveLength(75);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).identifiers).toHaveLength(25);
+  });
+
+  test('throws on non-OK response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+    const { fetchCardsByIds } = await import('./scryfall.js');
+    await expect(fetchCardsByIds(['abc'])).rejects.toThrow('Scryfall request failed (HTTP 429)');
+  });
+});

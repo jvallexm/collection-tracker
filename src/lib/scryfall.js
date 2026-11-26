@@ -2,6 +2,8 @@ import { loadCards, saveCards } from './storage.js';
 
 const SEARCH_ENDPOINT = 'https://api.scryfall.com/cards/search';
 const SETS_ENDPOINT = 'https://api.scryfall.com/sets';
+const COLLECTION_ENDPOINT = 'https://api.scryfall.com/cards/collection';
+const COLLECTION_BATCH_SIZE = 75;
 const DELAY_BETWEEN_PAGES_MS = 100; // Scryfall asks clients to pause between requests.
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -170,4 +172,24 @@ export async function fetchSetCards(setCode) {
   await saveCards(setCode, mainCards);
   if (tokenCards) await saveCards(tokenCode, tokenCards);
   return mainCards;
+}
+
+export async function fetchCardsByIds(ids) {
+  if (ids.length === 0) return [];
+  const cards = [];
+  for (let i = 0; i < ids.length; i += COLLECTION_BATCH_SIZE) {
+    const batch = ids.slice(i, i + COLLECTION_BATCH_SIZE);
+    const batchCards = await enqueue(async () => {
+      const response = await fetch(COLLECTION_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ identifiers: batch.map((id) => ({ id })) }),
+      });
+      if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
+      const json = await response.json();
+      return json.data.map(normalizeCard);
+    });
+    cards.push(...batchCards);
+  }
+  return cards;
 }
