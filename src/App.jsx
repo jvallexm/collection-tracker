@@ -237,6 +237,8 @@ export default function App() {
             onClose={() => setShowSellModal(false)}
             openSets={openSets ?? []}
             ckPrices={ckPrices}
+            cardPreviewPos={cardPreviewPos}
+            cardImageSize={cardImageSize}
           />
         )}
       </div>

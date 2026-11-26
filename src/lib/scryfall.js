@@ -6,6 +6,14 @@ const DELAY_BETWEEN_PAGES_MS = 100; // Scryfall asks clients to pause between re
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Serialize all Scryfall page fetches to avoid concurrent requests hitting the rate limit.
+let _scryfallQueue = Promise.resolve();
+function enqueue(fn) {
+  const task = _scryfallQueue.then(fn);
+  _scryfallQueue = task.catch(() => {});
+  return task;
+}
+
 /**
  * Builds the Scryfall search URL for all cards in a given set.
  * Results include all prints (unique=prints) so alternate art treatments are included.
@@ -92,20 +100,22 @@ export async function fetchSets() {
     .map(({ code, name, set_type }) => ({ code, name, set_type }));
 }
 
-async function fetchCardsFromScryfall(setCode) {
-  const cards = [];
-  let nextUrl = buildSearchUrl(setCode);
+function fetchCardsFromScryfall(setCode) {
+  return enqueue(async () => {
+    const cards = [];
+    let nextUrl = buildSearchUrl(setCode);
 
-  while (nextUrl) {
-    const response = await fetch(nextUrl, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
-    const page = await response.json();
-    cards.push(...page.data.filter((c) => !c.digital).map(normalizeCard));
-    nextUrl = page.has_more ? page.next_page : null;
-    if (nextUrl) await delay(DELAY_BETWEEN_PAGES_MS);
-  }
+    while (nextUrl) {
+      const response = await fetch(nextUrl, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
+      const page = await response.json();
+      cards.push(...page.data.filter((c) => !c.digital).map(normalizeCard));
+      nextUrl = page.has_more ? page.next_page : null;
+      if (nextUrl) await delay(DELAY_BETWEEN_PAGES_MS);
+    }
 
-  return cards;
+    return cards;
+  });
 }
 
 export async function refreshSetCardPrices(setCode) {

@@ -455,6 +455,28 @@ describe('fetchSetCards', () => {
 
     expect(await loadCards('tktk')).toBeNull();
   });
+
+  test('serializes concurrent calls so fetch is never called concurrently', async () => {
+    let activeCount = 0;
+    let maxActive = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => {
+        activeCount++;
+        maxActive = Math.max(maxActive, activeCount);
+        return Promise.resolve({
+          ok: true,
+          json: async () => {
+            activeCount--;
+            return { data: [], has_more: false };
+          },
+        });
+      }),
+    );
+
+    await Promise.all([fetchSetCards('ktk'), fetchSetCards('eld')]);
+    expect(maxActive).toBe(1);
+  });
 });
 
 describe('refreshSetCardPrices', () => {

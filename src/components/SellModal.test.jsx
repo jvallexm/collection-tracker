@@ -397,6 +397,22 @@ describe('SellModal close', () => {
   });
 });
 
+describe('SellModal card preview', () => {
+  test('shows card preview when a sell input is focused', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 2 } });
+    await renderModal();
+    fireEvent.focus(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }));
+    expect(document.querySelector('.card-preview')).not.toBeNull();
+  });
+
+  test('hides card preview when no input is focused', async () => {
+    await renderModal();
+    expect(document.querySelector('.card-preview')).toBeNull();
+  });
+});
+
 describe('SellModal keyboard navigation', () => {
   const BOLT_NOFOIL = makeCard({
     id: 'bolt-nf',

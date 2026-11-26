@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CardPreview from './CardPreview.jsx';
 import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
@@ -59,7 +60,7 @@ function moveSellFocus(event) {
   }
 }
 
-function SellQtyInput({ label, col, value, max, onChange }) {
+function SellQtyInput({ label, col, value, max, onChange, onFocus }) {
   return (
     <input
       className="qty-input"
@@ -69,7 +70,10 @@ function SellQtyInput({ label, col, value, max, onChange }) {
       data-col={col}
       value={value || ''}
       disabled={max === 0}
-      onFocus={(e) => e.target.select()}
+      onFocus={(e) => {
+        e.target.select();
+        onFocus?.();
+      }}
       onKeyDown={(e) => {
         if (e.key === '`') {
           e.preventDefault();
@@ -89,6 +93,7 @@ function SellRow({
   foilSellQty,
   onSellChange,
   onFoilSellChange,
+  onFocus,
   ckPrices,
 }) {
   const qty = entry?.qty ?? 0;
@@ -104,6 +109,7 @@ function SellRow({
           value={sellQty}
           max={qty}
           onChange={onSellChange}
+          onFocus={() => onFocus?.(card)}
         />
       </td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
@@ -115,6 +121,7 @@ function SellRow({
           value={foilSellQty}
           max={card.foil ? foil : 0}
           onChange={onFoilSellChange}
+          onFocus={() => onFocus?.(card)}
         />
       </td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
@@ -132,8 +139,15 @@ function SellRow({
   );
 }
 
-export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
+export default function SellModal({
+  onClose,
+  openSets = [],
+  ckPrices = null,
+  cardPreviewPos = null,
+  cardImageSize = null,
+}) {
   const [allCards, setAllCards] = useState(null);
+  const [focusedCard, setFocusedCard] = useState(null);
   const [collections, setCollections] = useState({});
   const [cardSetMap, setCardSetMap] = useState({});
   const [sellQtys, setSellQtys] = useState({});
@@ -242,67 +256,76 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={closeWhenBackdropClicked}>
-      <div
-        className="dialog dialog--wide"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Sell to Card Kingdom"
-      >
-        <Titlebar>
-          <span>Sell to Card Kingdom</span>
-          <div className="titlebar-buttons">
-            <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />
-          </div>
-        </Titlebar>
-        <div className="dialog-body">
-          <div className="button-row">
-            <button onClick={handleExport}>Export</button>
-          </div>
-          {ownedCards === null ? (
-            <div className="table-scroll table-loading">
-              <span className="loading-spinner" aria-label="Loading" />
+    <>
+      <div className="modal-overlay" onClick={closeWhenBackdropClicked}>
+        <div
+          className="dialog dialog--wide"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sell to Card Kingdom"
+        >
+          <Titlebar>
+            <span>Sell to Card Kingdom</span>
+            <div className="titlebar-buttons">
+              <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />
             </div>
-          ) : (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="qty-heading">Qty</th>
-                    <th className="qty-heading">Sell</th>
-                    {ckPrices && <th className="price-cell ck-cell">CK</th>}
-                    <th className="qty-heading">Foil</th>
-                    <th className="qty-heading">Foil Sell</th>
-                    {ckPrices && <th className="price-cell ck-cell">CKF</th>}
-                    <th className="cost-cell">Set</th>
-                    <th>Name</th>
-                    <th>R</th>
-                    <th className="cost-cell">Cost</th>
-                    <th className="number-cell">#</th>
-                  </tr>
-                </thead>
-                <tbody onKeyDown={moveSellFocus}>
-                  {ownedCards.map((card) => (
-                    <SellRow
-                      key={card.id}
-                      card={card}
-                      entry={mergedCollection[card.id]}
-                      setName={cardSetMap[card.id]}
-                      sellQty={sellQtys[card.id] ?? 0}
-                      foilSellQty={foilSellQtys[card.id] ?? 0}
-                      onSellChange={(v) => setSellQtys((prev) => ({ ...prev, [card.id]: v }))}
-                      onFoilSellChange={(v) =>
-                        setFoilSellQtys((prev) => ({ ...prev, [card.id]: v }))
-                      }
-                      ckPrices={ckPrices}
-                    />
-                  ))}
-                </tbody>
-              </table>
+          </Titlebar>
+          <div className="dialog-body">
+            <div className="button-row">
+              <button onClick={handleExport}>Export</button>
             </div>
-          )}
+            {ownedCards === null ? (
+              <div className="table-scroll table-loading">
+                <span className="loading-spinner" aria-label="Loading" />
+              </div>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="qty-heading">Qty</th>
+                      <th className="qty-heading">Sell</th>
+                      {ckPrices && <th className="price-cell ck-cell">CK</th>}
+                      <th className="qty-heading">Foil</th>
+                      <th className="qty-heading">Foil Sell</th>
+                      {ckPrices && <th className="price-cell ck-cell">CKF</th>}
+                      <th className="cost-cell">Set</th>
+                      <th>Name</th>
+                      <th>R</th>
+                      <th className="cost-cell">Cost</th>
+                      <th className="number-cell">#</th>
+                    </tr>
+                  </thead>
+                  <tbody onKeyDown={moveSellFocus}>
+                    {ownedCards.map((card) => (
+                      <SellRow
+                        key={card.id}
+                        card={card}
+                        entry={mergedCollection[card.id]}
+                        setName={cardSetMap[card.id]}
+                        sellQty={sellQtys[card.id] ?? 0}
+                        foilSellQty={foilSellQtys[card.id] ?? 0}
+                        onSellChange={(v) => setSellQtys((prev) => ({ ...prev, [card.id]: v }))}
+                        onFoilSellChange={(v) =>
+                          setFoilSellQtys((prev) => ({ ...prev, [card.id]: v }))
+                        }
+                        onFocus={setFocusedCard}
+                        ckPrices={ckPrices}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      <CardPreview
+        key={focusedCard?.id}
+        card={focusedCard}
+        pos={cardPreviewPos}
+        imageSize={cardImageSize ?? 'small'}
+      />
+    </>
   );
 }

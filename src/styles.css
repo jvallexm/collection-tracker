@@ -657,7 +657,7 @@ th {
   position: fixed;
   top: 60px;
   left: 16px;
-  z-index: 210;
+  z-index: 600;
   width: 160px;
 }
 .size-box {
