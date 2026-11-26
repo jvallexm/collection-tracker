@@ -1055,4 +1055,15 @@ describe('refreshBulkDataIfStale', () => {
 
     await expect(refreshBulkDataIfStale()).rejects.toThrow('HTTP 503');
   });
+
+  test('throws when the metadata response has no default_cards entry', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(jsonResponse({ data: [{ type: 'oracle_cards', download_uri: 'x' }] })),
+    );
+
+    await expect(refreshBulkDataIfStale()).rejects.toThrow('default_cards entry not found');
+  });
 });
