@@ -835,44 +835,6 @@ describe('CardTable token section', () => {
     expect(screen.getByText('$0.50')).not.toBeNull();
   });
 
-  test('shows sell checkbox for token cards when showCKTools is true', () => {
-    render(
-      <CardTable
-        cards={CARDS}
-        tokenCards={[TOKEN]}
-        collection={{ tok1: { qty: 1 } }}
-        sort={{ key: 'name', direction: 1 }}
-        onQuantityChange={vi.fn()}
-        onFoilQuantityChange={vi.fn()}
-        onSort={vi.fn()}
-        showCKTools={true}
-        sellIds={new Set(['tok1'])}
-        onSellToggle={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText('Sell Soldier Token').checked).toBe(true);
-  });
-
-  test('calls onSellToggle for token cards', () => {
-    const onSellToggle = vi.fn();
-    render(
-      <CardTable
-        cards={CARDS}
-        tokenCards={[TOKEN]}
-        collection={{ tok1: { qty: 1 } }}
-        sort={{ key: 'name', direction: 1 }}
-        onQuantityChange={vi.fn()}
-        onFoilQuantityChange={vi.fn()}
-        onSort={vi.fn()}
-        showCKTools={true}
-        sellIds={new Set()}
-        onSellToggle={onSellToggle}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText('Sell Soldier Token'));
-    expect(onSellToggle).toHaveBeenCalledWith('tok1');
-  });
-
   test('calls onQuantityChange and onFoilQuantityChange for token card inputs', () => {
     const onQuantityChange = vi.fn();
     const onFoilQuantityChange = vi.fn();
@@ -951,74 +913,6 @@ describe('CardTable CK buy prices', () => {
   });
 });
 
-describe('CardTable sell checkboxes', () => {
-  function renderWithSell({ sellIds = new Set(), onSellToggle = vi.fn() } = {}) {
-    render(
-      <CardTable
-        cards={CARDS}
-        collection={{}}
-        sort={{ key: 'name', direction: 1 }}
-        onQuantityChange={vi.fn()}
-        onFoilQuantityChange={vi.fn()}
-        onSort={vi.fn()}
-        sellIds={sellIds}
-        onSellToggle={onSellToggle}
-      />,
-    );
-    return { onSellToggle };
-  }
-
-  test('renders a Sell checkbox for each card row', () => {
-    renderWithSell();
-    expect(screen.getAllByRole('checkbox', { name: /^Sell / })).toHaveLength(CARDS.length);
-  });
-
-  test('checkbox is checked when card id is in sellIds', () => {
-    renderWithSell({ sellIds: new Set(['a']) });
-    expect(screen.getByRole('checkbox', { name: 'Sell Arrow' }).checked).toBe(true);
-    expect(screen.getByRole('checkbox', { name: 'Sell Bolt' }).checked).toBe(false);
-  });
-
-  test('calls onSellToggle with card id when checkbox changes', () => {
-    const { onSellToggle } = renderWithSell();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Arrow' }));
-    expect(onSellToggle).toHaveBeenCalledWith('a');
-  });
-
-  test('checkbox is disabled when card has no inventory', () => {
-    renderWithSell({ sellIds: new Set() });
-    expect(screen.getByRole('checkbox', { name: 'Sell Arrow' }).disabled).toBe(true);
-  });
-
-  test('checkbox is enabled when card has nonfoil qty', () => {
-    render(
-      <CardTable
-        cards={CARDS}
-        collection={{ a: { qty: 1 } }}
-        sort={{ key: 'name', direction: 1 }}
-        onQuantityChange={vi.fn()}
-        onFoilQuantityChange={vi.fn()}
-        onSort={vi.fn()}
-      />,
-    );
-    expect(screen.getByRole('checkbox', { name: 'Sell Arrow' }).disabled).toBe(false);
-  });
-
-  test('checkbox is enabled when card has foil qty', () => {
-    render(
-      <CardTable
-        cards={CARDS}
-        collection={{ a: { foil: 2 } }}
-        sort={{ key: 'name', direction: 1 }}
-        onQuantityChange={vi.fn()}
-        onFoilQuantityChange={vi.fn()}
-        onSort={vi.fn()}
-      />,
-    );
-    expect(screen.getByRole('checkbox', { name: 'Sell Arrow' }).disabled).toBe(false);
-  });
-});
-
 describe('CardTable showCKTools visibility', () => {
   function renderWithFlag(showCKTools) {
     render(
@@ -1034,19 +928,16 @@ describe('CardTable showCKTools visibility', () => {
     );
   }
 
-  test('hides CK, CKF and Sell columns when showCKTools is false', () => {
+  test('hides CK and CKF columns when showCKTools is false', () => {
     renderWithFlag(false);
     expect(screen.queryByRole('columnheader', { name: 'CK' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: 'CKF' })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Sell' })).toBeNull();
-    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 
-  test('shows CK, CKF and Sell columns when showCKTools is true', () => {
+  test('shows CK and CKF columns when showCKTools is true', () => {
     renderWithFlag(true);
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
     expect(screen.getByRole('columnheader', { name: 'CKF' })).not.toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'Sell' })).not.toBeNull();
   });
 
   test('shows CK columns by default when showCKTools is not passed', () => {
@@ -1160,11 +1051,6 @@ describe('CardTable CK column tint', () => {
   test('CKF column header has ck-cell class', () => {
     renderWithCK();
     expect(screen.getByRole('columnheader', { name: 'CKF' }).className).toContain('ck-cell');
-  });
-
-  test('Sell column header has ck-cell class', () => {
-    renderWithCK();
-    expect(screen.getByRole('columnheader', { name: 'Sell' }).className).toContain('ck-cell');
   });
 
   test('CK price cells have ck-cell class', () => {

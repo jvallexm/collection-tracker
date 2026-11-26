@@ -421,34 +421,6 @@ describe('AllCardsView card preview', () => {
   });
 });
 
-describe('AllCardsView sell checkboxes', () => {
-  test('sell checkbox is rendered when showCKTools is true', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BRING_LOW]);
-    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
-    await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle: vi.fn() });
-    expect(screen.getByRole('checkbox', { name: 'Sell Bring Low' })).not.toBeNull();
-  });
-
-  test('sell checkbox reflects sellIds prop', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BRING_LOW]);
-    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
-    await renderView({ showCKTools: true, sellIds: new Set(['bring-low']), onSellToggle: vi.fn() });
-    expect(screen.getByRole('checkbox', { name: 'Sell Bring Low' }).checked).toBe(true);
-  });
-
-  test('clicking sell checkbox calls onSellToggle with card id', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BRING_LOW]);
-    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
-    const onSellToggle = vi.fn();
-    await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Bring Low' }));
-    expect(onSellToggle).toHaveBeenCalledWith('bring-low');
-  });
-});
-
 describe('AllCardsView minimize', () => {
   test('shows a Minimize button in the titlebar', async () => {
     loadAllCollectionKeys.mockResolvedValue([]);

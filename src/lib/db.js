@@ -9,6 +9,8 @@ export function upgrade(db, oldVersion) {
     db.createObjectStore('collections');
   }
   if (oldVersion < 2) {
+    // config keys: theme, showCKTools, sort:<setCode>, recentSets, openSets, sellQtys, foilSellQtys
+    // deprecated: sell checkbox (sellIds per set) was removed from the UI; it was never persisted
     db.createObjectStore('config');
   }
   if (oldVersion < 3) {

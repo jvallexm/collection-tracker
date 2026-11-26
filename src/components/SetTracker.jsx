@@ -73,8 +73,6 @@ export default function SetTracker({
   cardImageSize = null,
   ckPrices = null,
   ckTokenItems = [],
-  sellIds = new Set(),
-  onSellToggle,
   showCKTools = true,
 }) {
   const windowRef = useRef(null);
@@ -292,8 +290,6 @@ export default function SetTracker({
             searchRef.current?.select();
           }}
           ckPrices={ckPrices}
-          sellIds={sellIds}
-          onSellToggle={onSellToggle}
           showCKTools={showCKTools}
         />
       )}

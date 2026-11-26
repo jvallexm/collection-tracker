@@ -27,8 +27,6 @@ export default function AllCardsView({
   minimized = false,
   onMinimize,
   onRestore,
-  sellIds = new Set(),
-  onSellToggle,
 }) {
   const DEFAULT_SORT = { key: 'set', direction: 1, secondary: null };
   const windowRef = useRef(null);
@@ -226,8 +224,6 @@ export default function AllCardsView({
           showSetColumn={true}
           ckPrices={ckPrices}
           showCKTools={showCKTools}
-          sellIds={sellIds}
-          onSellToggle={onSellToggle}
         />
       )}
       <CardPreview

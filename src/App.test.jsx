@@ -188,47 +188,6 @@ describe('App View all cards', () => {
   });
 });
 
-describe('App All Cards sell persistence', () => {
-  async function openAllCards() {
-    await renderApp();
-    fireEvent.click(screen.getByText('My Collection'));
-    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
-    await act(async () => {});
-  }
-
-  beforeEach(() => {
-    loadConfig.mockImplementation((key) => Promise.resolve(key === 'showCKTools' ? true : null));
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([
-      makeCard({ id: 'bolt', name: 'Lightning Bolt', rarity: 'common', number: '1', set: 'KTK' }),
-    ]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
-  });
-
-  test('sell checkboxes persist after closing and reopening All Cards', async () => {
-    await openAllCards();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1));
-    fireEvent.click(screen.getByText('My Collection'));
-    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
-    await act(async () => {});
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(true);
-  });
-
-  test('toggling a sell checkbox off persists the unchecked state', async () => {
-    await openAllCards();
-    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
-    fireEvent.click(checkbox);
-    fireEvent.click(checkbox);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1));
-    fireEvent.click(screen.getByText('My Collection'));
-    fireEvent.click(screen.getByRole('button', { name: 'View all cards' }));
-    await act(async () => {});
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(false);
-  });
-});
-
 describe('App recent sets', () => {
   test('shows KTK as a default recent set before config loads', async () => {
     await renderApp();
@@ -645,31 +604,6 @@ describe('App sell to Card Kingdom', () => {
     const dialog = screen.getByRole('dialog', { name: 'Sell to Card Kingdom' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog', { name: 'Sell to Card Kingdom' })).toBeNull();
-  });
-
-  test('toggling a sell checkbox checks it', async () => {
-    fetchSetCards.mockResolvedValue([BOLT]);
-    loadCards.mockResolvedValue(null);
-    loadConfig.mockImplementation((key) =>
-      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
-    );
-    await renderApp();
-    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
-    fireEvent.click(checkbox);
-    expect(checkbox.checked).toBe(true);
-  });
-
-  test('toggling the same checkbox twice unchecks it', async () => {
-    fetchSetCards.mockResolvedValue([BOLT]);
-    loadCards.mockResolvedValue(null);
-    loadConfig.mockImplementation((key) =>
-      key === 'showCKTools' ? Promise.resolve(true) : Promise.resolve(null),
-    );
-    await renderApp();
-    const checkbox = screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' });
-    fireEvent.click(checkbox);
-    fireEvent.click(checkbox);
-    expect(checkbox.checked).toBe(false);
   });
 });
 

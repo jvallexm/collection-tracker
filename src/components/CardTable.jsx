@@ -88,8 +88,6 @@ function CardRow({
   onInputFocus,
   showNumber,
   ckPrices,
-  sellIds,
-  onSellToggle,
   showCKTools,
   showSetColumn,
 }) {
@@ -133,17 +131,6 @@ function CardRow({
       <td className="price-cell">{formatPrice(card.priceFoil)}</td>
       {showCKTools && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
       {showCKTools && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
-      {showCKTools && (
-        <td className="sell-cell ck-cell">
-          <input
-            type="checkbox"
-            aria-label={`Sell ${card.name}`}
-            checked={sellIds?.has(card.id) ?? false}
-            disabled={!entry?.qty && !entry?.foil}
-            onChange={() => onSellToggle?.(card.id)}
-          />
-        </td>
-      )}
     </tr>
   );
 }
@@ -160,8 +147,6 @@ export default function CardTable({
   onTableBlur,
   onEscapeTop,
   ckPrices = null,
-  sellIds = null,
-  onSellToggle,
   showCKTools = true,
   showSetColumn = false,
 }) {
@@ -203,7 +188,6 @@ export default function CardTable({
             ))}
             {showCKTools && <th className="price-cell ck-cell">CK</th>}
             {showCKTools && <th className="price-cell ck-cell">CKF</th>}
-            {showCKTools && <th className="sell-cell ck-cell">Sell</th>}
           </tr>
         </thead>
         <tbody
@@ -222,8 +206,6 @@ export default function CardTable({
               onInputFocus={onInputFocus}
               showNumber={duplicateNames.has(card.name)}
               ckPrices={ckPrices}
-              sellIds={sellIds}
-              onSellToggle={onSellToggle}
               showCKTools={showCKTools}
               showSetColumn={showSetColumn}
             />
@@ -231,7 +213,7 @@ export default function CardTable({
           {tokenCards.length > 0 && (
             <>
               <tr className="token-section-heading">
-                <td colSpan={2 + COLUMNS.length + (showCKTools ? 3 : 0) + (showSetColumn ? 1 : 0)}>
+                <td colSpan={2 + COLUMNS.length + (showCKTools ? 2 : 0) + (showSetColumn ? 1 : 0)}>
                   Tokens
                 </td>
               </tr>
@@ -245,8 +227,6 @@ export default function CardTable({
                   onInputFocus={onInputFocus}
                   showNumber={duplicateNames.has(card.name)}
                   ckPrices={ckPrices}
-                  sellIds={sellIds}
-                  onSellToggle={onSellToggle}
                   showCKTools={showCKTools}
                   showSetColumn={showSetColumn}
                 />

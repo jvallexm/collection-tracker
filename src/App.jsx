@@ -33,11 +33,9 @@ export default function App() {
   const [cardImageSize, setCardImageSize] = usePersistedConfig('cardImageSize', null);
   const [ckPrices, setCkPrices] = useState(null);
   const [ckTokenItems, setCkTokenItems] = useState([]);
-  const [sellSelections, setSellSelections] = useState({});
   const [showCKTools, setShowCKTools] = usePersistedConfig('showCKTools', false);
   const [showAllCards, setShowAllCards] = useState(false);
   const [allCardsMinimized, setAllCardsMinimized] = useState(false);
-  const [allCardsSellIds, setAllCardsSellIds] = useState(new Set());
   const [pricesLoading, setPricesLoading] = useState(false);
   const [showSellModal, setShowSellModal] = useState(false);
 
@@ -93,15 +91,6 @@ export default function App() {
 
   function handleClose(code) {
     setOpenSets((current) => closeSetState(current, code));
-  }
-
-  function handleSellToggle(setCode, cardId) {
-    setSellSelections((current) => {
-      const setIds = new Set(current[setCode] ?? []);
-      if (setIds.has(cardId)) setIds.delete(cardId);
-      else setIds.add(cardId);
-      return { ...current, [setCode]: setIds };
-    });
   }
 
   function handleExportSellCsv() {
@@ -210,8 +199,6 @@ export default function App() {
               cardImageSize={cardImageSize}
               ckPrices={ckPrices}
               ckTokenItems={ckTokenItems}
-              sellIds={sellSelections[set.code] ?? new Set()}
-              onSellToggle={(cardId) => handleSellToggle(set.code, cardId)}
               showCKTools={showCKTools}
             />
           );
@@ -244,15 +231,6 @@ export default function App() {
             minimized={allCardsMinimized}
             onMinimize={() => setAllCardsMinimized(true)}
             onRestore={() => setAllCardsMinimized(false)}
-            sellIds={allCardsSellIds}
-            onSellToggle={(cardId) => {
-              setAllCardsSellIds((prev) => {
-                const next = new Set(prev);
-                if (next.has(cardId)) next.delete(cardId);
-                else next.add(cardId);
-                return next;
-              });
-            }}
           />
         )}
         {showSellModal && (
