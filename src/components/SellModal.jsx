@@ -51,6 +51,7 @@ function SellRow({
           onChange={onSellChange}
         />
       </td>
+      {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
       <td className="qty-cell">{foil || ''}</td>
       <td className="qty-cell">
         <SellQtyInput
@@ -60,6 +61,7 @@ function SellRow({
           onChange={onFoilSellChange}
         />
       </td>
+      {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
       <td className="cost-cell">{setName?.toUpperCase()}</td>
       <td>
         {card.name}
@@ -70,8 +72,6 @@ function SellRow({
         <ManaCost cost={card.cost} />
       </td>
       <td className="number-cell">{card.number}</td>
-      {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
-      {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
     </tr>
   );
 }
@@ -193,15 +193,15 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
                   <tr>
                     <th className="qty-heading">Qty</th>
                     <th className="qty-heading">Sell</th>
+                    {ckPrices && <th className="price-cell ck-cell">CK</th>}
                     <th className="qty-heading">Foil</th>
                     <th className="qty-heading">Foil Sell</th>
+                    {ckPrices && <th className="price-cell ck-cell">CKF</th>}
                     <th className="cost-cell">Set</th>
                     <th>Name</th>
                     <th>R</th>
                     <th className="cost-cell">Cost</th>
                     <th className="number-cell">#</th>
-                    {ckPrices && <th className="price-cell ck-cell">CK</th>}
-                    {ckPrices && <th className="price-cell ck-cell">CKF</th>}
                   </tr>
                 </thead>
                 <tbody>
