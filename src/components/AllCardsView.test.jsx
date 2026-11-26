@@ -24,14 +24,20 @@ beforeEach(() => {
   refreshSetCardPrices.mockResolvedValue({ main: [], tokens: null });
 });
 
-const BOLT = makeCard({
-  id: 'bolt',
-  name: 'Lightning Bolt',
+const BRING_LOW = makeCard({
+  id: 'bring-low',
+  name: 'Bring Low',
   rarity: 'common',
   number: '1',
   set: 'KTK',
 });
-const ARROW = makeCard({ id: 'arrow', name: 'Arrow', rarity: 'rare', number: '2', set: 'ELD' });
+const ARROW_STORM = makeCard({
+  id: 'arrow-storm',
+  name: 'Arrow Storm',
+  rarity: 'rare',
+  number: '2',
+  set: 'ELD',
+});
 
 async function renderView(props = {}) {
   render(<AllCardsView onClose={vi.fn()} {...props} />);
@@ -47,37 +53,37 @@ describe('AllCardsView loading', () => {
 
   test('shows the table after data loads', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
   });
 });
 
 describe('AllCardsView owned cards filter', () => {
   test('only shows cards with nonzero quantity', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT, ARROW]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 2 }, arrow: { qty: 0 } });
+    loadCards.mockResolvedValue([BRING_LOW, ARROW_STORM]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 2 }, 'arrow-storm': { qty: 0 } });
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
-    expect(screen.queryByText('Arrow')).toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
+    expect(screen.queryByText('Arrow Storm')).toBeNull();
   });
 
   test('shows cards with only foil copies', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 0, foil: 1 } });
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
   });
 
   test('shows nothing when collection is empty', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
+    loadCards.mockResolvedValue([BRING_LOW]);
     loadCollection.mockResolvedValue({});
     await renderView();
-    expect(screen.queryByText('Lightning Bolt')).toBeNull();
+    expect(screen.queryByText('Bring Low')).toBeNull();
   });
 });
 
@@ -90,8 +96,8 @@ describe('AllCardsView SET column', () => {
 
   test('shows the set code for each card row', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView();
     expect(screen.getByText('KTK')).not.toBeNull();
   });
@@ -100,29 +106,31 @@ describe('AllCardsView SET column', () => {
 describe('AllCardsView sort order', () => {
   test('sorts by set code first, then card name', async () => {
     loadAllCollectionKeys.mockResolvedValue(['eld', 'ktk']);
-    loadCards.mockImplementation((code) => Promise.resolve(code === 'eld' ? [ARROW] : [BOLT]));
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, arrow: { qty: 1 } });
+    loadCards.mockImplementation((code) =>
+      Promise.resolve(code === 'eld' ? [ARROW_STORM] : [BRING_LOW]),
+    );
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 }, 'arrow-storm': { qty: 1 } });
     await renderView();
     const rows = document.querySelectorAll('tbody tr');
-    expect(rows[0].textContent).toContain('Arrow');
-    expect(rows[1].textContent).toContain('Lightning Bolt');
+    expect(rows[0].textContent).toContain('Arrow Storm');
+    expect(rows[1].textContent).toContain('Bring Low');
   });
 
   test('sorts alphabetically within the same set', async () => {
-    const CHARM = makeCard({
-      id: 'charm',
-      name: 'Charm',
-      rarity: 'common',
+    const CRACKLING_DOOM = makeCard({
+      id: 'crackling-doom',
+      name: 'Crackling Doom',
+      rarity: 'rare',
       number: '3',
       set: 'KTK',
     });
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT, CHARM]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, charm: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW, CRACKLING_DOOM]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 }, 'crackling-doom': { qty: 1 } });
     await renderView();
     const rows = document.querySelectorAll('tbody tr');
-    expect(rows[0].textContent).toContain('Charm');
-    expect(rows[1].textContent).toContain('Lightning Bolt');
+    expect(rows[0].textContent).toContain('Bring Low');
+    expect(rows[1].textContent).toContain('Crackling Doom');
   });
 });
 
@@ -161,9 +169,9 @@ describe('AllCardsView prices and CK columns', () => {
 
   test('shows CK buy prices when showCKTools is true', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    const ckPrices = new Map([['bolt', { nonfoilBuy: 1.5, foilBuy: 3.0 }]]);
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
+    const ckPrices = new Map([['bring-low', { nonfoilBuy: 1.5, foilBuy: 3.0 }]]);
     await renderView({ showCKTools: true, ckPrices });
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
     expect(screen.getByText('$1.50')).not.toBeNull();
@@ -171,9 +179,9 @@ describe('AllCardsView prices and CK columns', () => {
 
   test('shows empty CK cell when buy price is zero', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    const ckPrices = new Map([['bolt', { nonfoilBuy: 0, foilBuy: null }]]);
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
+    const ckPrices = new Map([['bring-low', { nonfoilBuy: 0, foilBuy: null }]]);
     await renderView({ showCKTools: true, ckPrices });
     expect(screen.getByRole('columnheader', { name: 'CK' })).not.toBeNull();
   });
@@ -190,10 +198,10 @@ describe('AllCardsView prices and CK columns', () => {
   test('falls back to fetchSetCards when loadCards returns null', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue(null);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    fetchSetCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
+    fetchSetCards.mockResolvedValue([BRING_LOW]);
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
     expect(fetchSetCards).toHaveBeenCalledWith('ktk');
   });
 
@@ -226,47 +234,47 @@ describe('AllCardsView prices and CK columns', () => {
 describe('AllCardsView quantity editing', () => {
   test('editing qty input updates the displayed value', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView();
-    const input = screen.getByLabelText('Copies of Lightning Bolt');
+    const input = screen.getByLabelText('Copies of Bring Low');
     fireEvent.change(input, { target: { value: '3' } });
     expect(saveCollection).toHaveBeenCalled();
   });
 
   test('editing foil qty input updates the displayed value', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1, foil: 2 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1, foil: 2 } });
     await renderView();
-    const input = screen.getByLabelText('Foil copies of Lightning Bolt');
+    const input = screen.getByLabelText('Foil copies of Bring Low');
     fireEvent.change(input, { target: { value: '5' } });
     expect(saveCollection).toHaveBeenCalled();
   });
 
   test('includes cards from openSets prop even if not in storage', async () => {
     loadAllCollectionKeys.mockResolvedValue([]);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView({ openSets: [{ code: 'ktk' }] });
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
   });
 
   test('deduplicates cards that appear in multiple sets', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView();
     expect(document.querySelectorAll('tbody tr')).toHaveLength(1);
   });
 
   test('clicking Name header still shows all cards', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
   });
 });
 
@@ -279,60 +287,62 @@ describe('AllCardsView interactive sort', () => {
 
   beforeEach(() => {
     loadAllCollectionKeys.mockResolvedValue(['eld', 'ktk']);
-    loadCards.mockImplementation((code) => Promise.resolve(code === 'eld' ? [ARROW] : [BOLT]));
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, arrow: { qty: 1 } });
+    loadCards.mockImplementation((code) =>
+      Promise.resolve(code === 'eld' ? [ARROW_STORM] : [BRING_LOW]),
+    );
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 }, 'arrow-storm': { qty: 1 } });
   });
 
   test('default sort is by set code ascending', async () => {
     await renderView();
-    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+    expect(rowNames()).toEqual(['Arrow Storm', 'Bring Low']);
   });
 
   test('clicking Name header sorts by name ascending', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
-    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+    expect(rowNames()).toEqual(['Arrow Storm', 'Bring Low']);
   });
 
   test('clicking Name again reverses to descending', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
     fireEvent.click(screen.getByRole('columnheader', { name: /Name/ }));
-    expect(rowNames()).toEqual(['Lightning Bolt', 'Arrow']);
+    expect(rowNames()).toEqual(['Bring Low', 'Arrow Storm']);
   });
 
   test('clicking Set header reverses to descending (already the active sort)', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
-    expect(rowNames()).toEqual(['Lightning Bolt', 'Arrow']);
+    expect(rowNames()).toEqual(['Bring Low', 'Arrow Storm']);
   });
 
   test('clicking Set again reverts to ascending', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
     fireEvent.click(screen.getByRole('columnheader', { name: /Set/ }));
-    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+    expect(rowNames()).toEqual(['Arrow Storm', 'Bring Low']);
   });
 
   test('clicking Qty header applies have sort (uses set as secondary)', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
-    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+    expect(rowNames()).toEqual(['Arrow Storm', 'Bring Low']);
   });
 
   test('clicking Qty again retains have sort with reversed secondary', async () => {
     await renderView();
     fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
     fireEvent.click(screen.getByRole('columnheader', { name: /Qty/ }));
-    expect(rowNames()).toEqual(['Arrow', 'Lightning Bolt']);
+    expect(rowNames()).toEqual(['Arrow Storm', 'Bring Low']);
   });
 });
 
 describe('AllCardsView search', () => {
   beforeEach(() => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT, ARROW]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, arrow: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW, ARROW_STORM]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 }, 'arrow-storm': { qty: 1 } });
   });
 
   test('renders a search input', async () => {
@@ -342,17 +352,17 @@ describe('AllCardsView search', () => {
 
   test('shows all owned cards when search is empty', async () => {
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
-    expect(screen.getByText('Arrow')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
+    expect(screen.getByText('Arrow Storm')).not.toBeNull();
   });
 
   test('filters cards by name', async () => {
     await renderView();
     const box = screen.getByRole('searchbox');
-    fireEvent.change(box, { target: { value: 'Arrow' } });
+    fireEvent.change(box, { target: { value: 'Arrow Storm' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    expect(screen.queryByText('Lightning Bolt')).toBeNull();
-    expect(screen.getByText('Arrow')).not.toBeNull();
+    expect(screen.queryByText('Bring Low')).toBeNull();
+    expect(screen.getByText('Arrow Storm')).not.toBeNull();
   });
 
   test('pressing an unhandled key in search does nothing', async () => {
@@ -387,55 +397,55 @@ describe('AllCardsView search', () => {
 describe('AllCardsView card preview', () => {
   beforeEach(() => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
   });
 
   test('no preview shown before any input is focused', async () => {
     await renderView();
-    expect(screen.queryByRole('img', { name: 'Lightning Bolt' })).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Bring Low' })).toBeNull();
   });
 
   test('shows card preview when a quantity input is focused', async () => {
     await renderView();
-    fireEvent.focus(screen.getByLabelText('Copies of Lightning Bolt'));
-    expect(screen.getByAltText('Lightning Bolt')).not.toBeNull();
+    fireEvent.focus(screen.getByLabelText('Copies of Bring Low'));
+    expect(screen.getByAltText('Bring Low')).not.toBeNull();
   });
 
   test('hides card preview when table loses focus', async () => {
     await renderView();
-    const input = screen.getByLabelText('Copies of Lightning Bolt');
+    const input = screen.getByLabelText('Copies of Bring Low');
     fireEvent.focus(input);
     fireEvent.blur(input, { relatedTarget: document.body });
-    expect(screen.queryByAltText('Lightning Bolt')).toBeNull();
+    expect(screen.queryByAltText('Bring Low')).toBeNull();
   });
 });
 
 describe('AllCardsView sell checkboxes', () => {
   test('sell checkbox is rendered when showCKTools is true', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle: vi.fn() });
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' })).not.toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Sell Bring Low' })).not.toBeNull();
   });
 
   test('sell checkbox reflects sellIds prop', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderView({ showCKTools: true, sellIds: new Set(['bolt']), onSellToggle: vi.fn() });
-    expect(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }).checked).toBe(true);
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
+    await renderView({ showCKTools: true, sellIds: new Set(['bring-low']), onSellToggle: vi.fn() });
+    expect(screen.getByRole('checkbox', { name: 'Sell Bring Low' }).checked).toBe(true);
   });
 
   test('clicking sell checkbox calls onSellToggle with card id', async () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
     const onSellToggle = vi.fn();
     await renderView({ showCKTools: true, sellIds: new Set(), onSellToggle });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Lightning Bolt' }));
-    expect(onSellToggle).toHaveBeenCalledWith('bolt');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sell Bring Low' }));
+    expect(onSellToggle).toHaveBeenCalledWith('bring-low');
   });
 });
 
@@ -508,13 +518,13 @@ describe('AllCardsView price refresh', () => {
   });
 
   test('updates cards state with refreshed prices', async () => {
-    const FRESH_BOLT = { ...BOLT, price: '5.00' };
+    const FRESH_BRING_LOW = { ...BRING_LOW, price: '5.00' };
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    refreshSetCardPrices.mockResolvedValue({ main: [FRESH_BOLT], tokens: null });
+    loadCards.mockResolvedValue([BRING_LOW]);
+    loadCollection.mockResolvedValue({ 'bring-low': { qty: 1 } });
+    refreshSetCardPrices.mockResolvedValue({ main: [FRESH_BRING_LOW], tokens: null });
     await renderView();
-    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(screen.getByText('Bring Low')).not.toBeNull();
   });
 
   test('calls onPricesReady after all sets are refreshed', async () => {
