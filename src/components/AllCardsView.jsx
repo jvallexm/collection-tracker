@@ -8,7 +8,7 @@ import { sanitizeQuantityText, withFoilQuantity, withQuantity } from '../lib/col
 import { useDebouncedSearch } from '../lib/hooks.js';
 import { matchesSearch } from '../lib/search.js';
 import { refreshSetCardPrices } from '../lib/scryfall.js';
-import { sortCards } from '../lib/sorting.js';
+import { nextSortState, sortCards } from '../lib/sorting.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -108,19 +108,7 @@ export default function AllCardsView({
   }, [allCards, mergedCollection]);
 
   function handleSort(key) {
-    setSort((current) => {
-      if (key === 'have') {
-        const secondary =
-          current.key === 'have'
-            ? current.secondary
-            : { key: current.key, direction: current.direction };
-        const direction = current.key === 'have' ? -current.direction : 1;
-        return { key: 'have', direction, secondary };
-      }
-      return current.key === key
-        ? { key, direction: -current.direction, secondary: null }
-        : { key, direction: 1, secondary: null };
-    });
+    setSort((current) => nextSortState(current, key));
   }
 
   const sortedOwnedCards = useMemo(() => {

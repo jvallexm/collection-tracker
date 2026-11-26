@@ -7,6 +7,11 @@ function csvRow(count, name, edition, foil) {
   return `"${count}","${count}","${name}","${edition.toLowerCase()}","Near Mint","English","${foil}","","","","False","False",""`;
 }
 
+/**
+ * Builds a Moxfield-compatible CSV from owned cards across multiple sets.
+ * @param {Array<{ cards: Object[], collection: Object }>} allSetsData
+ * @returns {string} CSV text ready to save or download.
+ */
 export function buildMoxfieldCsv(allSetsData) {
   const rows = [CSV_HEADER];
   for (const { cards, collection } of allSetsData) {
@@ -20,6 +25,12 @@ export function buildMoxfieldCsv(allSetsData) {
   return rows.join('\n');
 }
 
+/**
+ * Builds a Moxfield import list (one card per line) for a single set.
+ * @param {Object[]} cards - Normalized card objects.
+ * @param {Object} collection - Map of cardId → { qty, foil }.
+ * @returns {string} Plaintext list ready to paste into Moxfield.
+ */
 export function buildMoxfieldList(cards, collection) {
   const lines = [];
   for (const card of sortCards(cards, 'name', 1)) {

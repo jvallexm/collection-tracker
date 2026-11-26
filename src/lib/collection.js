@@ -5,30 +5,25 @@ export function sanitizeQuantityText(text) {
   return text.replace(/\D/g, '').slice(0, MAX_QUANTITY_DIGITS);
 }
 
-export function withQuantity(collection, cardId, quantity) {
+function withField(collection, cardId, field, other, quantity) {
   const entry = collection[cardId] ?? {};
   if (quantity > 0) {
-    return { ...collection, [cardId]: { ...entry, qty: quantity } };
+    return { ...collection, [cardId]: { ...entry, [field]: quantity } };
   }
-  const { qty: _q, ...rest } = entry;
-  if (!rest.foil) {
+  const { [field]: _removed, ...rest } = entry;
+  if (!rest[other]) {
     const { [cardId]: _, ...remaining } = collection;
     return remaining;
   }
   return { ...collection, [cardId]: rest };
 }
 
+export function withQuantity(collection, cardId, quantity) {
+  return withField(collection, cardId, 'qty', 'foil', quantity);
+}
+
 export function withFoilQuantity(collection, cardId, quantity) {
-  const entry = collection[cardId] ?? {};
-  if (quantity > 0) {
-    return { ...collection, [cardId]: { ...entry, foil: quantity } };
-  }
-  const { foil: _f, ...rest } = entry;
-  if (!rest.qty) {
-    const { [cardId]: _, ...remaining } = collection;
-    return remaining;
-  }
-  return { ...collection, [cardId]: rest };
+  return withField(collection, cardId, 'foil', 'qty', quantity);
 }
 
 export function summarize(collection) {

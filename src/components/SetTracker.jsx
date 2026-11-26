@@ -17,7 +17,7 @@ import { matchesSearch } from '../lib/search.js';
 import { buildTokenCards } from '../lib/ck-tokens.js';
 import { fetchSetTokenCards } from '../lib/mtgjson.js';
 import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
-import { sortCards } from '../lib/sorting.js';
+import { nextSortState, sortCards } from '../lib/sorting.js';
 import { loadCards, loadCollection, saveCollection } from '../lib/storage.js';
 
 /**
@@ -186,24 +186,8 @@ export default function SetTracker({
     [tokenCards, safeSort, safeCollection, search],
   );
 
-  /**
-   * Updates the active sort column and direction.
-   * Clicking the already-active column flips between ascending and descending.
-   * Clicking a different column always starts ascending.
-   * @param {string} key - Column key to sort by.
-   */
   function handleSort(key) {
-    setSort((current) => {
-      const c = current;
-      if (key === 'have') {
-        const secondary = c.key === 'have' ? c.secondary : { key: c.key, direction: c.direction };
-        const direction = c.key === 'have' ? -c.direction : 1;
-        return { key: 'have', direction, secondary };
-      }
-      return c.key === key
-        ? { key, direction: -c.direction, secondary: null }
-        : { key, direction: 1, secondary: null };
-    });
+    setSort((current) => nextSortState(current, key));
   }
 
   /**

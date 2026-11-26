@@ -2,6 +2,14 @@ import { loadTokenCards, saveTokenCards } from './storage.js';
 
 const MTGJSON_BASE = 'https://mtgjson.com/api/v5';
 
+/**
+ * Returns processed token cards for a set, using IndexedDB as a cache.
+ * On cache hit returns immediately without hitting the network.
+ * On cache miss fetches from MTGJSON, merges DFC pairs into "Front // Back" entries,
+ * saves to IDB, and returns the result. Returns [] on any network or parse error.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @returns {Promise<{ id: string, name: string, number: string }[]>}
+ */
 export async function fetchSetTokenCards(setCode) {
   const cached = await loadTokenCards(setCode);
   if (cached !== null) return cached;

@@ -117,6 +117,12 @@ export async function loadAllCollectionKeys() {
   }
 }
 
+/**
+ * Reads cached MTGJSON token cards for a set from IndexedDB.
+ * Returns null on a cache miss or database error.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @returns {Promise<{ id: string, name: string, number: string }[]|null>}
+ */
 export async function loadTokenCards(setCode) {
   try {
     const db = await openDatabase();
@@ -126,6 +132,13 @@ export async function loadTokenCards(setCode) {
   }
 }
 
+/**
+ * Writes processed MTGJSON token cards for a set to IndexedDB.
+ * Silently does nothing if the database errors.
+ * @param {string} setCode - Three-letter set code, e.g. "ktk".
+ * @param {{ id: string, name: string, number: string }[]} tokens
+ * @returns {Promise<void>}
+ */
 export async function saveTokenCards(setCode, tokens) {
   try {
     const db = await openDatabase();

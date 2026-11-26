@@ -41,7 +41,7 @@ export default function App() {
   const [pricesLoading, setPricesLoading] = useState(false);
   const [showSellModal, setShowSellModal] = useState(false);
 
-  useEffect(() => {
+  function refreshCKPrices() {
     fetchCKPrices()
       .then((result) => {
         if (result) {
@@ -50,6 +50,10 @@ export default function App() {
         }
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    refreshCKPrices();
   }, []);
 
   useEffect(() => {
@@ -68,10 +72,6 @@ export default function App() {
     saveConfig('openSets', openSets);
   }, [openSets]);
 
-  function handleThemeChange(newTheme) {
-    setTheme(newTheme);
-  }
-
   function handleOpenSet(code, name) {
     setOpenSets((current) => openSetState(current, code, name));
     setRecentSets((current) => {
@@ -80,14 +80,7 @@ export default function App() {
       return updated;
     });
     if (showAllCards && !allCardsMinimized) setAllCardsMinimized(true);
-    fetchCKPrices()
-      .then((result) => {
-        if (result) {
-          setCkPrices(result.prices);
-          setCkTokenItems(result.tokenItems);
-        }
-      })
-      .catch(() => {});
+    refreshCKPrices();
   }
 
   function handleMinimize(code) {
@@ -132,14 +125,6 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  function handleSaveCardPreviewPos(pos) {
-    setCardPreviewPos(pos);
-  }
-
-  function handleSaveCardImageSize(size) {
-    setCardImageSize(size);
-  }
-
   async function handleAddCard(setCode, cardId) {
     const current = await loadCollection(setCode);
     const newQty = (current[cardId]?.qty ?? 0) + 1;
@@ -163,14 +148,7 @@ export default function App() {
     setShowAllCards(true);
     setAllCardsMinimized(false);
     setPricesLoading(true);
-    fetchCKPrices()
-      .then((result) => {
-        if (result) {
-          setCkPrices(result.prices);
-          setCkTokenItems(result.tokenItems);
-        }
-      })
-      .catch(() => {});
+    refreshCKPrices();
   }
 
   function handleCloseAllCards() {
@@ -192,7 +170,7 @@ export default function App() {
     <div className={`app-root ${theme}`}>
       <MenuBar
         theme={theme}
-        onThemeChange={handleThemeChange}
+        onThemeChange={setTheme}
         recentSets={recentSets}
         onOpenSet={handleOpenSet}
         activeSet={activeSet}
@@ -206,9 +184,9 @@ export default function App() {
         openSets={openSets ?? []}
         onAddCard={handleAddCard}
         cardPreviewPos={cardPreviewPos}
-        onSaveCardPreviewPos={handleSaveCardPreviewPos}
+        onSaveCardPreviewPos={setCardPreviewPos}
         cardImageSize={cardImageSize}
-        onSaveCardImageSize={handleSaveCardImageSize}
+        onSaveCardImageSize={setCardImageSize}
       />
       <div className="page-content">
         {(openSets ?? []).map((set) => {

@@ -28,6 +28,28 @@ const COMPARATORS = {
 };
 
 /**
+ * Returns the next sort state given a column key click.
+ * Clicking the active column flips direction; clicking a new column resets to ascending.
+ * The 'have' column preserves the previous sort as a secondary key for tie-breaking.
+ * @param {{ key: string, direction: 1|-1, secondary: Object|null }} current
+ * @param {string} key - Column key that was clicked.
+ * @returns {{ key: string, direction: 1|-1, secondary: Object|null }}
+ */
+export function nextSortState(current, key) {
+  if (key === 'have') {
+    const secondary =
+      current.key === 'have'
+        ? current.secondary
+        : { key: current.key, direction: current.direction };
+    const direction = current.key === 'have' ? -current.direction : 1;
+    return { key: 'have', direction, secondary };
+  }
+  return current.key === key
+    ? { key, direction: -current.direction, secondary: null }
+    : { key, direction: 1, secondary: null };
+}
+
+/**
  * Returns a sorted copy of the cards array without modifying the original.
  * Ties are always broken alphabetically by card name.
  * @param {Object[]} cards - Array of normalized card objects to sort.
