@@ -32,6 +32,8 @@ vi.mock('./lib/storage.js', () => ({
   deleteCards: vi.fn().mockResolvedValue(undefined),
   loadConfig: vi.fn().mockResolvedValue(null),
   saveConfig: vi.fn().mockResolvedValue(undefined),
+  loadPartialCards: vi.fn().mockResolvedValue(null),
+  savePartialCards: vi.fn().mockResolvedValue(undefined),
 }));
 
 beforeEach(() => {
