@@ -575,6 +575,50 @@ describe('SellModal keyboard navigation', () => {
     // WRATH foil-sell is disabled, so no prior enabled foil-sell exists → no movement
     expect(document.activeElement).toBe(foilSell);
   });
+
+  test('ArrowDown from foil-sell skips disabled foil-sell rows', async () => {
+    const ALPHA = makeCard({
+      id: 'alpha',
+      name: 'Alpha',
+      rarity: 'common',
+      number: '10',
+      set: 'KTK',
+      nonfoil: true,
+      foil: true,
+    });
+    const BETA_NF = makeCard({
+      id: 'beta',
+      name: 'Beta',
+      rarity: 'common',
+      number: '11',
+      set: 'KTK',
+      nonfoil: true,
+      foil: false,
+    });
+    const GAMMA = makeCard({
+      id: 'gamma',
+      name: 'Gamma',
+      rarity: 'common',
+      number: '12',
+      set: 'KTK',
+      nonfoil: true,
+      foil: true,
+    });
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([ALPHA, BETA_NF, GAMMA]);
+    loadCollection.mockResolvedValue({
+      alpha: { qty: 1, foil: 1 },
+      beta: { qty: 1 },
+      gamma: { qty: 1, foil: 1 },
+    });
+    await renderModal();
+    // Sorted: ALPHA, BETA_NF (foil-sell disabled), GAMMA.
+    // ArrowDown from ALPHA's foil-sell must skip BETA_NF and land on GAMMA.
+    const foilSell = screen.getByRole('textbox', { name: 'Foil sell Alpha' });
+    foilSell.focus();
+    fireEvent.keyDown(foilSell, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Foil sell Gamma' }));
+  });
 });
 
 describe('SellModal backtick fill', () => {
@@ -763,5 +807,53 @@ describe('SellModal persistence', () => {
     await act(async () => {
       resolveConfig(null);
     });
+  });
+});
+
+describe('SellModal CK total', () => {
+  const ckPrices = new Map([
+    ['bolt', { nonfoilBuy: 2.5, foilBuy: 5.0 }],
+    ['wrath', { nonfoilBuy: 1.0, foilBuy: null }],
+  ]);
+
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk', 'eld']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'eld' ? [WRATH] : [BOLT]));
+    loadCollection.mockResolvedValue({ bolt: { qty: 2, foil: 1 }, wrath: { qty: 1 } });
+  });
+
+  test('shows $0.00 when no sell qtys are set', async () => {
+    await renderModal({ ckPrices });
+    expect(screen.getByText(/CK total:/).textContent).toBe('CK total: $0.00');
+  });
+
+  test('adds nonfoil and foil prices to running total', async () => {
+    await renderModal({ ckPrices });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }), {
+      target: { value: '1' },
+    });
+    // 2 * 2.50 + 1 * 5.00 = 10.00
+    expect(screen.getByText(/CK total:/).textContent).toBe('CK total: $10.00');
+  });
+
+  test('skips cards with no CK entry in total', async () => {
+    const noCK = new Map([['wrath', { nonfoilBuy: 1.0, foilBuy: null }]]);
+    await renderModal({ ckPrices: noCK });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Wrath of God' }), {
+      target: { value: '1' },
+    });
+    // bolt has no CK entry → skipped; wrath: 1 * 1.00 = 1.00
+    expect(screen.getByText(/CK total:/).textContent).toBe('CK total: $1.00');
+  });
+
+  test('hides total when ckPrices is not provided', async () => {
+    await renderModal();
+    expect(screen.queryByText(/CK total:/)).toBeNull();
   });
 });

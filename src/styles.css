@@ -869,7 +869,12 @@ textarea {
 }
 .button-row {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
+}
+.ck-total {
+  font-size: 0.85em;
+  opacity: 0.8;
 }

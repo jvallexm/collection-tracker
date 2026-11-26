@@ -26,32 +26,34 @@ function moveSellFocus(event) {
 
   event.preventDefault();
   const col = event.target.dataset.col;
-  const allRows = Array.from(event.currentTarget.querySelectorAll('tr'));
-  const currentRowIdx = allRows.indexOf(event.target.closest('tr'));
+  const currentRow = event.target.closest('tr');
 
   if (vStep !== undefined) {
-    const candidateRows =
-      vStep > 0 ? allRows.slice(currentRowIdx + 1) : allRows.slice(0, currentRowIdx).reverse();
-    for (const row of candidateRows) {
+    let row = vStep > 0 ? currentRow.nextElementSibling : currentRow.previousElementSibling;
+    while (row) {
       const input = row.querySelector(`input[data-col="${col}"]`);
       if (input && !input.disabled) {
         input.focus();
         return;
       }
+      row = vStep > 0 ? row.nextElementSibling : row.previousElementSibling;
     }
   } else {
-    const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input[data-col]'));
-    const idx = rowInputs.indexOf(event.target);
-    const neighbor = rowInputs[idx + hStep];
+    const rowInputs = Array.from(currentRow.querySelectorAll('input[data-col]'));
+    const neighbor = rowInputs[rowInputs.indexOf(event.target) + hStep];
     if (!neighbor) return;
     if (!neighbor.disabled) {
       neighbor.focus();
     } else {
-      const targetInputs = Array.from(
-        event.currentTarget.querySelectorAll(`input[data-col="${neighbor.dataset.col}"]`),
-      ).filter((i) => !i.disabled);
-      const next = targetInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx);
-      if (next) next.focus();
+      let row = currentRow.nextElementSibling;
+      while (row) {
+        const input = row.querySelector(`input[data-col="${neighbor.dataset.col}"]`);
+        if (input && !input.disabled) {
+          input.focus();
+          return;
+        }
+        row = row.nextElementSibling;
+      }
     }
   }
 }
@@ -107,7 +109,7 @@ const SellRow = memo(function SellRow({
           value={sellQty}
           max={qty}
           onChange={(v) => onSellChange(card.id, v)}
-          onFocus={() => onFocus?.(card)}
+          onFocus={() => onFocus?.(card, false)}
         />
       </td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
@@ -119,7 +121,7 @@ const SellRow = memo(function SellRow({
           value={foilSellQty}
           max={card.foil ? foil : 0}
           onChange={(v) => onFoilSellChange(card.id, v)}
-          onFocus={() => onFocus?.(card)}
+          onFocus={() => onFocus?.(card, true)}
         />
       </td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
@@ -146,6 +148,7 @@ export default function SellModal({
 }) {
   const [allCards, setAllCards] = useState(null);
   const [focusedCard, setFocusedCard] = useState(null);
+  const [focusedCardIsFoil, setFocusedCardIsFoil] = useState(false);
   const [collections, setCollections] = useState({});
   const [cardSetMap, setCardSetMap] = useState({});
   const [sellQtys, setSellQtys] = useState({});
@@ -237,6 +240,11 @@ export default function SellModal({
 
   useEscapeToClose(onClose);
 
+  const handleFocus = useCallback((card, isFoil) => {
+    setFocusedCard(card);
+    setFocusedCardIsFoil(isFoil);
+  }, []);
+
   const handleSellChange = useCallback(
     (cardId, v) => setSellQtys((prev) => ({ ...prev, [cardId]: v })),
     [],
@@ -255,6 +263,20 @@ export default function SellModal({
       return (entry?.qty ?? 0) > 0 || (entry?.foil ?? 0) > 0;
     });
   }, [allCards, mergedCollection]);
+
+  const ckTotal = useMemo(() => {
+    if (!ownedCards || !ckPrices) return null;
+    let sum = 0;
+    for (const card of ownedCards) {
+      const entry = ckPrices.get(card.id);
+      if (!entry) continue;
+      const qty = sellQtys[card.id] ?? 0;
+      const foil = foilSellQtys[card.id] ?? 0;
+      if (qty > 0 && entry.nonfoilBuy) sum += qty * entry.nonfoilBuy;
+      if (foil > 0 && entry.foilBuy) sum += foil * entry.foilBuy;
+    }
+    return sum;
+  }, [ownedCards, ckPrices, sellQtys, foilSellQtys]);
 
   function handleExport() {
     const setNames = {};
@@ -305,6 +327,9 @@ export default function SellModal({
           <div className="dialog-body">
             <div className="button-row">
               <button onClick={handleExport}>Export</button>
+              {ckTotal !== null && (
+                <span className="ck-total">CK total: ${ckTotal.toFixed(2)}</span>
+              )}
             </div>
             {ownedCards === null ? (
               <div className="table-scroll table-loading">
@@ -339,7 +364,7 @@ export default function SellModal({
                         foilSellQty={foilSellQtys[card.id] ?? 0}
                         onSellChange={handleSellChange}
                         onFoilSellChange={handleFoilSellChange}
-                        onFocus={setFocusedCard}
+                        onFocus={handleFocus}
                         ckPrices={ckPrices}
                       />
                     ))}
@@ -350,7 +375,12 @@ export default function SellModal({
           </div>
         </div>
       </div>
-      <CardPreview card={focusedCard} pos={cardPreviewPos} imageSize={cardImageSize ?? 'small'} />
+      <CardPreview
+        card={focusedCard}
+        pos={cardPreviewPos}
+        imageSize={cardImageSize ?? 'small'}
+        isFoil={focusedCardIsFoil}
+      />
     </>
   );
 }
