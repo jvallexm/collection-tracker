@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { makeCard } from '../test/fixtures.js';
-import { refreshSetCardPrices } from '../lib/scryfall.js';
+import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -10,6 +10,7 @@ import {
 import AllCardsView from './AllCardsView.jsx';
 
 vi.mock('../lib/scryfall.js', () => ({
+  fetchSetCards: vi.fn().mockResolvedValue([]),
   refreshSetCardPrices: vi.fn().mockResolvedValue({ main: [], tokens: null }),
 }));
 vi.mock('../lib/storage.js', () => ({
@@ -181,6 +182,26 @@ describe('AllCardsView prices and CK columns', () => {
     loadAllCollectionKeys.mockResolvedValue(['ktk']);
     loadCards.mockResolvedValue(null);
     loadCollection.mockResolvedValue({});
+    fetchSetCards.mockResolvedValue([]);
+    await renderView();
+    expect(document.querySelector('tbody').children).toHaveLength(0);
+  });
+
+  test('falls back to fetchSetCards when loadCards returns null', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    fetchSetCards.mockResolvedValue([BOLT]);
+    await renderView();
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+    expect(fetchSetCards).toHaveBeenCalledWith('ktk');
+  });
+
+  test('shows empty table when both loadCards and fetchSetCards fail', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    loadCollection.mockResolvedValue({});
+    fetchSetCards.mockRejectedValue(new Error('network error'));
     await renderView();
     expect(document.querySelector('tbody').children).toHaveLength(0);
   });

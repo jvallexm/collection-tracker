@@ -7,7 +7,7 @@ import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { sanitizeQuantityText, withFoilQuantity, withQuantity } from '../lib/collection.js';
 import { useDebouncedSearch } from '../lib/hooks.js';
 import { matchesSearch } from '../lib/search.js';
-import { refreshSetCardPrices } from '../lib/scryfall.js';
+import { fetchSetCards, refreshSetCardPrices } from '../lib/scryfall.js';
 import { nextSortState, sortCards } from '../lib/sorting.js';
 import {
   loadAllCollectionKeys,
@@ -58,7 +58,7 @@ export default function AllCardsView({
       const indexAccum = {};
 
       for (const code of allCodes) {
-        const cards = (await loadCards(code)) ?? [];
+        const cards = (await loadCards(code)) ?? (await fetchSetCards(code).catch(() => []));
         const coll = await loadCollection(code);
         collectionAccum[code] = coll;
         for (const card of cards) {
