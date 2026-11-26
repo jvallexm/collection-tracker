@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CardPreview from './CardPreview.jsx';
 import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
@@ -84,7 +84,7 @@ function SellQtyInput({ label, col, value, max, onChange, onFocus }) {
   );
 }
 
-function SellRow({
+const SellRow = memo(function SellRow({
   card,
   entry,
   setName,
@@ -107,7 +107,7 @@ function SellRow({
           col="sell"
           value={sellQty}
           max={qty}
-          onChange={onSellChange}
+          onChange={(v) => onSellChange(card.id, v)}
           onFocus={() => onFocus?.(card)}
         />
       </td>
@@ -119,7 +119,7 @@ function SellRow({
           col="foil-sell"
           value={foilSellQty}
           max={card.foil ? foil : 0}
-          onChange={onFoilSellChange}
+          onChange={(v) => onFoilSellChange(card.id, v)}
           onFocus={() => onFocus?.(card)}
         />
       </td>
@@ -136,7 +136,7 @@ function SellRow({
       <td className="number-cell">{card.number}</td>
     </tr>
   );
-}
+});
 
 export default function SellModal({
   onClose,
@@ -238,6 +238,15 @@ export default function SellModal({
 
   useEscapeToClose(onClose);
 
+  const handleSellChange = useCallback(
+    (cardId, v) => setSellQtys((prev) => ({ ...prev, [cardId]: v })),
+    [],
+  );
+  const handleFoilSellChange = useCallback(
+    (cardId, v) => setFoilSellQtys((prev) => ({ ...prev, [cardId]: v })),
+    [],
+  );
+
   const mergedCollection = useMemo(() => mergeCollections(collections), [collections]);
 
   const ownedCards = useMemo(() => {
@@ -329,10 +338,8 @@ export default function SellModal({
                         setName={cardSetMap[card.id]}
                         sellQty={sellQtys[card.id] ?? 0}
                         foilSellQty={foilSellQtys[card.id] ?? 0}
-                        onSellChange={(v) => setSellQtys((prev) => ({ ...prev, [card.id]: v }))}
-                        onFoilSellChange={(v) =>
-                          setFoilSellQtys((prev) => ({ ...prev, [card.id]: v }))
-                        }
+                        onSellChange={handleSellChange}
+                        onFoilSellChange={handleFoilSellChange}
                         onFocus={setFocusedCard}
                         ckPrices={ckPrices}
                       />
