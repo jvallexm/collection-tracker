@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from '../test/fixtures.js';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
+import { fetchSetCards } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -12,6 +13,10 @@ import SellModal from './SellModal.jsx';
 
 vi.mock('../lib/cardkingdom.js', () => ({
   buildCKSellCsv: vi.fn().mockReturnValue('card name,edition,foil,quantity'),
+}));
+
+vi.mock('../lib/scryfall.js', () => ({
+  fetchSetCards: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../lib/storage.js', () => ({
@@ -60,6 +65,24 @@ describe('SellModal loading', () => {
     await renderModal();
     expect(screen.getByText('Lightning Bolt')).not.toBeNull();
   });
+
+  test('falls back to fetchSetCards when loadCards returns null', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    fetchSetCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+  });
+
+  test('shows empty list when both loadCards and fetchSetCards fail', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    fetchSetCards.mockRejectedValue(new Error('network'));
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(0);
+  });
 });
 
 describe('SellModal owned cards', () => {
@@ -96,37 +119,11 @@ describe('SellModal columns', () => {
     expect(screen.getByRole('columnheader', { name: 'Foil Sell' })).not.toBeNull();
   });
 
-  test('shows $ and $F price column headers', async () => {
+  test('does not show $ or $F price columns', async () => {
     await renderModal();
     const headers = Array.from(document.querySelectorAll('th')).map((th) => th.textContent.trim());
-    expect(headers).toContain('$');
-    expect(headers).toContain('$F');
-  });
-
-  test('shows formatted Scryfall price in $ cell', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([
-      makeCard({
-        id: 'bolt',
-        name: 'Lightning Bolt',
-        price: '2.50',
-        priceFoil: '15.00',
-        nonfoil: true,
-        foil: true,
-      }),
-    ]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderModal();
-    expect(screen.getByText('$2.50')).not.toBeNull();
-    expect(screen.getByText('$15')).not.toBeNull();
-  });
-
-  test('shows — in $ cell when price is null', async () => {
-    loadAllCollectionKeys.mockResolvedValue(['ktk']);
-    loadCards.mockResolvedValue([BOLT]);
-    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
-    await renderModal();
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    expect(headers).not.toContain('$');
+    expect(headers).not.toContain('$F');
   });
 
   test('shows CK and CKF columns when ckPrices is provided', async () => {

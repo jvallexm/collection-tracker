@@ -37,7 +37,7 @@ export default function App() {
   const [showAllCards, setShowAllCards] = useState(false);
   const [allCardsMinimized, setAllCardsMinimized] = useState(false);
   const [pricesLoading, setPricesLoading] = useState(false);
-  const [showSellModal, setShowSellModal] = useState(false);
+  const [showSellModal, setShowSellModal] = usePersistedConfig('showSellModal', false);
 
   function refreshCKPrices() {
     fetchCKPrices()

@@ -3,6 +3,7 @@ import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
+import { fetchSetCards } from '../lib/scryfall.js';
 import {
   loadAllCollectionKeys,
   loadCards,
@@ -14,12 +15,6 @@ import {
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
 const VERTICAL_STEP = { arrowup: -1, w: -1, arrowdown: 1, s: 1, enter: 1 };
 const HORIZONTAL_STEP = { arrowleft: -1, a: -1, arrowright: 1, d: 1 };
-
-function formatPrice(p) {
-  if (p == null) return '—';
-  const num = parseFloat(p);
-  return num < 10 ? `$${p}` : `$${Math.floor(num)}`;
-}
 
 function formatCKPrice(p) {
   if (p == null || p <= 0) return '';
@@ -111,7 +106,6 @@ function SellRow({
           onChange={onSellChange}
         />
       </td>
-      <td className="price-cell">{formatPrice(card.price)}</td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.nonfoilBuy)}</td>}
       <td className="qty-cell">{foil || ''}</td>
       <td className="qty-cell">
@@ -123,7 +117,6 @@ function SellRow({
           onChange={onFoilSellChange}
         />
       </td>
-      <td className="price-cell">{formatPrice(card.priceFoil)}</td>
       {ckPrices && <td className="price-cell ck-cell">{formatCKPrice(ckEntry?.foilBuy)}</td>}
       <td className="cost-cell">{setName?.toUpperCase()}</td>
       <td>
@@ -157,7 +150,7 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
       const collectionAccum = {};
       const indexAccum = {};
       for (const code of allCodes) {
-        const cards = (await loadCards(code)) ?? [];
+        const cards = (await loadCards(code)) ?? (await fetchSetCards(code).catch(() => []));
         const coll = await loadCollection(code);
         collectionAccum[code] = coll;
         for (const card of cards) {
@@ -277,11 +270,9 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
                   <tr>
                     <th className="qty-heading">Qty</th>
                     <th className="qty-heading">Sell</th>
-                    <th className="price-cell">$</th>
                     {ckPrices && <th className="price-cell ck-cell">CK</th>}
                     <th className="qty-heading">Foil</th>
                     <th className="qty-heading">Foil Sell</th>
-                    <th className="price-cell">$F</th>
                     {ckPrices && <th className="price-cell ck-cell">CKF</th>}
                     <th className="cost-cell">Set</th>
                     <th>Name</th>

@@ -605,6 +605,32 @@ describe('App sell to Card Kingdom', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog', { name: 'Sell to Card Kingdom' })).toBeNull();
   });
+
+  test('sell modal opens automatically when showSellModal is saved as true', async () => {
+    loadConfig.mockImplementation((key) => {
+      if (key === 'showSellModal') return Promise.resolve(true);
+      return Promise.resolve(null);
+    });
+    await renderApp();
+    expect(screen.getByRole('dialog', { name: 'Sell to Card Kingdom' })).not.toBeNull();
+  });
+
+  test('opening the sell modal saves showSellModal as true', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
+    expect(saveConfig).toHaveBeenCalledWith('showSellModal', true);
+  });
+
+  test('closing the sell modal saves showSellModal as false', async () => {
+    await renderApp();
+    fireEvent.click(screen.getByText('Export Collection'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sell to Card Kingdom' }));
+    await act(async () => {});
+    const dialog = screen.getByRole('dialog', { name: 'Sell to Card Kingdom' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(saveConfig).toHaveBeenCalledWith('showSellModal', false);
+  });
 });
 
 describe('App handleAddCard', () => {

@@ -155,6 +155,20 @@ describe('usePersistedConfig', () => {
     expect(result.current[0]).toEqual({ key: 'number' });
   });
 
+  test('setValue before load completes is not overwritten when load resolves', async () => {
+    let resolveLoad;
+    loadConfig.mockReturnValue(
+      new Promise((r) => {
+        resolveLoad = r;
+      }),
+    );
+    const { result } = renderHook(() => usePersistedConfig('showSellModal', false));
+    act(() => result.current[1](true)); // user sets value before IDB resolves
+    act(() => resolveLoad(null)); // IDB resolves with null (would default to false)
+    await act(async () => {});
+    expect(result.current[0]).toBe(true); // user's choice wins
+  });
+
   test('cancels inflight load when key changes', async () => {
     let resolveFirst;
     loadConfig

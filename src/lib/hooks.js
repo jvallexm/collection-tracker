@@ -44,12 +44,14 @@ export function useDebouncedSearch(delay = 150) {
 
 export function usePersistedConfig(key, defaultValue) {
   const [loaded, setLoaded] = useState(null);
+  const userSetRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoaded(null);
+    userSetRef.current = false;
     loadConfig(key).then((saved) => {
-      if (!cancelled) setLoaded(saved ?? defaultValue);
+      if (!cancelled && !userSetRef.current) setLoaded(saved ?? defaultValue);
     });
     return () => {
       cancelled = true;
@@ -62,6 +64,7 @@ export function usePersistedConfig(key, defaultValue) {
   }, [key, loaded]);
 
   function setValue(v) {
+    userSetRef.current = true;
     if (typeof v === 'function') {
       setLoaded((current) => v(current ?? defaultValue));
     } else {
