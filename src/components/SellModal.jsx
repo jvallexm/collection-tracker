@@ -11,7 +11,9 @@ import {
   loadCards,
   loadCollection,
   loadConfig,
+  loadPartialCards,
   saveConfig,
+  savePartialCards,
 } from '../lib/storage.js';
 
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
@@ -180,7 +182,7 @@ export default function SellModal({
       // Use per-set IDB cache when available; collect uncached owned IDs for batch fetch
       const uncachedIds = [];
       for (const code of allCodes) {
-        const cached = await loadCards(code);
+        const cached = (await loadCards(code)) ?? (await loadPartialCards(code));
         if (cached) {
           for (const card of cached) {
             if (ownedIds.has(card.id) && !indexAccum[card.id]) {
@@ -195,14 +197,19 @@ export default function SellModal({
         }
       }
 
-      // Batch fetch only the owned cards that weren't in IDB
+      // Batch fetch only the owned cards that weren't in IDB; cache results for future opens
       if (uncachedIds.length > 0) {
         const fetched = await fetchCardsByIds(uncachedIds).catch(() => []);
+        const bySet = {};
         for (const card of fetched) {
           if (!indexAccum[card.id]) {
             indexAccum[card.id] = card.set.toLowerCase();
             cardAccum.push(card);
           }
+          (bySet[card.set.toLowerCase()] ??= []).push(card);
+        }
+        for (const [code, cards] of Object.entries(bySet)) {
+          savePartialCards(code, cards);
         }
       }
       cardAccum.sort(

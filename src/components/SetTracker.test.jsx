@@ -103,6 +103,25 @@ describe('SetTracker loading', () => {
     expect(screen.getByLabelText('Copies of Arrow')).not.toBeNull();
   });
 
+  test('shows a loading spinner in the titlebar while still fetching pages', async () => {
+    let capturedOnPage;
+    fetchSetCards.mockImplementation((_code, onPage) => {
+      capturedOnPage = onPage;
+      return new Promise(() => {});
+    });
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    await act(async () => capturedOnPage([CARDS[0]]));
+    expect(screen.getByLabelText('Loading')).not.toBeNull();
+  });
+
+  test('hides the titlebar loading spinner after all pages finish', async () => {
+    fetchSetCards.mockResolvedValue(CARDS);
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await screen.findByText('3 cards | 0 in Collection');
+    expect(screen.queryByLabelText('Loading')).toBeNull();
+  });
+
   test('ignores onPage callback after component unmounts', async () => {
     let capturedOnPage;
     fetchSetCards.mockImplementation((_code, onPage) => {

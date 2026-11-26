@@ -1,4 +1,4 @@
-import { loadCards, saveCards } from './storage.js';
+import { loadCards, saveCards, saveCollection } from './storage.js';
 import {
   buildSearchUrl,
   fetchSet,
@@ -506,22 +506,18 @@ describe('fetchSetCards', () => {
 });
 
 describe('refreshSetCardPrices', () => {
-  const noTokens = { ok: false, status: 404 };
+  const collectionResponse = (cards) => jsonResponse({ data: cards });
 
   test('updates price and priceFoil from fresh Scryfall data', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: '1.00' }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '1.50', usd_foil: '3.00' } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ prices: { usd: '1.50', usd_foil: '3.00' } })]),
+        ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -543,18 +539,14 @@ describe('refreshSetCardPrices', () => {
         priceFoil: null,
       },
     ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ prices: { usd: '2.00', usd_foil: null } })]),
+        ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -566,18 +558,14 @@ describe('refreshSetCardPrices', () => {
 
   test('saves merged cards to IDB', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '2.00', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ prices: { usd: '2.00', usd_foil: null } })]),
+        ),
     );
 
     await refreshSetCardPrices('ktk');
@@ -585,44 +573,36 @@ describe('refreshSetCardPrices', () => {
     expect((await loadCards('ktk'))[0].price).toBe('2.00');
   });
 
-  test('returns fresh cards when no cache exists', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
-    );
-
+  test('returns empty main when no cache exists', async () => {
     const result = await refreshSetCardPrices('ktk');
-
-    expect(result.main[0].price).toBe('1.00');
+    expect(result.main).toEqual([]);
     expect(result.tokens).toBeNull();
   });
 
-  test('cards absent from fresh data keep their original prices', async () => {
+  test('returns cached data unchanged and skips fetch when no cards are owned', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.main[0].price).toBe('0.50');
+  });
+
+  test('unowned cards keep their original prices', async () => {
     await saveCards('ktk', [
       { id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null },
       { id: 'xyz', name: 'Other Card', price: '1.00', priceFoil: '2.00' },
     ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ id: 'abc', prices: { usd: '0.75', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ id: 'abc', prices: { usd: '0.75', usd_foil: null } })]),
+        ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -631,27 +611,42 @@ describe('refreshSetCardPrices', () => {
     expect(result.main.find((c) => c.id === 'xyz').priceFoil).toBe('2.00');
   });
 
+  test('uses collection endpoint not search endpoint', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await refreshSetCardPrices('ktk');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.scryfall.com/cards/collection');
+    expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+  });
+
   test('updates token card prices and returns them when token cache exists', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
     await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token', price: null, priceFoil: null }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    await saveCollection('tktk', { tok1: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) => {
-        if (url === buildSearchUrl('ktk'))
+      vi.fn().mockImplementation((url, opts) => {
+        const ids = JSON.parse(opts.body).identifiers.map((i) => i.id);
+        if (ids.includes('abc'))
           return Promise.resolve(
-            jsonResponse({
-              data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-              has_more: false,
-            }),
+            collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
           );
-        if (url === buildSearchUrl('tktk'))
+        if (ids.includes('tok1'))
           return Promise.resolve(
-            jsonResponse({
-              data: [rawCard({ id: 'tok1', set: 'tktk', prices: { usd: null, usd_foil: '5.00' } })],
-              has_more: false,
-            }),
+            collectionResponse([
+              rawCard({ id: 'tok1', set: 'tktk', prices: { usd: null, usd_foil: '5.00' } }),
+            ]),
           );
-        return Promise.reject(new Error(`unexpected url: ${url}`));
+        return Promise.reject(new Error(`unexpected ids: ${ids}`));
       }),
     );
 
@@ -663,18 +658,14 @@ describe('refreshSetCardPrices', () => {
 
   test('returns null tokens when no token cache exists', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
+        ),
     );
 
     const result = await refreshSetCardPrices('ktk');
@@ -688,24 +679,23 @@ describe('refreshSetCardPrices', () => {
       { id: 'tok1', name: 'Soldier Token', price: '0.10', priceFoil: null },
       { id: 'tok2', name: 'Other Token', price: '0.20', priceFoil: null },
     ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    await saveCollection('tktk', { tok1: { qty: 1, foil: 0 }, tok2: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) => {
-        if (url === buildSearchUrl('ktk'))
+      vi.fn().mockImplementation((url, opts) => {
+        const ids = JSON.parse(opts.body).identifiers.map((i) => i.id);
+        if (ids.includes('abc'))
           return Promise.resolve(
-            jsonResponse({
-              data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-              has_more: false,
-            }),
+            collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
           );
-        if (url === buildSearchUrl('tktk'))
+        if (ids.includes('tok1'))
           return Promise.resolve(
-            jsonResponse({
-              data: [rawCard({ id: 'tok1', set: 'tktk', prices: { usd: '0.50', usd_foil: null } })],
-              has_more: false,
-            }),
+            collectionResponse([
+              rawCard({ id: 'tok1', set: 'tktk', prices: { usd: '0.50', usd_foil: null } }),
+            ]),
           );
-        return Promise.reject(new Error(`unexpected url: ${url}`));
+        return Promise.reject(new Error(`unexpected ids: ${ids}`));
       }),
     );
 
@@ -715,21 +705,91 @@ describe('refreshSetCardPrices', () => {
     expect(result.tokens.find((c) => c.id === 'tok2').price).toBe('0.20');
   });
 
+  test('skips null collection entries when computing owned ids', async () => {
+    await saveCards('ktk', [
+      { id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null },
+      { id: 'nil', name: 'Nil Card', price: '0.10', priceFoil: null },
+    ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 }, nil: null });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        collectionResponse([rawCard({ prices: { usd: '2.00', usd_foil: null } })]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).identifiers).toHaveLength(1);
+    expect(result.main.find((c) => c.id === 'abc').price).toBe('2.00');
+    expect(result.main.find((c) => c.id === 'nil').price).toBe('0.10');
+  });
+
+  test('skips null token collection entries', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCards('tktk', [
+      { id: 'tok1', name: 'Soldier Token', price: '0.10', priceFoil: null },
+      { id: 'tok2', name: 'Other Token', price: '0.20', priceFoil: null },
+    ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    await saveCollection('tktk', { tok1: { qty: 1, foil: 0 }, tok2: null });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url, opts) => {
+        const ids = JSON.parse(opts.body).identifiers.map((i) => i.id);
+        if (ids.includes('abc'))
+          return Promise.resolve(
+            collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
+          );
+        return Promise.resolve(
+          collectionResponse([
+            rawCard({ id: 'tok1', set: 'tktk', prices: { usd: '0.50', usd_foil: null } }),
+          ]),
+        );
+      }),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens.find((c) => c.id === 'tok1').price).toBe('0.50');
+    expect(result.tokens.find((c) => c.id === 'tok2').price).toBe('0.20');
+  });
+
+  test('returns token cache unchanged when no tokens are owned', async () => {
+    await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
+    await saveCards('tktk', [
+      { id: 'tok1', name: 'Soldier Token', price: '0.10', priceFoil: null },
+    ]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
+        ),
+    );
+
+    const result = await refreshSetCardPrices('ktk');
+
+    expect(result.tokens[0].price).toBe('0.10');
+  });
+
   test('returns null tokens when the token fetch throws', async () => {
     await saveCards('ktk', [{ id: 'abc', name: 'Abzan Guide', price: '0.50', priceFoil: null }]);
     await saveCards('tktk', [{ id: 'tok1', name: 'Soldier Token', price: null, priceFoil: null }]);
+    await saveCollection('ktk', { abc: { qty: 1, foil: 0 } });
+    await saveCollection('tktk', { tok1: { qty: 1, foil: 0 } });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation((url) =>
-        url === buildSearchUrl('ktk')
-          ? Promise.resolve(
-              jsonResponse({
-                data: [rawCard({ prices: { usd: '1.00', usd_foil: null } })],
-                has_more: false,
-              }),
-            )
-          : Promise.resolve(noTokens),
-      ),
+      vi.fn().mockImplementation((url, opts) => {
+        const ids = JSON.parse(opts.body).identifiers.map((i) => i.id);
+        if (ids.includes('abc'))
+          return Promise.resolve(
+            collectionResponse([rawCard({ prices: { usd: '1.00', usd_foil: null } })]),
+          );
+        return Promise.resolve({ ok: false, status: 429 });
+      }),
     );
 
     const result = await refreshSetCardPrices('ktk');

@@ -4,9 +4,11 @@ import {
   loadCards,
   loadCollection,
   loadConfig,
+  loadPartialCards,
   saveCards,
   saveCollection,
   saveConfig,
+  savePartialCards,
 } from './storage.js';
 
 vi.mock('./db.js', () => ({ openDatabase: vi.fn() }));
@@ -79,6 +81,39 @@ describe('saveCards', () => {
   test('does not throw when the database errors', async () => {
     openDatabase.mockRejectedValue(new Error('db error'));
     await expect(saveCards('ktk', [])).resolves.toBeUndefined();
+  });
+});
+
+describe('loadPartialCards', () => {
+  test('returns null when no partial cache exists for the set', async () => {
+    openDatabase.mockResolvedValue(makeDb());
+    expect(await loadPartialCards('znc')).toBeNull();
+  });
+
+  test('returns partial cards stored under the partial: prefix', async () => {
+    const cards = [{ id: '1', name: 'Arrow' }];
+    openDatabase.mockResolvedValue(makeDb({ 'partial:znc': cards }));
+    expect(await loadPartialCards('znc')).toEqual(cards);
+  });
+
+  test('returns null when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    expect(await loadPartialCards('znc')).toBeNull();
+  });
+});
+
+describe('savePartialCards', () => {
+  test('writes cards under the partial: prefix in the cards store', async () => {
+    const db = makeDb();
+    openDatabase.mockResolvedValue(db);
+    const cards = [{ id: '1', name: 'Arrow' }];
+    await savePartialCards('znc', cards);
+    expect(db.put).toHaveBeenCalledWith('cards', cards, 'partial:znc');
+  });
+
+  test('does not throw when the database errors', async () => {
+    openDatabase.mockRejectedValue(new Error('db error'));
+    await expect(savePartialCards('znc', [])).resolves.toBeUndefined();
   });
 });
 

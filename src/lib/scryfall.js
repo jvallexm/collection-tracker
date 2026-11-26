@@ -1,4 +1,4 @@
-import { loadCards, saveCards } from './storage.js';
+import { loadCards, loadCollection, saveCards } from './storage.js';
 
 const SEARCH_ENDPOINT = 'https://api.scryfall.com/cards/search';
 const SETS_ENDPOINT = 'https://api.scryfall.com/sets';
@@ -123,29 +123,47 @@ function fetchCardsFromScryfall(setCode, onPage) {
 }
 
 export async function refreshSetCardPrices(setCode) {
-  const [cached, freshCards] = await Promise.all([
-    loadCards(setCode),
-    fetchCardsFromScryfall(setCode),
-  ]);
-  if (!cached) return { main: freshCards, tokens: null };
+  const [cached, collection] = await Promise.all([loadCards(setCode), loadCollection(setCode)]);
+  if (!cached) return { main: [], tokens: null };
 
-  const priceMap = new Map(
-    freshCards.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
-  );
-  const updated = cached.map((card) => ({ ...card, ...(priceMap.get(card.id) ?? {}) }));
-  await saveCards(setCode, updated);
+  const ownedIds = Object.entries(collection)
+    .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
+    .map(([id]) => id);
+
+  let updated = cached;
+  if (ownedIds.length > 0) {
+    const freshCards = await fetchCardsByIds(ownedIds);
+    const priceMap = new Map(
+      freshCards.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
+    );
+    updated = cached.map((card) => ({ ...card, ...(priceMap.get(card.id) ?? {}) }));
+    await saveCards(setCode, updated);
+  }
 
   const tokenCode = `t${setCode}`;
-  const cachedTokens = await loadCards(tokenCode);
+  const [cachedTokens, tokenCollection] = await Promise.all([
+    loadCards(tokenCode),
+    loadCollection(tokenCode),
+  ]);
   let updatedTokens = null;
   if (cachedTokens) {
-    const freshTokens = await fetchCardsFromScryfall(tokenCode).catch(() => null);
-    if (freshTokens) {
-      const tPriceMap = new Map(
-        freshTokens.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
-      );
-      updatedTokens = cachedTokens.map((card) => ({ ...card, ...(tPriceMap.get(card.id) ?? {}) }));
-      await saveCards(tokenCode, updatedTokens);
+    const ownedTokenIds = Object.entries(tokenCollection)
+      .filter(([, e]) => (e?.qty ?? 0) > 0 || (e?.foil ?? 0) > 0)
+      .map(([id]) => id);
+    if (ownedTokenIds.length > 0) {
+      const freshTokens = await fetchCardsByIds(ownedTokenIds).catch(() => null);
+      if (freshTokens) {
+        const tPriceMap = new Map(
+          freshTokens.map((c) => [c.id, { price: c.price, priceFoil: c.priceFoil }]),
+        );
+        updatedTokens = cachedTokens.map((card) => ({
+          ...card,
+          ...(tPriceMap.get(card.id) ?? {}),
+        }));
+        await saveCards(tokenCode, updatedTokens);
+      }
+    } else {
+      updatedTokens = cachedTokens;
     }
   }
 

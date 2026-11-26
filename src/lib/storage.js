@@ -108,6 +108,24 @@ export async function saveConfig(key, value) {
   }
 }
 
+export async function loadPartialCards(setCode) {
+  try {
+    const db = await openDatabase();
+    return (await db.get('cards', `partial:${setCode}`)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function savePartialCards(setCode, cards) {
+  try {
+    const db = await openDatabase();
+    await db.put('cards', cards, `partial:${setCode}`);
+  } catch {
+    // Database unavailable; partial cache will be re-fetched next time.
+  }
+}
+
 export async function loadAllCollectionKeys() {
   try {
     const db = await openDatabase();

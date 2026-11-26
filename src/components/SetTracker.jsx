@@ -78,6 +78,7 @@ export default function SetTracker({
   const windowRef = useRef(null);
   const searchRef = useRef(null);
   const [cards, setCards] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [collection, setCollection] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -98,11 +99,17 @@ export default function SetTracker({
     (async () => {
       try {
         const cached = await loadCards(setCode);
-        if (cached && !cancelled) setCards(cached);
+        if (cached && !cancelled) {
+          setCards(cached);
+          setIsLoading(false);
+        }
         const main = await fetchSetCards(setCode, (partial) => {
           if (!cancelled) setCards(partial);
         });
-        if (!cancelled) setCards(main);
+        if (!cancelled) {
+          setCards(main);
+          setIsLoading(false);
+        }
         if (cached) {
           refreshSetCardPrices(setCode)
             .then(({ main: fresh }) => {
@@ -232,6 +239,9 @@ export default function SetTracker({
     >
       <Titlebar>
         <span>{setName}</span>
+        {isLoading && cards.length > 0 && (
+          <span className="loading-spinner loading-spinner--inline" aria-label="Loading" />
+        )}
         <div className="titlebar-buttons">
           <TitlebarButton label="Minimize" iconClass="minimize-bar" onClick={onMinimize} />
           <TitlebarButton label="Close" iconClass="close-icon" onClick={onClose} />

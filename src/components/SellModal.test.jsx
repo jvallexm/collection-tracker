@@ -7,7 +7,9 @@ import {
   loadCards,
   loadCollection,
   loadConfig,
+  loadPartialCards,
   saveConfig,
+  savePartialCards,
 } from '../lib/storage.js';
 import SellModal from './SellModal.jsx';
 
@@ -24,7 +26,9 @@ vi.mock('../lib/storage.js', () => ({
   loadCards: vi.fn().mockResolvedValue([]),
   loadCollection: vi.fn().mockResolvedValue({}),
   loadConfig: vi.fn().mockResolvedValue(null),
+  loadPartialCards: vi.fn().mockResolvedValue(null),
   saveConfig: vi.fn().mockResolvedValue(undefined),
+  savePartialCards: vi.fn().mockResolvedValue(undefined),
 }));
 
 const BOLT = makeCard({
@@ -649,6 +653,45 @@ describe('SellModal branch coverage', () => {
     fetchCardsByIds.mockResolvedValue([OTHER]);
     await renderModal();
     expect(document.querySelectorAll('tbody tr')).toHaveLength(0);
+  });
+});
+
+describe('SellModal partial cache', () => {
+  test('uses partial cache for set when full cache is absent', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['znc']);
+    loadCards.mockResolvedValue(null);
+    loadPartialCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(fetchCardsByIds).not.toHaveBeenCalled();
+    expect(screen.getByText('Lightning Bolt')).not.toBeNull();
+  });
+
+  test('saves fetched cards as partial cache grouped by set', async () => {
+    const WRATH = makeCard({
+      id: 'wrath',
+      name: 'Wrath of God',
+      set: 'ELD',
+      nonfoil: true,
+      foil: false,
+    });
+    loadAllCollectionKeys.mockResolvedValue(['znc']);
+    loadCards.mockResolvedValue(null);
+    loadPartialCards.mockResolvedValue(null);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 }, wrath: { qty: 1 } });
+    fetchCardsByIds.mockResolvedValue([BOLT, WRATH]);
+    await renderModal();
+    expect(savePartialCards).toHaveBeenCalledWith('ktk', [BOLT]);
+    expect(savePartialCards).toHaveBeenCalledWith('eld', [WRATH]);
+  });
+
+  test('does not add to uncachedIds when partial cache is available', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue(null);
+    loadPartialCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(fetchCardsByIds).not.toHaveBeenCalledWith(expect.arrayContaining(['bolt']));
   });
 });
 
