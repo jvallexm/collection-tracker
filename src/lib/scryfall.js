@@ -14,18 +14,11 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Serialize all Scryfall page fetches to avoid concurrent requests hitting the rate limit.
 let _scryfallQueue = Promise.resolve();
-let _enqueueCount = 0;
 export function _resetQueueForTesting() {
   _scryfallQueue = Promise.resolve();
-  _enqueueCount = 0;
 }
 function enqueue(fn) {
-  const id = ++_enqueueCount;
-  const task = _scryfallQueue.then(() => {
-    console.log(`[Scryfall] task #${id} starting`);
-    return fn();
-  });
-  task.finally(() => console.log(`[Scryfall] task #${id} done`));
+  const task = _scryfallQueue.then(fn);
   _scryfallQueue = task.catch(() => {}).then(() => delay(DELAY_BETWEEN_PAGES_MS));
   return task;
 }
