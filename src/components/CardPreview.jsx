@@ -7,7 +7,7 @@ export default function CardPreview({ card, pos = null, imageSize = 'small', isF
 
   useEffect(() => {
     setLoading(true);
-  }, [imageSize]);
+  }, [card?.id, imageSize]);
 
   if (!card) return null;
 

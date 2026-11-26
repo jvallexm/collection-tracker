@@ -346,7 +346,6 @@ export default function SellModal({
       </div>
       {createPortal(
         <CardPreview
-          key={focusedCard?.id}
           card={focusedCard}
           pos={cardPreviewPos}
           imageSize={cardImageSize ?? 'small'}
