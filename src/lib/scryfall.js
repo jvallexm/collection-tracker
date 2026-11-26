@@ -25,10 +25,7 @@ function enqueue(fn) {
     console.log(`[Scryfall] task #${id} starting`);
     return fn();
   });
-  task.then(
-    () => console.log(`[Scryfall] task #${id} done`),
-    (e) => console.warn(`[Scryfall] task #${id} error:`, e?.message ?? e),
-  );
+  task.finally(() => console.log(`[Scryfall] task #${id} done`));
   _scryfallQueue = task.catch(() => {}).then(() => delay(DELAY_BETWEEN_PAGES_MS));
   return task;
 }
