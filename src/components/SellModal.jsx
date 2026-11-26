@@ -1,27 +1,80 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ManaCost from './ManaCost.jsx';
 import Titlebar from './reuse/Titlebar.jsx';
 import TitlebarButton from './reuse/TitlebarButton.jsx';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
-import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
+import {
+  loadAllCollectionKeys,
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveConfig,
+} from '../lib/storage.js';
 
 const RARITY_LETTER = { common: 'C', uncommon: 'U', rare: 'R', mythic: 'M' };
+const VERTICAL_STEP = { arrowup: -1, w: -1, arrowdown: 1, s: 1, enter: 1 };
+const HORIZONTAL_STEP = { arrowleft: -1, a: -1, arrowright: 1, d: 1 };
 
 function formatCKPrice(p) {
   if (p == null || p <= 0) return '';
   return `$${Number(p).toFixed(2)}`;
 }
 
-function SellQtyInput({ label, value, max, onChange }) {
+function moveSellFocus(event) {
+  const key = event.key.toLowerCase();
+  const vStep = VERTICAL_STEP[key];
+  const hStep = HORIZONTAL_STEP[key];
+  if (vStep === undefined && hStep === undefined) return;
+
+  event.preventDefault();
+  const col = event.target.dataset.col;
+  const allRows = Array.from(event.currentTarget.querySelectorAll('tr'));
+  const currentRowIdx = allRows.indexOf(event.target.closest('tr'));
+
+  if (vStep !== undefined) {
+    const candidateRows =
+      vStep > 0 ? allRows.slice(currentRowIdx + 1) : allRows.slice(0, currentRowIdx).reverse();
+    for (const row of candidateRows) {
+      const input = row.querySelector(`input[data-col="${col}"]`);
+      if (input && !input.disabled) {
+        input.focus();
+        return;
+      }
+    }
+  } else {
+    const rowInputs = Array.from(event.target.closest('tr').querySelectorAll('input[data-col]'));
+    const idx = rowInputs.indexOf(event.target);
+    const neighbor = rowInputs[idx + hStep];
+    if (!neighbor) return;
+    if (!neighbor.disabled) {
+      neighbor.focus();
+    } else {
+      const targetInputs = Array.from(
+        event.currentTarget.querySelectorAll(`input[data-col="${neighbor.dataset.col}"]`),
+      ).filter((i) => !i.disabled);
+      const next = targetInputs.find((i) => allRows.indexOf(i.closest('tr')) > currentRowIdx);
+      if (next) next.focus();
+    }
+  }
+}
+
+function SellQtyInput({ label, col, value, max, onChange }) {
   return (
     <input
       className="qty-input"
-      type="number"
+      type="text"
+      inputMode="numeric"
       aria-label={label}
+      data-col={col}
       value={value || ''}
-      min={0}
-      max={max}
       disabled={max === 0}
+      onFocus={(e) => e.target.select()}
+      onKeyDown={(e) => {
+        if (e.key === '`') {
+          e.preventDefault();
+          onChange(max);
+        }
+      }}
       onChange={(e) => onChange(Math.min(parseInt(e.target.value, 10) || 0, max))}
     />
   );
@@ -46,6 +99,7 @@ function SellRow({
       <td className="qty-cell">
         <SellQtyInput
           label={`Sell ${card.name}`}
+          col="sell"
           value={sellQty}
           max={qty}
           onChange={onSellChange}
@@ -56,6 +110,7 @@ function SellRow({
       <td className="qty-cell">
         <SellQtyInput
           label={`Foil sell ${card.name}`}
+          col="foil-sell"
           value={foilSellQty}
           max={card.foil ? foil : 0}
           onChange={onFoilSellChange}
@@ -82,6 +137,8 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
   const [cardSetMap, setCardSetMap] = useState({});
   const [sellQtys, setSellQtys] = useState({});
   const [foilSellQtys, setFoilSellQtys] = useState({});
+  const sellQtysReady = useRef(false);
+  const foilSellQtysReady = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -110,6 +167,25 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
       setCardSetMap(indexAccum);
     })();
   }, []);
+
+  useEffect(() => {
+    loadConfig('sellQtys').then((saved) => {
+      sellQtysReady.current = true;
+      if (saved) setSellQtys(saved);
+    });
+    loadConfig('foilSellQtys').then((saved) => {
+      foilSellQtysReady.current = true;
+      if (saved) setFoilSellQtys(saved);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (sellQtysReady.current) saveConfig('sellQtys', sellQtys);
+  }, [sellQtys]);
+
+  useEffect(() => {
+    if (foilSellQtysReady.current) saveConfig('foilSellQtys', foilSellQtys);
+  }, [foilSellQtys]);
 
   useEffect(() => {
     const closeOnEscape = (e) => {
@@ -204,7 +280,7 @@ export default function SellModal({ onClose, openSets = [], ckPrices = null }) {
                     <th className="number-cell">#</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody onKeyDown={moveSellFocus}>
                   {ownedCards.map((card) => (
                     <SellRow
                       key={card.id}

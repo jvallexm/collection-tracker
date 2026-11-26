@@ -1,7 +1,13 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCard } from '../test/fixtures.js';
 import { buildCKSellCsv } from '../lib/cardkingdom.js';
-import { loadAllCollectionKeys, loadCards, loadCollection } from '../lib/storage.js';
+import {
+  loadAllCollectionKeys,
+  loadCards,
+  loadCollection,
+  loadConfig,
+  saveConfig,
+} from '../lib/storage.js';
 import SellModal from './SellModal.jsx';
 
 vi.mock('../lib/cardkingdom.js', () => ({
@@ -12,6 +18,8 @@ vi.mock('../lib/storage.js', () => ({
   loadAllCollectionKeys: vi.fn().mockResolvedValue([]),
   loadCards: vi.fn().mockResolvedValue([]),
   loadCollection: vi.fn().mockResolvedValue({}),
+  loadConfig: vi.fn().mockResolvedValue(null),
+  saveConfig: vi.fn().mockResolvedValue(undefined),
 }));
 
 const BOLT = makeCard({
@@ -131,7 +139,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 2 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
     expect(input.value).toBe('');
   });
 
@@ -140,7 +148,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { foil: 1 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Foil sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' });
     expect(input.value).toBe('');
   });
 
@@ -149,7 +157,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
     fireEvent.change(input, { target: { value: '2' } });
     expect(input.value).toBe('2');
   });
@@ -159,7 +167,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 2 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
     fireEvent.change(input, { target: { value: '99' } });
     expect(input.value).toBe('2');
   });
@@ -169,7 +177,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 1 } });
     await renderModal();
-    expect(screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' }).disabled).toBe(true);
+    expect(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }).disabled).toBe(true);
   });
 
   test('Foil Sell input is disabled when card is not foil-printable', async () => {
@@ -177,7 +185,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([WRATH]);
     loadCollection.mockResolvedValue({ wrath: { qty: 1 } });
     await renderModal();
-    expect(screen.getByRole('spinbutton', { name: 'Foil sell Wrath of God' }).disabled).toBe(true);
+    expect(screen.getByRole('textbox', { name: 'Foil sell Wrath of God' }).disabled).toBe(true);
   });
 
   test('invalid input (NaN) is treated as 0', async () => {
@@ -185,7 +193,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
     fireEvent.change(input, { target: { value: 'abc' } });
     expect(input.value).toBe('');
   });
@@ -195,7 +203,7 @@ describe('SellModal sell qty inputs', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
     await renderModal();
-    const input = screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' });
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
     fireEvent.change(input, { target: { value: '2' } });
     fireEvent.change(input, { target: { value: '0' } });
     expect(input.value).toBe('');
@@ -236,7 +244,7 @@ describe('SellModal export', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
     await renderModal({ openSets: [{ code: 'ktk', name: 'Khans of Tarkir' }] });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -250,7 +258,7 @@ describe('SellModal export', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 3 } });
     await renderModal({ openSets: [{ code: 'ktk', name: 'Khans of Tarkir' }] });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Foil sell Lightning Bolt' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }), {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -275,7 +283,7 @@ describe('SellModal export', () => {
     loadCards.mockResolvedValue([BOLT]);
     loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
     await renderModal({ openSets: [] });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
       target: { value: '1' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -302,7 +310,7 @@ describe('SellModal export', () => {
         { code: 'eld', name: 'Eldraine' },
       ],
     });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Sell Lightning Bolt' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
       target: { value: '1' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -363,5 +371,258 @@ describe('SellModal close', () => {
     await renderModal({ onClose });
     fireEvent.click(document.querySelector('.dialog'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('SellModal keyboard navigation', () => {
+  const BOLT_NOFOIL = makeCard({
+    id: 'bolt-nf',
+    name: 'Bolt NF',
+    rarity: 'common',
+    number: '3',
+    set: 'KTK',
+    nonfoil: true,
+    foil: false,
+  });
+
+  beforeEach(() => {
+    loadAllCollectionKeys.mockResolvedValue(['eld', 'ktk']);
+    loadCards.mockImplementation((code) => Promise.resolve(code === 'eld' ? [WRATH] : [BOLT]));
+    loadCollection.mockResolvedValue({ bolt: { qty: 2, foil: 1 }, wrath: { qty: 1 } });
+  });
+
+  // Rows after sort: WRATH (ELD) first, BOLT (KTK) second.
+  // WRATH foil-sell is disabled (foil: false). BOLT foil-sell is enabled (foil: 1).
+
+  test('ArrowDown from first sell focuses second sell', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Wrath of God' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Wrath of God' }), {
+      key: 'ArrowDown',
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }),
+    );
+  });
+
+  test('ArrowUp from second sell focuses first sell', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
+      key: 'ArrowUp',
+    });
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Sell Wrath of God' }));
+  });
+
+  test('ArrowDown from last sell does not move focus', async () => {
+    await renderModal();
+    const last = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
+    last.focus();
+    fireEvent.keyDown(last, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(last);
+  });
+
+  test('ArrowUp from first sell does not move focus', async () => {
+    await renderModal();
+    const first = screen.getByRole('textbox', { name: 'Sell Wrath of God' });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(first);
+  });
+
+  test('Enter from first sell moves to second sell', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Wrath of God' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Wrath of God' }), { key: 'Enter' });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }),
+    );
+  });
+
+  test('S key moves down, W key moves up', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Wrath of God' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Wrath of God' }), { key: 's' });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }),
+    );
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), { key: 'w' });
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Sell Wrath of God' }));
+  });
+
+  test('ArrowRight from sell moves to enabled foil-sell', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
+      key: 'ArrowRight',
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }),
+    );
+  });
+
+  test('D key moves right, A key moves left', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), { key: 'd' });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }),
+    );
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }), {
+      key: 'a',
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }),
+    );
+  });
+
+  test('ArrowLeft from first column does not move focus', async () => {
+    await renderModal();
+    const sell = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
+    sell.focus();
+    fireEvent.keyDown(sell, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(sell);
+  });
+
+  test('ArrowRight from last column does not move focus', async () => {
+    await renderModal();
+    const foilSell = screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' });
+    foilSell.focus();
+    fireEvent.keyDown(foilSell, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(foilSell);
+  });
+
+  test('ArrowRight to disabled foil-sell finds next enabled foil-sell across rows', async () => {
+    await renderModal();
+    screen.getByRole('textbox', { name: 'Sell Wrath of God' }).focus();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Sell Wrath of God' }), {
+      key: 'ArrowRight',
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }),
+    );
+  });
+
+  test('ArrowRight to disabled foil-sell with no next enabled does not move focus', async () => {
+    loadCards.mockImplementation((code) =>
+      Promise.resolve(code === 'eld' ? [WRATH] : [BOLT_NOFOIL]),
+    );
+    loadCollection.mockResolvedValue({ wrath: { qty: 1 }, 'bolt-nf': { qty: 1 } });
+    await renderModal();
+    const sell = screen.getByRole('textbox', { name: 'Sell Wrath of God' });
+    sell.focus();
+    fireEvent.keyDown(sell, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(sell);
+  });
+
+  test('non-nav key does not move focus', async () => {
+    await renderModal();
+    const sell = screen.getByRole('textbox', { name: 'Sell Wrath of God' });
+    sell.focus();
+    fireEvent.keyDown(sell, { key: 'F' });
+    expect(document.activeElement).toBe(sell);
+  });
+
+  test('ArrowUp from foil-sell skips disabled foil-sell rows', async () => {
+    await renderModal();
+    const foilSell = screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' });
+    foilSell.focus();
+    fireEvent.keyDown(foilSell, { key: 'ArrowUp' });
+    // WRATH foil-sell is disabled, so no prior enabled foil-sell exists → no movement
+    expect(document.activeElement).toBe(foilSell);
+  });
+});
+
+describe('SellModal backtick fill', () => {
+  test('backtick fills sell input with inventory qty', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 3, foil: 0 } });
+    await renderModal();
+    const input = screen.getByRole('textbox', { name: 'Sell Lightning Bolt' });
+    input.focus();
+    fireEvent.keyDown(input, { key: '`' });
+    expect(input.value).toBe('3');
+  });
+
+  test('backtick fills foil-sell input with foil inventory qty', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 2 } });
+    await renderModal();
+    const input = screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' });
+    input.focus();
+    fireEvent.keyDown(input, { key: '`' });
+    expect(input.value).toBe('2');
+  });
+});
+
+describe('SellModal persistence', () => {
+  beforeEach(() => {
+    saveConfig.mockClear();
+    loadConfig.mockResolvedValue(null);
+  });
+
+  test('loads saved sell qtys from config on mount', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
+    loadConfig.mockImplementation((key) =>
+      Promise.resolve(key === 'sellQtys' ? { bolt: 2 } : null),
+    );
+    await renderModal();
+    expect(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }).value).toBe('2');
+  });
+
+  test('loads saved foil sell qtys from config on mount', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 3 } });
+    loadConfig.mockImplementation((key) =>
+      Promise.resolve(key === 'foilSellQtys' ? { bolt: 1 } : null),
+    );
+    await renderModal();
+    expect(screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }).value).toBe('1');
+  });
+
+  test('saves sell qtys to config when changed', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
+    await renderModal();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sell Lightning Bolt' }), {
+      target: { value: '2' },
+    });
+    expect(saveConfig).toHaveBeenCalledWith('sellQtys', { bolt: 2 });
+  });
+
+  test('saves foil sell qtys to config when changed', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 0, foil: 3 } });
+    await renderModal();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Foil sell Lightning Bolt' }), {
+      target: { value: '2' },
+    });
+    expect(saveConfig).toHaveBeenCalledWith('foilSellQtys', { bolt: 2 });
+  });
+
+  test('does not save sell qtys before config is loaded', async () => {
+    let resolveConfig;
+    loadConfig.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveConfig = r;
+      }),
+    );
+    loadConfig.mockResolvedValue(null);
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 3 } });
+    render(<SellModal onClose={vi.fn()} openSets={[]} />);
+    // Don't await act — config hasn't loaded yet
+    expect(saveConfig).not.toHaveBeenCalledWith('sellQtys', expect.anything());
+    await act(async () => {
+      resolveConfig(null);
+    });
   });
 });
