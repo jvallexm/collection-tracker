@@ -275,6 +275,8 @@ describe('fetchSet', () => {
 describe('fetchSetCards', () => {
   const noTokens = { ok: false, status: 404 };
 
+  afterEach(() => vi.useRealTimers());
+
   test('returns normalized cards from a single page', async () => {
     const fetchMock = vi
       .fn()
@@ -311,10 +313,31 @@ describe('fetchSetCards', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const pending = fetchSetCards('ktk');
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(2000);
     const cards = await pending;
 
     expect(cards.map((card) => card.id)).toEqual(['1', '2']);
+  });
+
+  test('calls onPage with accumulated cards after each page', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockImplementation((url) => {
+      if (url === buildSearchUrl('ktk'))
+        return Promise.resolve(
+          jsonResponse({ data: [rawCard({ id: '1' })], has_more: true, next_page: 'https://p2' }),
+        );
+      if (url === 'https://p2')
+        return Promise.resolve(jsonResponse({ data: [rawCard({ id: '2' })], has_more: false }));
+      return Promise.resolve(noTokens);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const snapshots = [];
+    const pending = fetchSetCards('ktk', (partial) => snapshots.push(partial.map((c) => c.id)));
+    await vi.advanceTimersByTimeAsync(2000);
+    await pending;
+
+    expect(snapshots).toEqual([['1'], ['1', '2']]);
   });
 
   test('throws a readable error when the main set fetch fails', async () => {
@@ -457,6 +480,7 @@ describe('fetchSetCards', () => {
   });
 
   test('serializes concurrent calls so fetch is never called concurrently', async () => {
+    vi.useFakeTimers();
     let activeCount = 0;
     let maxActive = 0;
     vi.stubGlobal(
@@ -474,7 +498,9 @@ describe('fetchSetCards', () => {
       }),
     );
 
-    await Promise.all([fetchSetCards('ktk'), fetchSetCards('eld')]);
+    const p = Promise.all([fetchSetCards('ktk'), fetchSetCards('eld')]);
+    await vi.advanceTimersByTimeAsync(2000);
+    await p;
     expect(maxActive).toBe(1);
   });
 });
@@ -774,6 +800,8 @@ describe('fetchTokenCards', () => {
 });
 
 describe('fetchCardsByIds', () => {
+  afterEach(() => vi.useRealTimers());
+
   test('returns normalized cards for the given IDs', async () => {
     vi.stubGlobal(
       'fetch',
@@ -813,12 +841,15 @@ describe('fetchCardsByIds', () => {
   });
 
   test('splits into batches of 75 and makes one request per batch', async () => {
+    vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [] }));
     vi.stubGlobal('fetch', fetchMock);
 
     const { fetchCardsByIds } = await import('./scryfall.js');
     const ids = Array.from({ length: 100 }, (_, i) => `id-${i}`);
-    await fetchCardsByIds(ids);
+    const p = fetchCardsByIds(ids);
+    await vi.advanceTimersByTimeAsync(2000);
+    await p;
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).identifiers).toHaveLength(75);
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).identifiers).toHaveLength(25);

@@ -102,7 +102,7 @@ export async function fetchSets() {
     .map(({ code, name, set_type }) => ({ code, name, set_type }));
 }
 
-function fetchCardsFromScryfall(setCode) {
+function fetchCardsFromScryfall(setCode, onPage) {
   return enqueue(async () => {
     const cards = [];
     let nextUrl = buildSearchUrl(setCode);
@@ -112,10 +112,12 @@ function fetchCardsFromScryfall(setCode) {
       if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
       const page = await response.json();
       cards.push(...page.data.filter((c) => !c.digital).map(normalizeCard));
+      onPage?.(cards.slice());
       nextUrl = page.has_more ? page.next_page : null;
       if (nextUrl) await delay(DELAY_BETWEEN_PAGES_MS);
     }
 
+    await delay(DELAY_BETWEEN_PAGES_MS);
     return cards;
   });
 }
@@ -159,13 +161,13 @@ export async function fetchTokenCards(setCode) {
   return fresh ?? [];
 }
 
-export async function fetchSetCards(setCode) {
+export async function fetchSetCards(setCode, onPage) {
   const cached = await loadCards(setCode);
   if (cached) return cached;
 
   const tokenCode = `t${setCode}`;
   const [mainCards, tokenCards] = await Promise.all([
-    fetchCardsFromScryfall(setCode),
+    fetchCardsFromScryfall(setCode, onPage),
     fetchCardsFromScryfall(tokenCode).catch(() => null),
   ]);
 
@@ -187,6 +189,7 @@ export async function fetchCardsByIds(ids) {
       });
       if (!response.ok) throw new Error(`Scryfall request failed (HTTP ${response.status})`);
       const json = await response.json();
+      await delay(DELAY_BETWEEN_PAGES_MS);
       return json.data.map(normalizeCard);
     });
     cards.push(...batchCards);

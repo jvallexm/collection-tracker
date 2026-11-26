@@ -87,6 +87,34 @@ describe('SetTracker loading', () => {
     expect(screen.queryByLabelText('Loading')).toBeNull();
   });
 
+  test('shows partial cards as each page arrives via onPage callback', async () => {
+    let capturedOnPage;
+    fetchSetCards.mockImplementation((_code, onPage) => {
+      capturedOnPage = onPage;
+      return new Promise(() => {});
+    });
+    render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    expect(screen.queryByLabelText('Copies of Bolt')).toBeNull();
+    await act(async () => capturedOnPage([CARDS[0]]));
+    expect(screen.getByLabelText('Copies of Bolt')).not.toBeNull();
+    expect(screen.queryByLabelText('Copies of Arrow')).toBeNull();
+    await act(async () => capturedOnPage([CARDS[0], CARDS[1]]));
+    expect(screen.getByLabelText('Copies of Arrow')).not.toBeNull();
+  });
+
+  test('ignores onPage callback after component unmounts', async () => {
+    let capturedOnPage;
+    fetchSetCards.mockImplementation((_code, onPage) => {
+      capturedOnPage = onPage;
+      return new Promise(() => {});
+    });
+    const { unmount } = render(<SetTracker setCode="ktk" setName="Khans of Tarkir" />);
+    await act(async () => {});
+    unmount();
+    await act(async () => capturedOnPage([CARDS[0]]));
+  });
+
   test('lists the cards alphabetically once loaded', async () => {
     await renderLoadedTracker();
     expect(rowNames()).toEqual(['Arrow', 'Bolt', 'Charm']);

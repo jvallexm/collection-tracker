@@ -99,7 +99,9 @@ export default function SetTracker({
       try {
         const cached = await loadCards(setCode);
         if (cached && !cancelled) setCards(cached);
-        const main = await fetchSetCards(setCode);
+        const main = await fetchSetCards(setCode, (partial) => {
+          if (!cancelled) setCards(partial);
+        });
         if (!cancelled) setCards(main);
         if (cached) {
           refreshSetCardPrices(setCode)
