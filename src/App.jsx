@@ -78,7 +78,6 @@ export default function App() {
       return updated;
     });
     if (showAllCards && !allCardsMinimized) setAllCardsMinimized(true);
-    refreshCKPrices();
   }
 
   function handleMinimize(code) {

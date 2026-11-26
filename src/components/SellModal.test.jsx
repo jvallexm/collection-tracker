@@ -96,11 +96,37 @@ describe('SellModal columns', () => {
     expect(screen.getByRole('columnheader', { name: 'Foil Sell' })).not.toBeNull();
   });
 
-  test('does not show $ or $F price columns', async () => {
+  test('shows $ and $F price column headers', async () => {
     await renderModal();
     const headers = Array.from(document.querySelectorAll('th')).map((th) => th.textContent.trim());
-    expect(headers).not.toContain('$');
-    expect(headers).not.toContain('$F');
+    expect(headers).toContain('$');
+    expect(headers).toContain('$F');
+  });
+
+  test('shows formatted Scryfall price in $ cell', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([
+      makeCard({
+        id: 'bolt',
+        name: 'Lightning Bolt',
+        price: '2.50',
+        priceFoil: '15.00',
+        nonfoil: true,
+        foil: true,
+      }),
+    ]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(screen.getByText('$2.50')).not.toBeNull();
+    expect(screen.getByText('$15')).not.toBeNull();
+  });
+
+  test('shows — in $ cell when price is null', async () => {
+    loadAllCollectionKeys.mockResolvedValue(['ktk']);
+    loadCards.mockResolvedValue([BOLT]);
+    loadCollection.mockResolvedValue({ bolt: { qty: 1 } });
+    await renderModal();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
   });
 
   test('shows CK and CKF columns when ckPrices is provided', async () => {
