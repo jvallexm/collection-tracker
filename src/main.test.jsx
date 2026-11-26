@@ -11,4 +11,5 @@ test('mounts the app into the #root element', async () => {
 
   expect(await screen.findByText('Khans of Tarkir')).not.toBeNull();
   await act(async () => {}); // flush async IDB collection load
+  await act(async () => {}); // flush usePersistedConfig setState callbacks
 });
