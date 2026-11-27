@@ -178,7 +178,7 @@ describe('fetchSetTokenCards — token processing', () => {
     expect(result.find((c) => c.name === 'Fish // Iridescent Vinelasher')).toBeDefined();
   });
 
-  test('merged DFC card id is front face scryfallId (first tokenPart)', async () => {
+  test('merged DFC card id is set-prefixed hyphenated name without //', async () => {
     const front = makeToken({
       uuid: 'uuid-fish',
       name: 'Fish',
@@ -196,7 +196,7 @@ describe('fetchSetTokenCards — token processing', () => {
     fetch.mockResolvedValue(jsonResponse({ data: { tokens: [front, back] } }));
     const result = await fetchSetTokenCards('blb');
     const dfc = result.find((c) => c.name.includes('//'));
-    expect(dfc.id).toBe('scry-fish');
+    expect(dfc.id).toBe('blb-fish-iridescent-vinelasher');
   });
 
   test('merged DFC card number is front face number', async () => {
@@ -336,7 +336,7 @@ describe('fetchSetTokenCards — token processing', () => {
     expect(result.find((c) => c.name.includes('//')).number).toBe('');
   });
 
-  test('skips DFC pair when front token has no scryfallId', async () => {
+  test('creates DFC pair even when front token has no scryfallId', async () => {
     const front = makeToken({
       uuid: 'uuid-front',
       name: 'Front',
@@ -351,6 +351,8 @@ describe('fetchSetTokenCards — token processing', () => {
     });
     fetch.mockResolvedValue(jsonResponse({ data: { tokens: [front, back] } }));
     const result = await fetchSetTokenCards('blb');
-    expect(result.find((c) => c.name.includes('//'))).toBeUndefined();
+    const dfc = result.find((c) => c.name.includes('//'));
+    expect(dfc).toBeDefined();
+    expect(dfc.id).toBe('blb-front-back');
   });
 });

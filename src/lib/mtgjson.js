@@ -39,13 +39,13 @@ export async function fetchSetTokenCards(setCode) {
       const key = [a.uuid, b.uuid].sort().join('|');
       if (seen.has(key)) continue;
       seen.add(key);
-      const frontId = tokenA.identifiers?.scryfallId;
-      if (!frontId) continue;
       dfcIds.add(a.uuid);
       dfcIds.add(b.uuid);
+      const dfcName = `${tokenA.name} // ${tokenB.name}`;
+      const dfcId = `${setCode}-${dfcName.replace(/\s*\/\/\s*/g, '-').toLowerCase().replace(/\s+/g, '-')}`;
       dfcCards.push({
-        id: frontId,
-        name: `${tokenA.name} // ${tokenB.name}`,
+        id: dfcId,
+        name: dfcName,
         number: tokenA.number ?? '',
       });
     }
